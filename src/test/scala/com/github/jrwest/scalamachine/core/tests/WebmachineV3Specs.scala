@@ -1,6 +1,7 @@
 package com.github.jrwest.scalamachine.core.tests
 
 import org.specs2._
+import matcher.MatchResult
 import mock._
 import com.github.jrwest.scalamachine.core._
 
@@ -35,16 +36,16 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
       "if it is, a response with code 414 is returned"                              ! testURITooLongTrue ^
                                                                                     p^p^
   "B10 - Allowed Method?"                                                           ^
-    "asks resource if the request method is allowed"                                ^
-      "if it is, decision B9 is returned"                                           ! skipped ^
-      "if it is not, a response"                                                    ^
-        "with code 405 is returned"                                                 ! skipped ^
+    "asks resource for list of allowed methods"                                     ^
+      "if request method is contained in allowed methods, decision B9 is returned"  ! testAllowedMethodTrue ^
+      "if request method is not contained in allowed methods, a response"           ^
+        "with code 405 is returned"                                                 ! testAllowedMethodFalseRespCode ^
         "with Allow header set to comma-sep list of allowed methods from resource"  ! skipped ^
                                                                                     p^p^p^
   "B9 - Malformed Request?"                                                         ^
     "asks resource if request is malformed"                                         ^
-      "if it is not, decision b8 is returned"                                       ! skipped ^
-      "if it is, a response with code 400 is returned"                              ! skipped ^
+      "if it is not, decision b8 is returned"                                       ! testMalformedFalse ^
+      "if it is, a response with code 400 is returned"                              ! testMalformedTrue ^
                                                                                     p^p^
   "B8 - Authorized"                                                                 ^
     "asks resource if request is authorized"                                        ^
@@ -84,54 +85,77 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   def createResource = mock[Resource]
   def createData(method: HTTPMethod = GET) = ImmutableReqRespData(method = method)  
 
-  // TODO: these tests could use some convenience methods to make writing the rest of them faster
-  
+  def testDecision(decision: Decision,
+                   stubF: (Resource, ReqRespData) => Unit,
+                   resource: Resource = createResource, 
+                   data: ReqRespData = createData())(f: (ReqRespData, Option[Decision]) => MatchResult[Any]): MatchResult[Any] = {
+    stubF(resource, data) // make call to stub/mock
+    val (retData, mbNextDecision) = decision.decide(resource, data)
+    f(retData, mbNextDecision)
+  }
+
+  def testDecisionReturnsDecision(toTest: Decision,
+                                  expectedDecision: Decision,
+                                  stubF: (Resource, ReqRespData) => Unit,
+                                  resource: Resource = createResource,
+                                  data: ReqRespData = createData()): MatchResult[Any] = {
+    testDecision(toTest, stubF, resource, data) {
+      (_: ReqRespData, mbNextDecision: Option[Decision]) => mbNextDecision must beSome.which { _ == expectedDecision }
+    }
+  }
   def testServiceAvailTrue = {
-    val resource = createResource
-    val data = createData()
-    resource.serviceAvailable(any) returns SimpleResult(true, data)
-    val (_, mbNextDecision) = b13.decide(resource, data)
-    mbNextDecision must beSome.which { _ == b12 }
+    testDecisionReturnsDecision(b13, b12, (r,d) => r.serviceAvailable(any) returns SimpleResult(true,d))
   }
 
   def testServiceAvailFalse = {
-    val resource = createResource
-    val data = createData()
-    resource.serviceAvailable(any) returns SimpleResult(false, data)
-    val (retData, mbNextDecision) = b13.decide(resource, data)
-    (mbNextDecision must beNone) and (retData.statusCode must beEqualTo(503))
+    testDecision(b13, (r,d) => r.serviceAvailable(any) returns SimpleResult(false, d)) {
+      (retData: ReqRespData, mbNextDecision: Option[Decision]) =>
+        (mbNextDecision must beNone) and (retData.statusCode must beEqualTo(503))
+    }
   }
 
   def testKnownMethodTrue = {
-    val resource = createResource
-    val data = createData(method = POST)
-    resource.knownMethods(any) returns SimpleResult(List(GET,POST), data)
-    val (_, mbNextDecision) = b12.decide(resource, data)
-    mbNextDecision must beSome.which { _ == b11 } 
+    testDecisionReturnsDecision(b12, b11, (r,d) => r.knownMethods(any) returns SimpleResult(List(GET,POST), d))
   }
   
   def testKnownMethodFalse = {
-    val resource = createResource
-    val data = createData(method = DELETE)
-    resource.knownMethods(any) returns SimpleResult(List(GET), data)
-    val (retData, mbNextDecision) = b12.decide(resource, data)
-    (mbNextDecision must beNone) and (retData.statusCode must beEqualTo(501))
+    testDecision(b12, (r,d) => r.knownMethods(any) returns SimpleResult(List(GET),d), data = createData(method = POST)) {
+      (retData: ReqRespData, mbNextDecision: Option[Decision]) =>
+        (mbNextDecision must beNone) and (retData.statusCode must beEqualTo(501))
+    }
   }
   
   def testURITooLongFalse = {
-    val resource = createResource
-    val data = createData()
-    resource.uriTooLong(any) returns SimpleResult(false, data)
-    val (_, mbNextDecision) = b11.decide(resource, data)
-    mbNextDecision must beSome.which { _ == b10 }
+    testDecisionReturnsDecision(b11, b10, (r,d) => r.uriTooLong(any) returns SimpleResult(false,d))
   }
   
   def testURITooLongTrue = {
-    val resource = createResource
-    val data = createData()    
-    resource.uriTooLong(any) returns SimpleResult(true, data)
-    val (retData, mbNextDecision) = b11.decide(resource, data)
-    (mbNextDecision must beNone) and (retData.statusCode must beEqualTo(414))
+    testDecision(b11, (r,d) => r.uriTooLong(any) returns SimpleResult(true,d)) {
+      (retData: ReqRespData, mbNextDecision: Option[Decision]) =>
+        (mbNextDecision must beNone) and (retData.statusCode must beEqualTo(414))
+    }
+  }
+
+  def testAllowedMethodTrue = {
+    testDecisionReturnsDecision(b10, b9, (r,d) => r.allowedMethods(any) returns SimpleResult(List(GET,POST),d))
+  }
+
+  def testAllowedMethodFalseRespCode = {
+    testDecision(b10,(r,d) => r.allowedMethods(any) returns SimpleResult(List(GET,DELETE),d), data = createData(method = POST)) {
+      (retData: ReqRespData, mbNextDecision: Option[Decision]) =>
+        (mbNextDecision must beNone) and (retData.statusCode must beEqualTo(405))
+    }
+  }
+  
+  def testMalformedFalse = {
+    testDecisionReturnsDecision(b9, b8, (r,d) => r.isMalformed(any) returns SimpleResult(false,d))
+  }
+
+  def testMalformedTrue = {
+    testDecision(b9,(r,d) => r.isMalformed(any) returns SimpleResult(true,d)) {
+      (retData: ReqRespData, mbNextDecision: Option[Decision]) =>
+        (mbNextDecision must beNone) and (retData.statusCode must beEqualTo(400))
+    }
   }
   
 }

@@ -45,6 +45,8 @@ trait Resource {
   def serviceAvailable(data: ReqRespData): Result[Boolean]
   def knownMethods(data: ReqRespData): Result[List[HTTPMethod]]
   def uriTooLong(data: ReqRespData): Result[Boolean]
+  def allowedMethods(data: ReqRespData): Result[List[HTTPMethod]]
+  def isMalformed(data: ReqRespData): Result[Boolean]
 }
 
 trait Decision {
