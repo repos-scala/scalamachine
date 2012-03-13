@@ -49,9 +49,9 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
                                                                                     p^p^
   "B8 - Authorized"                                                                 ^
     "asks resource if request is authorized"                                        ^
-      "if it is, decision B7 is returned"                                           ! skipped ^
+      "if it is, decision B7 is returned"                                           ! testAuthTrue ^
       "if it is not, a response"                                                    ^
-        "with code 401 is returned"                                                 ! skipped ^
+        "with code 401 is returned"                                                 ! testAuthFalseRespCode ^
         "with the WWW-Authenticate header not set if resource result was a halt"    ! skipped ^
         "with the WWW-Authenticate header not set if the resource result was error" ! skipped ^
         "with the WWW-Authenticate header set to value returned by resource"        ! skipped ^
@@ -103,14 +103,24 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
       (_: ReqRespData, mbNextDecision: Option[Decision]) => mbNextDecision must beSome.which { _ == expectedDecision }
     }
   }
+  
+  def testDecisionReturnsData(toTest: Decision, 
+                              stubF: (Resource,ReqRespData) => Unit,
+                              resource: Resource = createResource,
+                              data: ReqRespData = createData())(f: ReqRespData => MatchResult[Any]): MatchResult[Any] = {
+    testDecision(toTest, stubF, resource, data) {
+      (retData: ReqRespData, mbNextDecision: Option[Decision]) => (mbNextDecision must beNone) and f(retData)
+    }
+  }
+                          
+  
   def testServiceAvailTrue = {
     testDecisionReturnsDecision(b13, b12, (r,d) => r.serviceAvailable(any) returns SimpleResult(true,d))
   }
 
   def testServiceAvailFalse = {
-    testDecision(b13, (r,d) => r.serviceAvailable(any) returns SimpleResult(false, d)) {
-      (retData: ReqRespData, mbNextDecision: Option[Decision]) =>
-        (mbNextDecision must beNone) and (retData.statusCode must beEqualTo(503))
+    testDecisionReturnsData(b13, (r,d) => r.serviceAvailable(any) returns SimpleResult(false, d)) {
+      _.statusCode must beEqualTo(503)
     }
   }
 
@@ -119,9 +129,8 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   }
   
   def testKnownMethodFalse = {
-    testDecision(b12, (r,d) => r.knownMethods(any) returns SimpleResult(List(GET),d), data = createData(method = POST)) {
-      (retData: ReqRespData, mbNextDecision: Option[Decision]) =>
-        (mbNextDecision must beNone) and (retData.statusCode must beEqualTo(501))
+    testDecisionReturnsData(b12, (r,d) => r.knownMethods(any) returns SimpleResult(List(GET),d), data = createData(method = POST)) {
+      _.statusCode must beEqualTo(501)
     }
   }
   
@@ -130,9 +139,8 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   }
   
   def testURITooLongTrue = {
-    testDecision(b11, (r,d) => r.uriTooLong(any) returns SimpleResult(true,d)) {
-      (retData: ReqRespData, mbNextDecision: Option[Decision]) =>
-        (mbNextDecision must beNone) and (retData.statusCode must beEqualTo(414))
+    testDecisionReturnsData(b11, (r,d) => r.uriTooLong(any) returns SimpleResult(true,d)) {
+      _.statusCode must beEqualTo(414)
     }
   }
 
@@ -141,18 +149,16 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   }
 
   def testAllowedMethodFalseRespCode = {
-    testDecision(b10,(r,d) => r.allowedMethods(any) returns SimpleResult(List(GET,DELETE),d), data = createData(method = POST)) {
-      (retData: ReqRespData, mbNextDecision: Option[Decision]) =>
-        (mbNextDecision must beNone) and (retData.statusCode must beEqualTo(405))
+    testDecisionReturnsData(b10,(r,d) => r.allowedMethods(any) returns SimpleResult(List(GET,DELETE),d), data = createData(method = POST)) {
+      _.statusCode must beEqualTo(405)
     }
   }
 
   def testAllowedMethodFalseAllowHeader = {
-    testDecision(b10, (r, d) => r.allowedMethods(any) returns SimpleResult(List(GET,POST,DELETE),d), data = createData(method=PUT)) {
-      (retData: ReqRespData, mbNextDecision: Option[Decision]) =>
-        (mbNextDecision must beNone) and (retData.responseHeader("Allow") must beSome.like {
-          case s => s must contain("GET") and contain("POST") and contain("DELETE")
-        }) // this could be improved (use the actual list above)
+    testDecisionReturnsData(b10, (r, d) => r.allowedMethods(any) returns SimpleResult(List(GET,POST,DELETE),d), data = createData(method=PUT)) {
+      _.responseHeader("Allow") must beSome.like {
+        case s => s must contain("GET") and contain("POST") and contain("DELETE") // this could be improved (use the actual list above)
+      }
     }
   }
   
@@ -161,9 +167,18 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   }
 
   def testMalformedTrue = {
-    testDecision(b9,(r,d) => r.isMalformed(any) returns SimpleResult(true,d)) {
-      (retData: ReqRespData, mbNextDecision: Option[Decision]) =>
-        (mbNextDecision must beNone) and (retData.statusCode must beEqualTo(400))
+    testDecisionReturnsData(b9,(r,d) => r.isMalformed(any) returns SimpleResult(true,d)) {
+      _.statusCode must beEqualTo(400)
+    }
+  }
+
+  def testAuthTrue = {
+    testDecisionReturnsDecision(b8, b7, (r,d) => r.isAuthorized(any) returns SimpleResult(true,d))
+  }
+  
+  def testAuthFalseRespCode = {
+    testDecisionReturnsData(b8,(r,d) => r.isAuthorized(any) returns SimpleResult(false,d)) {
+      _.statusCode must beEqualTo(401)
     }
   }
   

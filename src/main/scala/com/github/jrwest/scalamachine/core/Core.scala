@@ -70,6 +70,7 @@ trait Resource {
   def uriTooLong(data: ReqRespData): Result[Boolean]
   def allowedMethods(data: ReqRespData): Result[List[HTTPMethod]]
   def isMalformed(data: ReqRespData): Result[Boolean]
+  def isAuthorized(data: ReqRespData): Result[Boolean]
 }
 
 trait Decision {
