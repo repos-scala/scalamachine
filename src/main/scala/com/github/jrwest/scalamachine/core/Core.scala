@@ -66,7 +66,15 @@ trait Result[+T] {
 }
 
 case class SimpleResult[T](value: T, data: ReqRespData, context: Context) extends Result[T] {
-  private[core] def setData(data: ReqRespData) = copy(data = data)
+  private[core] def setData(d: ReqRespData) = copy(data = d)
+}
+case class ErrorResult(error: Any, data: ReqRespData, context: Context) extends Result[Any] {
+  val value = error
+  private[core] def setData(d: ReqRespData) = copy(data = d)
+}
+case class HaltResult(code: Int, data: ReqRespData, context: Context) extends Result[Int] {
+  val value = code
+  private[core] def setData(d: ReqRespData) = copy(data = d)
 }
 
 trait Context
@@ -142,6 +150,7 @@ object Decision {
 
 // methods are split up to allow stacking at start/end of flow as well as start/end of each decision
 // run decision is pretty much extraneous outside of that
+// TODO: rethink how stacking is allowed here, intention is to allow stacking at start/end flow and start/end decision
 trait FlowRunnerBase {    
 
   def run(decision: Decision, resource: Resource, data: ReqRespData, ctx: Context): ReqRespData
@@ -156,10 +165,11 @@ trait FlowRunner extends FlowRunnerBase {
   // can't mark this tail recursive if we want it to be stackable :(
   // can build an "optimized trait" later
   def run(decision: Decision, resource: Resource, data: ReqRespData, ctx: Context): ReqRespData = {
-    val (result, mbNext) = runDecision(decision, resource, data, ctx)
-    mbNext match {
-      case Some(next) => run(next, resource, result.data, result.context)
-      case _ => result.data
+    runDecision(decision, resource, data, ctx) match {
+      case (SimpleResult(_, newData, newContext), Some(nextDecision)) => run(nextDecision, resource, newData, newContext)
+      case (ErrorResult(_, newData, _), _) => newData.setStatusCode(500)
+      case (HaltResult(code, newData, _), _) => newData.setStatusCode(code)
+      case (result, _) => result.data
     }
   }
 

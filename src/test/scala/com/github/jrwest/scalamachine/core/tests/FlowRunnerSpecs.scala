@@ -24,7 +24,15 @@ class FlowRunnerSpecs extends Specification with Mockito { def is =
     "returns the result returned from the last decision"                            ! testReturnsUpdatedDataWhenTerminates ^
                                                                                     p^
   "Give a Decision which returns another decision"                                  ^
-    "the runner runs the next decision"                                             ! testContinuesWithNextDecision ^
+    "if the result is a SimpleResult, the runner runs the next decision"            ! testContinuesWithNextDecisionOnSimpleResult ^
+    "if the result is a ErrorResult"                                                ^
+      "the next decision is not run"                                                ! testErrorResultDoesNotRunNextDecision ^
+      "the resulting data is returned with the response"                            ^
+        "having code 500"                                                           ! testErrorResultReturns500Response ^
+        "body set to the value returned as part of the result"                      ! skipped ^p^p^
+    "if the result is a HaltResult"                                                 ^
+       "the next decision is not run"                                               ! testHaltResultDoesNotRunNextDecision ^
+       "the returned data has response code matching HaltResult code"               ! testHaltResultReturnsResponseWithHaltCode ^
                                                                                     end
 
   trait TestFlowTracking extends FlowRunnerBase {
@@ -65,14 +73,47 @@ class FlowRunnerSpecs extends Specification with Mockito { def is =
       beEqualTo(endData) and not(beEqualTo(startData))
   }
   
-  def testContinuesWithNextDecision = {
+  def testContinuesWithNextDecisionOnSimpleResult = {
     val secondDecision = decisionReturning(createResult(), None)
     val firstDecision = decisionReturning(createResult(), Some(secondDecision))
     val flow = newFlow
     flow.run(firstDecision, mock[Resource], mock[ReqRespData], mock[Context])
-    flow.steps.reverse.headOption must beSome.like {
+    (flow.steps.size must beEqualTo(2)) and (flow.steps.reverse.headOption must beSome.like {
       case (d1, Right(d2)) if d1 == firstDecision => d2 must beEqualTo(secondDecision)
-    }
+    })
+  }
+
+  def testErrorResultDoesNotRunNextDecision = {
+    val secondDecision = decisionReturning(createResult(), None)
+    val firstDecision = decisionReturning(ErrorResult(null,mock[ReqRespData],mock[Context]), Some(secondDecision))
+    val flow = newFlow
+    flow.run(firstDecision, mock[Resource], mock[ReqRespData], mock[Context])
+    flow.steps.size must beEqualTo(1)
+  }
+  
+  def testErrorResultReturns500Response = {
+    val secondDecision = decisionReturning(createResult(), None)
+    val firstDecision = decisionReturning(ErrorResult(null,ImmutableReqRespData(GET),mock[Context]), Some(secondDecision))
+    val flow = newFlow
+    val result = flow.run(firstDecision, mock[Resource], ImmutableReqRespData(GET), mock[Context])
+    result.statusCode must beEqualTo(500)
+  }
+  
+  def testHaltResultDoesNotRunNextDecision = {
+    val secondDecision = decisionReturning(createResult(), None)
+    val firstDecision = decisionReturning(HaltResult(400,mock[ReqRespData],mock[Context]), Some(secondDecision))
+    val flow = newFlow
+    flow.run(firstDecision, mock[Resource], mock[ReqRespData], mock[Context])
+    flow.steps.size must beEqualTo(1)
+  }
+  
+  def testHaltResultReturnsResponseWithHaltCode = {
+    val code = 401
+    val secondDecision = decisionReturning(createResult(), None)
+    val firstDecision = decisionReturning(HaltResult(code,ImmutableReqRespData(GET),mock[Context]), Some(secondDecision))
+    val flow = newFlow
+    val result = flow.run(firstDecision, mock[Resource], ImmutableReqRespData(GET), mock[Context])
+    result.statusCode must beEqualTo(code)
   }
   
 }
