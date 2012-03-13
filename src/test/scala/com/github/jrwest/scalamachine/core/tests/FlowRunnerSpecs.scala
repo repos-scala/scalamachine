@@ -19,54 +19,55 @@ class FlowRunnerSpecs extends Specification with Mockito { def is =
   each decision until it is given a response instead.
   """                                                                               ^
                                                                                     p^
-  "Given a Decision which returns ReqRespData"                                      ^
+  "Given a Decision which returns a result but not another decision"                ^
     "the runner terminates running that decision last"                              ! testTerminatesWhenNoDecisionReturned ^
-    "returns the (data,context) returned from the last decision"                    ! testReturnsUpdatedDataWhenTerminates ^
+    "returns the result returned from the last decision"                            ! testReturnsUpdatedDataWhenTerminates ^
                                                                                     p^
   "Give a Decision which returns another decision"                                  ^
     "the runner runs the next decision"                                             ! testContinuesWithNextDecision ^
                                                                                     end
 
   trait TestFlowTracking extends FlowRunnerBase {
-    var steps = List[(Decision, Either[(ReqRespData,Context),Decision])]()
+    var steps = List[(Decision, Either[Result[Any],Decision])]()
     abstract override protected def runDecision(decision: Decision, resource: Resource, data: ReqRespData, ctx: Context) = {
       val result = super.runDecision(decision, resource, data,ctx)
-      val  (newDataCtx, nextDecision) = result
-      steps = nextDecision.map((d: Decision) => (decision,Right(d))).getOrElse((decision,Left(newDataCtx))) :: steps
+      val  (res, nextDecision) = result
+      steps = nextDecision.map((d: Decision) => (decision,Right(d))).getOrElse((decision,Left(res))) :: steps
       result
     }
   }
   
   class TestFlow extends FlowRunner with TestFlowTracking
 
-  def newFlow = new TestFlow 
+  def newFlow = new TestFlow
+  def createResult(data: ReqRespData = mock[ReqRespData], ctx: Context = mock[Context], value: Any = null): Result[Any] = SimpleResult(value, data, ctx)
 
-  def decisionReturning(data: ReqRespData, ctx: Context, next: Option[Decision]) = {
+  def decisionReturning(result: Result[Any], next: Option[Decision]) = {
     val decision = mock[Decision]
-    decision.decide(any, any, any) returns (((data,ctx), next))
+    decision.decide(any, any, any) returns ((result, next))
     decision
   } 
   
   def testTerminatesWhenNoDecisionReturned = {    
-    val returnedData = mock[ReqRespData]
-    val returnedContext = mock[Context]
-    val decision = decisionReturning(returnedData, returnedContext, None)
+    val returnedResult = createResult()
+    val decision = decisionReturning(returnedResult, None)
     val flow = newFlow
     flow.run(decision, mock[Resource], mock[ReqRespData], mock[Context])
-    flow.steps must haveTheSameElementsAs((decision,Left((returnedData,returnedContext))) :: Nil)
+    flow.steps must haveTheSameElementsAs((decision,Left(returnedResult)) :: Nil)
   }
 
   def testReturnsUpdatedDataWhenTerminates = {
     val startData = mock[ReqRespData]
-    val returnedData = mock[ReqRespData]
-    val decision = decisionReturning(returnedData, mock[Context], None)
+    val endData = mock[ReqRespData]
+    val returnedResult = createResult(data = endData)
+    val decision = decisionReturning(returnedResult, None)
     newFlow.run(decision, mock[Resource], startData, mock[Context]) must
-      beEqualTo(returnedData) and not(beEqualTo(startData))
+      beEqualTo(endData) and not(beEqualTo(startData))
   }
   
   def testContinuesWithNextDecision = {
-    val secondDecision = decisionReturning(mock[ReqRespData], mock[Context], None)
-    val firstDecision = decisionReturning(mock[ReqRespData], mock[Context], Some(secondDecision))
+    val secondDecision = decisionReturning(createResult(), None)
+    val firstDecision = decisionReturning(createResult(), Some(secondDecision))
     val flow = newFlow
     flow.run(firstDecision, mock[Resource], mock[ReqRespData], mock[Context])
     flow.steps.reverse.headOption must beSome.like {

@@ -61,9 +61,13 @@ trait Result[+T] {
   def value: T
   def context: Context
   def data: ReqRespData
+    
+  private[core] def setData(data: ReqRespData): Result[T]
 }
 
-case class SimpleResult[T](value: T, data: ReqRespData, context: Context) extends Result[T]
+case class SimpleResult[T](value: T, data: ReqRespData, context: Context) extends Result[T] {
+  private[core] def setData(data: ReqRespData) = copy(data = data)
+}
 
 trait Context
 trait Resource {
@@ -77,9 +81,11 @@ trait Resource {
 
 trait Decision {
 
+  
   def name: String
 
-  def decide(resource: Resource, data: ReqRespData, ctx: Context): ((ReqRespData,Context), Option[Decision])
+  // we use any for the type parameterizing Result because the value is not required at higher levels
+  def decide(resource: Resource, data: ReqRespData, ctx: Context): (Result[Any], Option[Decision])
 
   override def equals(o: Any): Boolean = o match {
     case o: Decision => o.name == name
@@ -119,15 +125,15 @@ object Decision {
     
     def name = decisionName
     
-    def decide(resource: Resource, data: ReqRespData, context: Context): ((ReqRespData,Context), Option[Decision]) = {
+    def decide(resource: Resource, data: ReqRespData, context: Context): (Result[T], Option[Decision]) = {
       val result = test(resource)(data, context)
       if (check(result.value, data)) handle(result, onSuccess)
       else handle(result, onFailure)
     }
 
     def handle(result: Result[T], handle: Either[Result[T] => ReqRespData, Decision]) = handle match {
-      case Left(f) => ((f(result),result.context), None)
-      case Right(d) => ((result.data, result.context), Some(d))
+      case Left(f) => (result.setData(f(result)), None)
+      case Right(d) => (result, Some(d))
     }
     
   }
@@ -140,7 +146,8 @@ trait FlowRunnerBase {
 
   def run(decision: Decision, resource: Resource, data: ReqRespData, ctx: Context): ReqRespData
 
-  protected def runDecision(decision: Decision, resource: Resource, data: ReqRespData, ctx: Context): ((ReqRespData,Context), Option[Decision])
+  // Result[Any] is used here because the decision result type is not actually cared about at this layer
+  protected def runDecision(decision: Decision, resource: Resource, data: ReqRespData, ctx: Context): (Result[Any], Option[Decision])
 
 }
 
@@ -149,13 +156,14 @@ trait FlowRunner extends FlowRunnerBase {
   // can't mark this tail recursive if we want it to be stackable :(
   // can build an "optimized trait" later
   def run(decision: Decision, resource: Resource, data: ReqRespData, ctx: Context): ReqRespData = {
-    val ((newData,newCtx), mbNext) = runDecision(decision, resource, data, ctx)
+    val (result, mbNext) = runDecision(decision, resource, data, ctx)
     mbNext match {
-      case Some(next) => run(next, resource, newData, newCtx)
-      case _ => newData
+      case Some(next) => run(next, resource, result.data, result.context)
+      case _ => result.data
     }
   }
 
-  protected def runDecision(decision: Decision, resource: Resource, data: ReqRespData,ctx: Context) = decision.decide(resource, data, ctx)
+  protected def runDecision(decision: Decision, resource: Resource, data: ReqRespData, ctx: Context): (Result[Any], Option[Decision]) =
+    decision.decide(resource, data, ctx)
 
 }

@@ -91,8 +91,8 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
                    data: ReqRespData = createData(),
                    ctx: Context = mock[Context])(f: (ReqRespData, Option[Decision]) => MatchResult[Any]): MatchResult[Any] = {
     stubF(resource, data) // make call to stub/mock
-    val (retData, mbNextDecision) = decision.decide(resource, data,ctx)
-    f(retData._1, mbNextDecision)
+    val (result, mbNextDecision) = decision.decide(resource, data,ctx)
+    f(result.data, mbNextDecision)
   }
 
   def testDecisionReturnsDecision(toTest: Decision,
