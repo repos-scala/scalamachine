@@ -40,7 +40,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
       "if request method is contained in allowed methods, decision B9 is returned"  ! testAllowedMethodTrue ^
       "if request method is not contained in allowed methods, a response"           ^
         "with code 405 is returned"                                                 ! testAllowedMethodFalseRespCode ^
-        "with Allow header set to comma-sep list of allowed methods from resource"  ! skipped ^
+        "with Allow header set to comma-sep list of allowed methods from resource"  ! testAllowedMethodFalseAllowHeader ^
                                                                                     p^p^p^
   "B9 - Malformed Request?"                                                         ^
     "asks resource if request is malformed"                                         ^
@@ -144,6 +144,15 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     testDecision(b10,(r,d) => r.allowedMethods(any) returns SimpleResult(List(GET,DELETE),d), data = createData(method = POST)) {
       (retData: ReqRespData, mbNextDecision: Option[Decision]) =>
         (mbNextDecision must beNone) and (retData.statusCode must beEqualTo(405))
+    }
+  }
+
+  def testAllowedMethodFalseAllowHeader = {
+    testDecision(b10, (r, d) => r.allowedMethods(any) returns SimpleResult(List(GET,POST,DELETE),d), data = createData(method=PUT)) {
+      (retData: ReqRespData, mbNextDecision: Option[Decision]) =>
+        (mbNextDecision must beNone) and (retData.responseHeader("Allow") must beSome.like {
+          case s => s must contain("GET") and contain("POST") and contain("DELETE")
+        }) // this could be improved (use the actual list above)
     }
   }
   
