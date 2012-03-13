@@ -88,10 +88,11 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   def testDecision(decision: Decision,
                    stubF: (Resource, ReqRespData) => Unit,
                    resource: Resource = createResource, 
-                   data: ReqRespData = createData())(f: (ReqRespData, Option[Decision]) => MatchResult[Any]): MatchResult[Any] = {
+                   data: ReqRespData = createData(),
+                   ctx: Context = mock[Context])(f: (ReqRespData, Option[Decision]) => MatchResult[Any]): MatchResult[Any] = {
     stubF(resource, data) // make call to stub/mock
-    val (retData, mbNextDecision) = decision.decide(resource, data)
-    f(retData, mbNextDecision)
+    val (retData, mbNextDecision) = decision.decide(resource, data,ctx)
+    f(retData._1, mbNextDecision)
   }
 
   def testDecisionReturnsDecision(toTest: Decision,
@@ -115,47 +116,47 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
                           
   
   def testServiceAvailTrue = {
-    testDecisionReturnsDecision(b13, b12, (r,d) => r.serviceAvailable(any) returns SimpleResult(true,d))
+    testDecisionReturnsDecision(b13, b12, (r,d) => r.serviceAvailable(any,any) returns SimpleResult(true,d,mock[Context]))
   }
 
   def testServiceAvailFalse = {
-    testDecisionReturnsData(b13, (r,d) => r.serviceAvailable(any) returns SimpleResult(false, d)) {
+    testDecisionReturnsData(b13, (r,d) => r.serviceAvailable(any,any) returns SimpleResult(false, d,mock[Context])) {
       _.statusCode must beEqualTo(503)
     }
   }
 
   def testKnownMethodTrue = {
-    testDecisionReturnsDecision(b12, b11, (r,d) => r.knownMethods(any) returns SimpleResult(List(GET,POST), d))
+    testDecisionReturnsDecision(b12, b11, (r,d) => r.knownMethods(any,any) returns SimpleResult(List(GET,POST), d,mock[Context]))
   }
   
   def testKnownMethodFalse = {
-    testDecisionReturnsData(b12, (r,d) => r.knownMethods(any) returns SimpleResult(List(GET),d), data = createData(method = POST)) {
+    testDecisionReturnsData(b12, (r,d) => r.knownMethods(any,any) returns SimpleResult(List(GET),d,mock[Context]), data = createData(method = POST)) {
       _.statusCode must beEqualTo(501)
     }
   }
   
   def testURITooLongFalse = {
-    testDecisionReturnsDecision(b11, b10, (r,d) => r.uriTooLong(any) returns SimpleResult(false,d))
+    testDecisionReturnsDecision(b11, b10, (r,d) => r.uriTooLong(any,any) returns SimpleResult(false,d,mock[Context]))
   }
   
   def testURITooLongTrue = {
-    testDecisionReturnsData(b11, (r,d) => r.uriTooLong(any) returns SimpleResult(true,d)) {
+    testDecisionReturnsData(b11, (r,d) => r.uriTooLong(any,any) returns SimpleResult(true,d,mock[Context])) {
       _.statusCode must beEqualTo(414)
     }
   }
 
   def testAllowedMethodTrue = {
-    testDecisionReturnsDecision(b10, b9, (r,d) => r.allowedMethods(any) returns SimpleResult(List(GET,POST),d))
+    testDecisionReturnsDecision(b10, b9, (r,d) => r.allowedMethods(any,any) returns SimpleResult(List(GET,POST),d,mock[Context]))
   }
 
   def testAllowedMethodFalseRespCode = {
-    testDecisionReturnsData(b10,(r,d) => r.allowedMethods(any) returns SimpleResult(List(GET,DELETE),d), data = createData(method = POST)) {
+    testDecisionReturnsData(b10,(r,d) => r.allowedMethods(any,any) returns SimpleResult(List(GET,DELETE),d,mock[Context]), data = createData(method = POST)) {
       _.statusCode must beEqualTo(405)
     }
   }
 
   def testAllowedMethodFalseAllowHeader = {
-    testDecisionReturnsData(b10, (r, d) => r.allowedMethods(any) returns SimpleResult(List(GET,POST,DELETE),d), data = createData(method=PUT)) {
+    testDecisionReturnsData(b10, (r, d) => r.allowedMethods(any,any) returns SimpleResult(List(GET,POST,DELETE),d,mock[Context]), data = createData(method=PUT)) {
       _.responseHeader("Allow") must beSome.like {
         case s => s must contain("GET") and contain("POST") and contain("DELETE") // this could be improved (use the actual list above)
       }
@@ -163,21 +164,21 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   }
   
   def testMalformedFalse = {
-    testDecisionReturnsDecision(b9, b8, (r,d) => r.isMalformed(any) returns SimpleResult(false,d))
+    testDecisionReturnsDecision(b9, b8, (r,d) => r.isMalformed(any,any) returns SimpleResult(false,d,mock[Context]))
   }
 
   def testMalformedTrue = {
-    testDecisionReturnsData(b9,(r,d) => r.isMalformed(any) returns SimpleResult(true,d)) {
+    testDecisionReturnsData(b9,(r,d) => r.isMalformed(any,any) returns SimpleResult(true,d,mock[Context])) {
       _.statusCode must beEqualTo(400)
     }
   }
 
   def testAuthTrue = {
-    testDecisionReturnsDecision(b8, b7, (r,d) => r.isAuthorized(any) returns SimpleResult(true,d))
+    testDecisionReturnsDecision(b8, b7, (r,d) => r.isAuthorized(any,any) returns SimpleResult(true,d,mock[Context]))
   }
   
   def testAuthFalseRespCode = {
-    testDecisionReturnsData(b8,(r,d) => r.isAuthorized(any) returns SimpleResult(false,d)) {
+    testDecisionReturnsData(b8,(r,d) => r.isAuthorized(any,any) returns SimpleResult(false,d,mock[Context])) {
       _.statusCode must beEqualTo(401)
     }
   }

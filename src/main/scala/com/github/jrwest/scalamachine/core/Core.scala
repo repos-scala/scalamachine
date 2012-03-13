@@ -59,25 +59,27 @@ case object OPTIONS extends HTTPMethod {
 
 trait Result[+T] {
   def value: T
+  def context: Context
   def data: ReqRespData
 }
 
-case class SimpleResult[T](value: T, data: ReqRespData) extends Result[T]
+case class SimpleResult[T](value: T, data: ReqRespData, context: Context) extends Result[T]
 
+trait Context
 trait Resource {
-  def serviceAvailable(data: ReqRespData): Result[Boolean]
-  def knownMethods(data: ReqRespData): Result[List[HTTPMethod]]
-  def uriTooLong(data: ReqRespData): Result[Boolean]
-  def allowedMethods(data: ReqRespData): Result[List[HTTPMethod]]
-  def isMalformed(data: ReqRespData): Result[Boolean]
-  def isAuthorized(data: ReqRespData): Result[Boolean]
+  def serviceAvailable(data: ReqRespData, ctx: Context): Result[Boolean]
+  def knownMethods(data: ReqRespData, ctx: Context): Result[List[HTTPMethod]]
+  def uriTooLong(data: ReqRespData, ctx: Context): Result[Boolean]
+  def allowedMethods(data: ReqRespData, ctx: Context): Result[List[HTTPMethod]]
+  def isMalformed(data: ReqRespData, ctx: Context): Result[Boolean]
+  def isAuthorized(data: ReqRespData, ctx: Context): Result[Boolean]
 }
 
 trait Decision {
 
   def name: String
 
-  def decide(resource: Resource, data: ReqRespData): (ReqRespData, Option[Decision])
+  def decide(resource: Resource, data: ReqRespData, ctx: Context): ((ReqRespData,Context), Option[Decision])
 
   override def equals(o: Any): Boolean = o match {
     case o: Decision => o.name == name
@@ -92,40 +94,40 @@ object Decision {
 
   def apply[T](decisionName: String, 
                expected: T, 
-               test: Resource => ReqRespData => Result[T],
+               test: Resource => (ReqRespData, Context) => Result[T],
                onSuccess: Decision,
                onFailure: Int): Decision = apply(decisionName, expected, test, Right(onSuccess), Left(setStatus(onFailure)))
   
   def apply[T](decisionName: String, 
                expected: T, 
-               test: Resource => ReqRespData => Result[T],
+               test: Resource => (ReqRespData, Context) => Result[T],
                onSuccess: Int, 
                onFailure: Decision): Decision = apply(decisionName, expected, test, Left(setStatus(onSuccess)), Right(onFailure))
   
   def apply[T](decisionName: String,
                    expected: T,
-                   test: Resource => ReqRespData => Result[T],
+                   test: Resource => (ReqRespData,Context) => Result[T],
                    onSuccess: Either[Result[T] => ReqRespData, Decision],
                    onFailure: Either[Result[T] => ReqRespData, Decision]): Decision = apply(decisionName, test, (res: T, _: ReqRespData) => res == expected, onSuccess, onFailure)
 
   
-  def apply[T](decisionName: String, test: Resource => ReqRespData => Result[T], check: (T, ReqRespData) => Boolean, onSuccess: Decision, onFailure: Int): Decision = apply(decisionName, test, check, onSuccess, setStatus(onFailure))
+  def apply[T](decisionName: String, test: Resource => (ReqRespData,Context) => Result[T], check: (T, ReqRespData) => Boolean, onSuccess: Decision, onFailure: Int): Decision = apply(decisionName, test, check, onSuccess, setStatus(onFailure))
   
-  def apply[T](decisionName: String, test: Resource => ReqRespData => Result[T], check: (T, ReqRespData) => Boolean, onSuccess: Decision, onFailure: Result[T] => ReqRespData): Decision = apply(decisionName, test, check, Right(onSuccess), Left(onFailure))
+  def apply[T](decisionName: String, test: Resource => (ReqRespData,Context) => Result[T], check: (T, ReqRespData) => Boolean, onSuccess: Decision, onFailure: Result[T] => ReqRespData): Decision = apply(decisionName, test, check, Right(onSuccess), Left(onFailure))
   
-  def apply[T](decisionName: String, test: Resource => ReqRespData => Result[T], check: (T, ReqRespData) => Boolean, onSuccess: Either[Result[T] => ReqRespData, Decision], onFailure: Either[Result[T] => ReqRespData, Decision]): Decision = new Decision {
+  def apply[T](decisionName: String, test: Resource => (ReqRespData,Context) => Result[T], check: (T, ReqRespData) => Boolean, onSuccess: Either[Result[T] => ReqRespData, Decision], onFailure: Either[Result[T] => ReqRespData, Decision]): Decision = new Decision {
     
     def name = decisionName
     
-    def decide(resource: Resource, data: ReqRespData): (ReqRespData, Option[Decision]) = {
-      val result = test(resource)(data)
+    def decide(resource: Resource, data: ReqRespData, context: Context): ((ReqRespData,Context), Option[Decision]) = {
+      val result = test(resource)(data, context)
       if (check(result.value, data)) handle(result, onSuccess)
       else handle(result, onFailure)
     }
 
     def handle(result: Result[T], handle: Either[Result[T] => ReqRespData, Decision]) = handle match {
-      case Left(f) => (f(result), None)
-      case Right(d) => (result.data, Some(d))
+      case Left(f) => ((f(result),result.context), None)
+      case Right(d) => ((result.data, result.context), Some(d))
     }
     
   }
@@ -136,9 +138,9 @@ object Decision {
 // run decision is pretty much extraneous outside of that
 trait FlowRunnerBase {    
 
-  def run(decision: Decision, resource: Resource, data: ReqRespData): ReqRespData 
+  def run(decision: Decision, resource: Resource, data: ReqRespData, ctx: Context): ReqRespData
 
-  protected def runDecision(decision: Decision, resource: Resource, data: ReqRespData): (ReqRespData, Option[Decision])
+  protected def runDecision(decision: Decision, resource: Resource, data: ReqRespData, ctx: Context): ((ReqRespData,Context), Option[Decision])
 
 }
 
@@ -146,14 +148,14 @@ trait FlowRunner extends FlowRunnerBase {
 
   // can't mark this tail recursive if we want it to be stackable :(
   // can build an "optimized trait" later
-  def run(decision: Decision, resource: Resource, data: ReqRespData): ReqRespData = {
-    val (newData, mbNext) = runDecision(decision, resource, data)
+  def run(decision: Decision, resource: Resource, data: ReqRespData, ctx: Context): ReqRespData = {
+    val ((newData,newCtx), mbNext) = runDecision(decision, resource, data, ctx)
     mbNext match {
-      case Some(next) => run(next, resource, newData)
+      case Some(next) => run(next, resource, newData, newCtx)
       case _ => newData
     }
   }
 
-  protected def runDecision(decision: Decision, resource: Resource, data: ReqRespData) = decision.decide(resource, data)
+  protected def runDecision(decision: Decision, resource: Resource, data: ReqRespData,ctx: Context) = decision.decide(resource, data, ctx)
 
 }
