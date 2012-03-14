@@ -54,7 +54,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
         "with code 401 is returned"                                                 ! testAuthFalseRespCode ^
         "with the WWW-Authenticate header not set if resource result was a halt"    ! testAuthFalseHaltResult ^
         "with the WWW-Authenticate header not set if the resource result was error" ! testAuthFalseErrorResult ^
-        "with the WWW-Authenticate header set to value returned by resource"        ! skipped ^
+        "with the WWW-Authenticate header set to value returned by resource"        ! testAuthFalseAuthHeader ^
                                                                                     p^p^p^
   "B7 - Forbidden?"                                                                 ^
     "asks resource if request is forbidden"                                         ^
@@ -174,11 +174,11 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   }
 
   def testAuthTrue = {
-    testDecisionReturnsDecision(b8, b7, (r,d) => r.isAuthorized(any,any) returns SimpleResult(true,d,mock[Context]))
+    testDecisionReturnsDecision(b8, b7, (r,d) => r.isAuthorized(any,any) returns SimpleResult(AuthSuccess,d,mock[Context]))
   }
   
   def testAuthFalseRespCode = {
-    testDecisionReturnsData(b8,(r,d) => r.isAuthorized(any,any) returns SimpleResult(false,d,mock[Context])) {
+    testDecisionReturnsData(b8,(r,d) => r.isAuthorized(any,any) returns SimpleResult(AuthFailure("something"),d,mock[Context])) {
       _.statusCode must beEqualTo(401)
     }
   }
@@ -192,6 +192,13 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   def testAuthFalseErrorResult = {
     testDecisionReturnsData(b8, (r,d) => r.isAuthorized(any,any) returns ErrorResult(null,d,mock[Context])) {
       _.responseHeader("WWW-Authenticate") must beNone
+    }
+  }
+  
+  def testAuthFalseAuthHeader = {
+    val headerValue = "somevalue"
+    testDecisionReturnsData(b8, (r,d) => r.isAuthorized(any,any) returns SimpleResult(AuthFailure(headerValue),d,mock[Context])) {
+      _.responseHeader("WWW-Authenticate") must beSome.which { _ == headerValue }
     }
   }
   

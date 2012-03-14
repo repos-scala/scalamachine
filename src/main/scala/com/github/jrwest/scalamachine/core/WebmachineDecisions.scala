@@ -32,7 +32,16 @@ trait WebmachineDecisions {
   lazy val  b9: Decision = Decision("v3b9", true, (r: Resource) => r.isMalformed(_: ReqRespData, _: Context), 400, b8)
 
   /* Is Authorized? */
-  lazy val  b8: Decision = Decision("v3b8", true, (r: Resource) => r.isAuthorized(_: ReqRespData, _: Context), b7, 401)
+  lazy val  b8: Decision = Decision(
+    "v3b8",
+    AuthSuccess,
+    (r: Resource) => r.isAuthorized(_: ReqRespData, _: Context),
+    b7,
+    (r: SimpleResult[AuthResult]) => r.value match {
+      case AuthFailure(headerVal) => r.data.setResponseHeader("WWW-Authenticate", headerVal).setStatusCode(401);
+      case _ => r.data
+    }
+  )
   
   lazy val  b7: Decision = null
 }

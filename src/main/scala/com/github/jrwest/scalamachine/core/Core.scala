@@ -7,6 +7,8 @@ package com.github.jrwest.scalamachine.core
  * Time: 11:15 PM 
  */
 
+// TODO: split all of the below into seperate files/packages etc (cleanup)
+
 trait ReqRespData {
   
   /* Request Data */
@@ -74,6 +76,11 @@ case class HaltResult(code: Int, data: ReqRespData, context: Context) extends Re
   private[core] def setData(d: ReqRespData) = copy(data = d)
 }
 
+sealed trait AuthResult
+case object AuthSuccess extends AuthResult
+case class AuthFailure(headerValue: String) extends AuthResult
+
+
 trait Context
 trait Resource {
   def serviceAvailable(data: ReqRespData, ctx: Context): Result[Boolean]
@@ -81,7 +88,7 @@ trait Resource {
   def uriTooLong(data: ReqRespData, ctx: Context): Result[Boolean]
   def allowedMethods(data: ReqRespData, ctx: Context): Result[List[HTTPMethod]]
   def isMalformed(data: ReqRespData, ctx: Context): Result[Boolean]
-  def isAuthorized(data: ReqRespData, ctx: Context): Result[Boolean]
+  def isAuthorized(data: ReqRespData, ctx: Context): Result[AuthResult]
 }
 
 trait Decision {
@@ -114,6 +121,12 @@ object Decision {
                test: Resource => (ReqRespData, Context) => Result[T],
                onSuccess: Int, 
                onFailure: Decision): Decision = apply(decisionName, expected, test, Left(setStatus[T](onSuccess)), Right(onFailure))
+  
+  def apply[T](decisionName: String,
+               expected: T, 
+               test: Resource => (ReqRespData,Context) => Result[T],
+               onSuccess: Decision,
+               onFailure: SimpleResult[T] => ReqRespData): Decision = apply(decisionName, expected, test, Right(onSuccess), Left(onFailure))
   
   def apply[T](decisionName: String,
                    expected: T,
