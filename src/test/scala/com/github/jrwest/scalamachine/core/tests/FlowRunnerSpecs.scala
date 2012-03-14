@@ -35,23 +35,28 @@ class FlowRunnerSpecs extends Specification with Mockito { def is =
        "the returned data has response code matching HaltResult code"               ! testHaltResultReturnsResponseWithHaltCode ^
                                                                                     end
 
-  trait TestFlowTracking extends FlowRunnerBase {
-    var steps = List[(Decision, Either[Result[Any],Decision])]()
-    abstract override protected def runDecision(decision: Decision, resource: Resource, data: ReqRespData, ctx: Context) = {
+  trait TestFlowTracking[C] extends FlowRunnerBase[C] {
+    var steps = List[(Decision[C], Either[Result[C,Any],Decision[C]])]()
+    abstract override protected def runDecision(decision: Decision[C], resource: Resource[C], data: ReqRespData, ctx: C) = {
       val result = super.runDecision(decision, resource, data,ctx)
       val  (res, nextDecision) = result
-      steps = nextDecision.map((d: Decision) => (decision,Right(d))).getOrElse((decision,Left(res))) :: steps
+      steps = nextDecision.map((d: Decision[C]) => (decision,Right(d))).getOrElse((decision,Left(res))) :: steps
       result
     }
   }
-  
-  class TestFlow extends FlowRunner with TestFlowTracking
+
+  // we don't care about the context in these tests so lets make it whatever we want
+  type TestContext = Int
+  def createDummyContext: TestContext = 0
+
+  class TestFlow extends FlowRunner[TestContext] with TestFlowTracking[TestContext]
 
   def newFlow = new TestFlow
-  def createResult(data: ReqRespData = mock[ReqRespData], ctx: Context = mock[Context], value: Any = null): Result[Any] = SimpleResult(value, data, ctx)
+  def createResult(data: ReqRespData = mock[ReqRespData], ctx: TestContext = createDummyContext, value: Any = null): Result[TestContext,Any] =
+    SimpleResult(value, data, ctx)
 
-  def decisionReturning(result: Result[Any], next: Option[Decision]) = {
-    val decision = mock[Decision]
+  def decisionReturning(result: Result[TestContext,Any], next: Option[Decision[TestContext]]) = {
+    val decision = mock[Decision[TestContext]]
     decision.decide(any, any, any) returns ((result, next))
     decision
   } 
@@ -60,7 +65,7 @@ class FlowRunnerSpecs extends Specification with Mockito { def is =
     val returnedResult = createResult()
     val decision = decisionReturning(returnedResult, None)
     val flow = newFlow
-    flow.run(decision, mock[Resource], mock[ReqRespData], mock[Context])
+    flow.run(decision, mock[Resource[TestContext]], mock[ReqRespData], createDummyContext)
     flow.steps must haveTheSameElementsAs((decision,Left(returnedResult)) :: Nil)
   }
 
@@ -69,7 +74,7 @@ class FlowRunnerSpecs extends Specification with Mockito { def is =
     val endData = mock[ReqRespData]
     val returnedResult = createResult(data = endData)
     val decision = decisionReturning(returnedResult, None)
-    newFlow.run(decision, mock[Resource], startData, mock[Context]) must
+    newFlow.run(decision, mock[Resource[TestContext]], startData, createDummyContext) must
       beEqualTo(endData) and not(beEqualTo(startData))
   }
   
@@ -77,7 +82,7 @@ class FlowRunnerSpecs extends Specification with Mockito { def is =
     val secondDecision = decisionReturning(createResult(), None)
     val firstDecision = decisionReturning(createResult(), Some(secondDecision))
     val flow = newFlow
-    flow.run(firstDecision, mock[Resource], mock[ReqRespData], mock[Context])
+    flow.run(firstDecision, mock[Resource[TestContext]], mock[ReqRespData], createDummyContext)
     (flow.steps.size must beEqualTo(2)) and (flow.steps.reverse.headOption must beSome.like {
       case (d1, Right(d2)) if d1 == firstDecision => d2 must beEqualTo(secondDecision)
     })
@@ -85,34 +90,34 @@ class FlowRunnerSpecs extends Specification with Mockito { def is =
 
   def testErrorResultDoesNotRunNextDecision = {
     val secondDecision = decisionReturning(createResult(), None)
-    val firstDecision = decisionReturning(ErrorResult(null,mock[ReqRespData],mock[Context]), Some(secondDecision))
+    val firstDecision = decisionReturning(ErrorResult(null,mock[ReqRespData],createDummyContext), Some(secondDecision))
     val flow = newFlow
-    flow.run(firstDecision, mock[Resource], mock[ReqRespData], mock[Context])
+    flow.run(firstDecision, mock[Resource[TestContext]], mock[ReqRespData], createDummyContext)
     flow.steps.size must beEqualTo(1)
   }
   
   def testErrorResultReturns500Response = {
     val secondDecision = decisionReturning(createResult(), None)
-    val firstDecision = decisionReturning(ErrorResult(null,ImmutableReqRespData(GET),mock[Context]), Some(secondDecision))
+    val firstDecision = decisionReturning(ErrorResult(null,ImmutableReqRespData(GET),createDummyContext), Some(secondDecision))
     val flow = newFlow
-    val result = flow.run(firstDecision, mock[Resource], ImmutableReqRespData(GET), mock[Context])
+    val result = flow.run(firstDecision, mock[Resource[TestContext]], ImmutableReqRespData(GET), createDummyContext)
     result.statusCode must beEqualTo(500)
   }
   
   def testHaltResultDoesNotRunNextDecision = {
     val secondDecision = decisionReturning(createResult(), None)
-    val firstDecision = decisionReturning(HaltResult(400,mock[ReqRespData],mock[Context]), Some(secondDecision))
+    val firstDecision = decisionReturning(HaltResult(400,mock[ReqRespData],createDummyContext), Some(secondDecision))
     val flow = newFlow
-    flow.run(firstDecision, mock[Resource], mock[ReqRespData], mock[Context])
+    flow.run(firstDecision, mock[Resource[TestContext]], mock[ReqRespData], createDummyContext)
     flow.steps.size must beEqualTo(1)
   }
   
   def testHaltResultReturnsResponseWithHaltCode = {
     val code = 401
     val secondDecision = decisionReturning(createResult(), None)
-    val firstDecision = decisionReturning(HaltResult(code,ImmutableReqRespData(GET),mock[Context]), Some(secondDecision))
+    val firstDecision = decisionReturning(HaltResult(code,ImmutableReqRespData(GET),createDummyContext), Some(secondDecision))
     val flow = newFlow
-    val result = flow.run(firstDecision, mock[Resource], ImmutableReqRespData(GET), mock[Context])
+    val result = flow.run(firstDecision, mock[Resource[TestContext]], ImmutableReqRespData(GET), createDummyContext)
     result.statusCode must beEqualTo(code)
   }
   

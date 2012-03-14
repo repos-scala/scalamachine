@@ -82,81 +82,86 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
       "otherwise, decision C3 is returned"                                          ! skipped ^
                                                                                     p^p^
                                                                                     end
-  def createResource = mock[Resource]
+
+  // we don't care about the context in these tests
+  type TestContext = Int
+  def createDummyContext: TestContext = 0
+
+  def createResource = mock[Resource[TestContext]]
   def createData(method: HTTPMethod = GET) = ImmutableReqRespData(method = method)  
 
-  def testDecision(decision: Decision,
-                   stubF: (Resource, ReqRespData) => Unit,
-                   resource: Resource = createResource, 
+  def testDecision(decision: Decision[TestContext],
+                   stubF: (Resource[TestContext], ReqRespData) => Unit,
+                   resource: Resource[TestContext] = createResource,
                    data: ReqRespData = createData(),
-                   ctx: Context = mock[Context])(f: (ReqRespData, Option[Decision]) => MatchResult[Any]): MatchResult[Any] = {
+                   ctx: TestContext = createDummyContext)(f: (ReqRespData, Option[Decision[TestContext]]) => MatchResult[Any]): MatchResult[Any] = {
     stubF(resource, data) // make call to stub/mock
     val (result, mbNextDecision) = decision.decide(resource, data,ctx)
     f(result.data, mbNextDecision)
   }
 
-  def testDecisionReturnsDecision(toTest: Decision,
-                                  expectedDecision: Decision,
-                                  stubF: (Resource, ReqRespData) => Unit,
-                                  resource: Resource = createResource,
+  def testDecisionReturnsDecision(toTest: Decision[TestContext],
+                                  expectedDecision: Decision[TestContext],
+                                  stubF: (Resource[TestContext], ReqRespData) => Unit,
+                                  resource: Resource[TestContext] = createResource,
                                   data: ReqRespData = createData()): MatchResult[Any] = {
     testDecision(toTest, stubF, resource, data) {
-      (_: ReqRespData, mbNextDecision: Option[Decision]) => mbNextDecision must beSome.which { _ == expectedDecision }
+      (_: ReqRespData, mbNextDecision: Option[Decision[TestContext]]) => mbNextDecision must beSome.which { _ == expectedDecision }
     }
   }
   
-  def testDecisionReturnsData(toTest: Decision, 
-                              stubF: (Resource,ReqRespData) => Unit,
-                              resource: Resource = createResource,
+  def testDecisionReturnsData(toTest: Decision[TestContext],
+                              stubF: (Resource[TestContext],ReqRespData) => Unit,
+                              resource: Resource[TestContext] = createResource,
                               data: ReqRespData = createData())(f: ReqRespData => MatchResult[Any]): MatchResult[Any] = {
     testDecision(toTest, stubF, resource, data) {
-      (retData: ReqRespData, mbNextDecision: Option[Decision]) => (mbNextDecision must beNone) and f(retData)
+      (retData: ReqRespData, mbNextDecision: Option[Decision[TestContext]]) => (mbNextDecision must beNone) and f(retData)
     }
   }
                           
   
   def testServiceAvailTrue = {
-    testDecisionReturnsDecision(b13, b12, (r,d) => r.serviceAvailable(any,any) returns SimpleResult(true,d,mock[Context]))
+    testDecisionReturnsDecision(b13, b12, (r,d) => r.serviceAvailable(any,any) returns SimpleResult(true,d,createDummyContext))
   }
 
   def testServiceAvailFalse = {
-    testDecisionReturnsData(b13, (r,d) => r.serviceAvailable(any,any) returns SimpleResult(false, d,mock[Context])) {
+    testDecisionReturnsData(b13, (r,d) => r.serviceAvailable(any,any) returns SimpleResult(false, d,createDummyContext)) {
       _.statusCode must beEqualTo(503)
     }
   }
 
   def testKnownMethodTrue = {
-    testDecisionReturnsDecision(b12, b11, (r,d) => r.knownMethods(any,any) returns SimpleResult(List(GET,POST), d,mock[Context]))
+    testDecisionReturnsDecision(b12, b11, (r,d) => r.knownMethods(any,any) returns SimpleResult(List(GET,POST), d,createDummyContext))
   }
   
   def testKnownMethodFalse = {
-    testDecisionReturnsData(b12, (r,d) => r.knownMethods(any,any) returns SimpleResult(List(GET),d,mock[Context]), data = createData(method = POST)) {
+    testDecisionReturnsData(b12, (r,d) => r.knownMethods(any,any) returns SimpleResult(List(GET),d,createDummyContext), data = createData(method = POST)) {
       _.statusCode must beEqualTo(501)
     }
   }
   
   def testURITooLongFalse = {
-    testDecisionReturnsDecision(b11, b10, (r,d) => r.uriTooLong(any,any) returns SimpleResult(false,d,mock[Context]))
+    testDecisionReturnsDecision(b11, b10, (r,d) => r.uriTooLong(any,any) returns SimpleResult(false,d,createDummyContext))
   }
   
   def testURITooLongTrue = {
-    testDecisionReturnsData(b11, (r,d) => r.uriTooLong(any,any) returns SimpleResult(true,d,mock[Context])) {
+    testDecisionReturnsData(b11, (r,d) => r.uriTooLong(any,any) returns SimpleResult(true,d,createDummyContext)) {
       _.statusCode must beEqualTo(414)
     }
   }
 
   def testAllowedMethodTrue = {
-    testDecisionReturnsDecision(b10, b9, (r,d) => r.allowedMethods(any,any) returns SimpleResult(List(GET,POST),d,mock[Context]))
+    testDecisionReturnsDecision(b10, b9, (r,d) => r.allowedMethods(any,any) returns SimpleResult(List(GET,POST),d,createDummyContext))
   }
 
   def testAllowedMethodFalseRespCode = {
-    testDecisionReturnsData(b10,(r,d) => r.allowedMethods(any,any) returns SimpleResult(List(GET,DELETE),d,mock[Context]), data = createData(method = POST)) {
+    testDecisionReturnsData(b10,(r,d) => r.allowedMethods(any,any) returns SimpleResult(List(GET,DELETE),d,createDummyContext), data = createData(method = POST)) {
       _.statusCode must beEqualTo(405)
     }
   }
 
   def testAllowedMethodFalseAllowHeader = {
-    testDecisionReturnsData(b10, (r, d) => r.allowedMethods(any,any) returns SimpleResult(List(GET,POST,DELETE),d,mock[Context]), data = createData(method=PUT)) {
+    testDecisionReturnsData(b10, (r, d) => r.allowedMethods(any,any) returns SimpleResult(List(GET,POST,DELETE),d,createDummyContext), data = createData(method=PUT)) {
       _.responseHeader("Allow") must beSome.like {
         case s => s must contain("GET") and contain("POST") and contain("DELETE") // this could be improved (use the actual list above)
       }
@@ -164,40 +169,40 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   }
   
   def testMalformedFalse = {
-    testDecisionReturnsDecision(b9, b8, (r,d) => r.isMalformed(any,any) returns SimpleResult(false,d,mock[Context]))
+    testDecisionReturnsDecision(b9, b8, (r,d) => r.isMalformed(any,any) returns SimpleResult(false,d,createDummyContext))
   }
 
   def testMalformedTrue = {
-    testDecisionReturnsData(b9,(r,d) => r.isMalformed(any,any) returns SimpleResult(true,d,mock[Context])) {
+    testDecisionReturnsData(b9,(r,d) => r.isMalformed(any,any) returns SimpleResult(true,d,createDummyContext)) {
       _.statusCode must beEqualTo(400)
     }
   }
 
   def testAuthTrue = {
-    testDecisionReturnsDecision(b8, b7, (r,d) => r.isAuthorized(any,any) returns SimpleResult(AuthSuccess,d,mock[Context]))
+    testDecisionReturnsDecision(b8, b7, (r,d) => r.isAuthorized(any,any) returns SimpleResult(AuthSuccess,d,createDummyContext))
   }
   
   def testAuthFalseRespCode = {
-    testDecisionReturnsData(b8,(r,d) => r.isAuthorized(any,any) returns SimpleResult(AuthFailure("something"),d,mock[Context])) {
+    testDecisionReturnsData(b8,(r,d) => r.isAuthorized(any,any) returns SimpleResult(AuthFailure("something"),d,createDummyContext)) {
       _.statusCode must beEqualTo(401)
     }
   }
 
   def testAuthFalseHaltResult = {
-    testDecisionReturnsData(b8, (r,d) => r.isAuthorized(any,any) returns HaltResult(500,d,mock[Context])) {
+    testDecisionReturnsData(b8, (r,d) => r.isAuthorized(any,any) returns HaltResult(500,d,createDummyContext)) {
       _.responseHeader("WWW-Authenticate") must beNone
     }
   }
   
   def testAuthFalseErrorResult = {
-    testDecisionReturnsData(b8, (r,d) => r.isAuthorized(any,any) returns ErrorResult(null,d,mock[Context])) {
+    testDecisionReturnsData(b8, (r,d) => r.isAuthorized(any,any) returns ErrorResult(null,d,createDummyContext)) {
       _.responseHeader("WWW-Authenticate") must beNone
     }
   }
   
   def testAuthFalseAuthHeader = {
     val headerValue = "somevalue"
-    testDecisionReturnsData(b8, (r,d) => r.isAuthorized(any,any) returns SimpleResult(AuthFailure(headerValue),d,mock[Context])) {
+    testDecisionReturnsData(b8, (r,d) => r.isAuthorized(any,any) returns SimpleResult(AuthFailure(headerValue),d,createDummyContext)) {
       _.responseHeader("WWW-Authenticate") must beSome.which { _ == headerValue }
     }
   }
