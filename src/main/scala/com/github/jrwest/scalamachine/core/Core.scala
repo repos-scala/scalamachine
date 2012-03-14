@@ -82,6 +82,7 @@ case class AuthFailure(headerValue: String) extends AuthResult
 
 
 trait Resource[C] {
+  def init: C  
   def serviceAvailable(data: ReqRespData, ctx: C): Result[C,Boolean]
   def knownMethods(data: ReqRespData, ctx: C): Result[C,List[HTTPMethod]]
   def uriTooLong(data: ReqRespData, ctx: C): Result[C,Boolean]
@@ -165,27 +166,33 @@ object Decision {
 // TODO: rethink how stacking is allowed here, intention is to allow stacking at start/end flow and start/end decision
 trait FlowRunnerBase[C] {
 
-  def run(decision: Decision[C], resource: Resource[C], data: ReqRespData, ctx: C): ReqRespData
+  // stacking this method gives access to start/end of flow
+  def run(decision: Decision[C], resource: Resource[C], data: ReqRespData): ReqRespData
 
-  // Result[Any] is used here because the decision result type is not actually cared about at this layer
-  protected def runDecision(decision: Decision[C], resource: Resource[C], data: ReqRespData, ctx: C): (Result[C,Any], Option[Decision[C]])
+  // stack this method to access start/end descision
+  protected def runDecisionOuter(resource: Resource[C], decision: Decision[C], data: ReqRespData, ctx: C): ReqRespData
+
+  // same as above but with access to decision result and next decision info
+  protected def runDecisionInner(resource: Resource[C], decision: Decision[C], data: ReqRespData, ctx: C): (Result[C,Any],Option[Decision[C]])    
 
 }
 
 trait FlowRunner[C] extends FlowRunnerBase[C] {
 
+  def run(decision: Decision[C], resource: Resource[C], data: ReqRespData): ReqRespData = {
+    runDecisionOuter(resource,decision,data,resource.init)    
+  }
+  
   // can't mark this tail recursive if we want it to be stackable :(
   // can build an "optimized trait" later
-  def run(decision: Decision[C], resource: Resource[C], data: ReqRespData, ctx: C): ReqRespData = {
-    runDecision(decision, resource, data, ctx) match {
-      case (SimpleResult(_, newData, newContext), Some(nextDecision)) => run(nextDecision, resource, newData, newContext)
+  protected def runDecisionOuter(resource: Resource[C], decision: Decision[C], data: ReqRespData, ctx: C): ReqRespData = {
+    runDecisionInner(resource,decision,data,ctx) match {
+      case (SimpleResult(_, newData, newContext), Some(nextDecision)) => runDecisionOuter(resource, nextDecision, newData, newContext)
       case (ErrorResult(_, newData, _), _) => newData.setStatusCode(500)
       case (HaltResult(code, newData, _), _) => newData.setStatusCode(code)
       case (result, _) => result.data
     }
   }
 
-  protected def runDecision(decision: Decision[C], resource: Resource[C], data: ReqRespData, ctx: C): (Result[C,Any], Option[Decision[C]]) =
-    decision.decide(resource, data, ctx)
-
+  protected def runDecisionInner(resource: Resource[C], decision: Decision[C], data: ReqRespData, ctx: C) = decision.decide(resource, data, ctx)
 }
