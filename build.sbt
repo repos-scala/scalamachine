@@ -15,3 +15,5 @@ libraryDependencies ++= Seq(
     "org.hamcrest" % "hamcrest-all" % "1.1" % "test" withSources()
 )
 
+scalacOptions := Seq("-unchecked", "-deprecation")
+
