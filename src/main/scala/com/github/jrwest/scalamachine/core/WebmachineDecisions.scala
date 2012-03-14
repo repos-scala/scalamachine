@@ -43,5 +43,7 @@ trait WebmachineDecisions {
     }
   )
   
-  def b7[C]: Decision[C] = null
+  def b7[C]: Decision[C] = Decision("v3b7",true,(r: Resource[C]) => r.isForbidden(_: ReqRespData, _: C), 403, b6[C])
+  
+  def b6[C]: Decision[C] = null
 }

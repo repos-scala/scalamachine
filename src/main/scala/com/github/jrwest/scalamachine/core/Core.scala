@@ -89,6 +89,7 @@ trait Resource[C] {
   def allowedMethods(data: ReqRespData, ctx: C): Result[C,List[HTTPMethod]]
   def isMalformed(data: ReqRespData, ctx: C): Result[C,Boolean]
   def isAuthorized(data: ReqRespData, ctx: C): Result[C,AuthResult]
+  def isForbidden(data: ReqRespData, ctx: C): Result[C,Boolean]
 }
 
 trait Decision[C] {

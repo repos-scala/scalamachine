@@ -58,8 +58,8 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
                                                                                     p^p^p^
   "B7 - Forbidden?"                                                                 ^
     "asks resource if request is forbidden"                                         ^
-      "if it is not, decision B6 is returned"                                       ! skipped ^
-      "if it is, a response with code 403 is returned"                              ! skipped ^
+      "if it is not, decision B6 is returned"                                       ! testForbiddenFalse ^
+      "if it is, a response with code 403 is returned"                              ! testForbiddenTrue ^
                                                                                     p^p^
   "B6 - Valid Content-* Headers?"                                                   ^
     "asks resource if content headers are valid"                                    ^
@@ -204,6 +204,16 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     val headerValue = "somevalue"
     testDecisionReturnsData(b8, (r,d) => r.isAuthorized(any,any) returns SimpleResult(AuthFailure(headerValue),d,createDummyContext)) {
       _.responseHeader("WWW-Authenticate") must beSome.which { _ == headerValue }
+    }
+  }
+  
+  def testForbiddenFalse = {
+    testDecisionReturnsDecision(b7,b6,(r,d) => r.isForbidden(any,any) returns SimpleResult(false,d,createDummyContext))
+  }
+  
+  def testForbiddenTrue = {
+    testDecisionReturnsData(b7,(r,d) => r.isForbidden(any,any) returns SimpleResult(true,d,createDummyContext)) {
+      _.statusCode must beEqualTo(403)
     }
   }
   
