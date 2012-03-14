@@ -52,8 +52,8 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
       "if it is, decision B7 is returned"                                           ! testAuthTrue ^
       "if it is not, a response"                                                    ^
         "with code 401 is returned"                                                 ! testAuthFalseRespCode ^
-        "with the WWW-Authenticate header not set if resource result was a halt"    ! skipped ^
-        "with the WWW-Authenticate header not set if the resource result was error" ! skipped ^
+        "with the WWW-Authenticate header not set if resource result was a halt"    ! testAuthFalseHaltResult ^
+        "with the WWW-Authenticate header not set if the resource result was error" ! testAuthFalseErrorResult ^
         "with the WWW-Authenticate header set to value returned by resource"        ! skipped ^
                                                                                     p^p^p^
   "B7 - Forbidden?"                                                                 ^
@@ -180,6 +180,18 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   def testAuthFalseRespCode = {
     testDecisionReturnsData(b8,(r,d) => r.isAuthorized(any,any) returns SimpleResult(false,d,mock[Context])) {
       _.statusCode must beEqualTo(401)
+    }
+  }
+
+  def testAuthFalseHaltResult = {
+    testDecisionReturnsData(b8, (r,d) => r.isAuthorized(any,any) returns HaltResult(500,d,mock[Context])) {
+      _.responseHeader("WWW-Authenticate") must beNone
+    }
+  }
+  
+  def testAuthFalseErrorResult = {
+    testDecisionReturnsData(b8, (r,d) => r.isAuthorized(any,any) returns ErrorResult(null,d,mock[Context])) {
+      _.responseHeader("WWW-Authenticate") must beNone
     }
   }
   

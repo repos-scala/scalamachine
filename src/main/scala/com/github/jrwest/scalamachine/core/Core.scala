@@ -57,8 +57,7 @@ case object OPTIONS extends HTTPMethod {
   override def toString = "OPTIONS"
 }
 
-trait Result[+T] {
-  def value: T
+sealed trait Result[+T] {
   def context: Context
   def data: ReqRespData
     
@@ -68,12 +67,10 @@ trait Result[+T] {
 case class SimpleResult[T](value: T, data: ReqRespData, context: Context) extends Result[T] {
   private[core] def setData(d: ReqRespData) = copy(data = d)
 }
-case class ErrorResult(error: Any, data: ReqRespData, context: Context) extends Result[Any] {
-  val value = error
+case class ErrorResult(error: Any, data: ReqRespData, context: Context) extends Result[Nothing] {
   private[core] def setData(d: ReqRespData) = copy(data = d)
 }
-case class HaltResult(code: Int, data: ReqRespData, context: Context) extends Result[Int] {
-  val value = code
+case class HaltResult(code: Int, data: ReqRespData, context: Context) extends Result[Nothing] {
   private[core] def setData(d: ReqRespData) = copy(data = d)
 }
 
@@ -104,42 +101,45 @@ trait Decision {
 
 object Decision {
 
-  private[this] def setStatus[T](code: Int): Result[T] => ReqRespData = _.data.setStatusCode(code)
+  private[this] def setStatus[T](code: Int): SimpleResult[T] => ReqRespData = _.data.setStatusCode(code)
 
   def apply[T](decisionName: String, 
                expected: T, 
                test: Resource => (ReqRespData, Context) => Result[T],
                onSuccess: Decision,
-               onFailure: Int): Decision = apply(decisionName, expected, test, Right(onSuccess), Left(setStatus(onFailure)))
+               onFailure: Int): Decision = apply(decisionName, expected, test, Right(onSuccess), Left(setStatus[T](onFailure)))
   
   def apply[T](decisionName: String, 
                expected: T, 
                test: Resource => (ReqRespData, Context) => Result[T],
                onSuccess: Int, 
-               onFailure: Decision): Decision = apply(decisionName, expected, test, Left(setStatus(onSuccess)), Right(onFailure))
+               onFailure: Decision): Decision = apply(decisionName, expected, test, Left(setStatus[T](onSuccess)), Right(onFailure))
   
   def apply[T](decisionName: String,
                    expected: T,
                    test: Resource => (ReqRespData,Context) => Result[T],
-                   onSuccess: Either[Result[T] => ReqRespData, Decision],
-                   onFailure: Either[Result[T] => ReqRespData, Decision]): Decision = apply(decisionName, test, (res: T, _: ReqRespData) => res == expected, onSuccess, onFailure)
+                   onSuccess: Either[SimpleResult[T] => ReqRespData, Decision],
+                   onFailure: Either[SimpleResult[T] => ReqRespData, Decision]): Decision = apply(decisionName, test, (res: T, _: ReqRespData) => res == expected, onSuccess, onFailure)
 
   
-  def apply[T](decisionName: String, test: Resource => (ReqRespData,Context) => Result[T], check: (T, ReqRespData) => Boolean, onSuccess: Decision, onFailure: Int): Decision = apply(decisionName, test, check, onSuccess, setStatus(onFailure))
+  def apply[T](decisionName: String, test: Resource => (ReqRespData,Context) => Result[T], check: (T, ReqRespData) => Boolean, onSuccess: Decision, onFailure: Int): Decision = apply(decisionName, test, check, onSuccess, setStatus[T](onFailure))
   
-  def apply[T](decisionName: String, test: Resource => (ReqRespData,Context) => Result[T], check: (T, ReqRespData) => Boolean, onSuccess: Decision, onFailure: Result[T] => ReqRespData): Decision = apply(decisionName, test, check, Right(onSuccess), Left(onFailure))
+  def apply[T](decisionName: String, test: Resource => (ReqRespData,Context) => Result[T], check: (T, ReqRespData) => Boolean, onSuccess: Decision, onFailure: SimpleResult[T] => ReqRespData): Decision = apply(decisionName, test, check, Right(onSuccess), Left(onFailure))
   
-  def apply[T](decisionName: String, test: Resource => (ReqRespData,Context) => Result[T], check: (T, ReqRespData) => Boolean, onSuccess: Either[Result[T] => ReqRespData, Decision], onFailure: Either[Result[T] => ReqRespData, Decision]): Decision = new Decision {
+  def apply[T](decisionName: String, test: Resource => (ReqRespData,Context) => Result[T], check: (T, ReqRespData) => Boolean, onSuccess: Either[SimpleResult[T] => ReqRespData, Decision], onFailure: Either[SimpleResult[T] => ReqRespData, Decision]): Decision = new Decision {
     
     def name = decisionName
     
     def decide(resource: Resource, data: ReqRespData, context: Context): (Result[T], Option[Decision]) = {
-      val result = test(resource)(data, context)
-      if (check(result.value, data)) handle(result, onSuccess)
-      else handle(result, onFailure)
+      test(resource)(data, context) match {
+        case result @ SimpleResult(value, newData, newContext) =>
+          if (check(value, newData)) handle(result, onSuccess)
+          else handle(result, onFailure)
+        case result => (result, None)
+      }
     }
 
-    def handle(result: Result[T], handle: Either[Result[T] => ReqRespData, Decision]) = handle match {
+    def handle(result: SimpleResult[T], handle: Either[SimpleResult[T] => ReqRespData, Decision]) = handle match {
       case Left(f) => (result.setData(f(result)), None)
       case Right(d) => (result, Some(d))
     }

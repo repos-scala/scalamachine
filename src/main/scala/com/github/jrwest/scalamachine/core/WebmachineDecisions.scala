@@ -25,7 +25,7 @@ trait WebmachineDecisions {
       (r: Resource) => r.allowedMethods(_: ReqRespData, _: Context),
       (l: List[HTTPMethod], d: ReqRespData) => l.contains(d.method),
       b9,
-      (r: Result[List[HTTPMethod]]) => r.data.setStatusCode(405).setResponseHeader("Allow", r.value.map(_.toString).mkString(", "))
+      (r: SimpleResult[List[HTTPMethod]]) => r.data.setStatusCode(405).setResponseHeader("Allow", r.value.map(_.toString).mkString(", "))
     )
 
   /* Malformed Request? */
