@@ -13,6 +13,7 @@ trait ReqRespData {
   
   /* Request Data */
   def method: HTTPMethod
+  def pathParts: List[String]
   
   /* Response Data */
   def statusCode: Int
@@ -26,7 +27,7 @@ trait ReqRespData {
 // TODO: this was kind of whipped together. doesn't make sense to initialize some of the response data
 // may need something similar to scaliak's options or shadow fields that are options, or an apply helper
 // also not sure we need both the trait and the case class, just case class may suffice
-case class ImmutableReqRespData(method: HTTPMethod, statusCode: Int = 200, responseHeaders: Map[String,String] = Map()) extends ReqRespData {
+case class ImmutableReqRespData(method: HTTPMethod, pathParts: List[String] = Nil, statusCode: Int = 200, responseHeaders: Map[String,String] = Map()) extends ReqRespData {
   def setStatusCode(code: Int) = copy(statusCode = code)
   def responseHeader(name: String) = responseHeaders.get(name.toLowerCase)
   def setResponseHeader(name: String, value: String) = copy(responseHeaders = responseHeaders + (name.toLowerCase -> value))
@@ -174,7 +175,7 @@ trait FlowRunnerBase[C] {
   protected def runDecisionOuter(resource: Resource[C], decision: Decision[C], data: ReqRespData, ctx: C): ReqRespData
 
   // same as above but with access to decision result and next decision info
-  protected def runDecisionInner(resource: Resource[C], decision: Decision[C], data: ReqRespData, ctx: C): (Result[C,Any],Option[Decision[C]])    
+  protected def runDecisionInner(resource: Resource[C], decision: Decision[C], data: ReqRespData, ctx: C): (Result[C,Any],Option[Decision[C]])
 
 }
 

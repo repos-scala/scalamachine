@@ -18,9 +18,10 @@ object BuildSettings {
 }
 
 object Dependencies {
-  val specs2   = "org.specs2" %% "specs2" % "1.8.2" % "test" withSources()
-  val mockito  = "org.mockito" % "mockito-all" % "1.9.0" % "test" withSources()
-  val hamcrest = "org.hamcrest" % "hamcrest-all" % "1.1" % "test" withSources()
+  lazy val liftweb  = "net.liftweb" %% "lift-webkit" % "2.5-SNAPSHOT" % "compile" withSources()
+  lazy val specs2   = "org.specs2" %% "specs2" % "1.8.2" % "test" withSources()
+  lazy val mockito  = "org.mockito" % "mockito-all" % "1.9.0" % "test" withSources()
+  lazy val hamcrest = "org.hamcrest" % "hamcrest-all" % "1.1" % "test" withSources()
     
 }
 
