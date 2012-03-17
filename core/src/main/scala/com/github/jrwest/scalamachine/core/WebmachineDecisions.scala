@@ -10,40 +10,40 @@ package com.github.jrwest.scalamachine.core
 trait WebmachineDecisions {
 
   /* Service Available? */
-  def b13[C]: Decision[C] = Decision("v3b13", true, (r: Resource[C]) => r.serviceAvailable(_: ReqRespData, _: C), b12[C], 503)
+  lazy val b13: Decision = Decision("v3b13", true, (r: Resource) => r.serviceAvailable(_: ReqRespData), b12, 503)
 
   /* Known Methods */
-  def b12[C]: Decision[C] = Decision("v3b12", (r: Resource[C]) => r.knownMethods(_: ReqRespData, _: C), (l: List[HTTPMethod], d: ReqRespData) => l.contains(d.method), b11[C], 501)
+  lazy val b12: Decision = Decision("v3b12", (r: Resource) => r.knownMethods(_: ReqRespData), (l: List[HTTPMethod], d: ReqRespData) => l.contains(d.method), b11, 501)
 
   /* URI Too Long? */
-  def b11[C]: Decision[C] = Decision("v3b11", true, (r: Resource[C]) => r.uriTooLong(_: ReqRespData, _: C), 414, b10[C])
+  lazy val b11: Decision = Decision("v3b11", true, (r: Resource) => r.uriTooLong(_: ReqRespData), 414, b10)
 
   /* Allowed Methods */
-  def b10[C]: Decision[C] =
+  lazy val b10: Decision =
     Decision(
       "v3b10",
-      (r: Resource[C]) => r.allowedMethods(_: ReqRespData, _: C),
+      (r: Resource) => r.allowedMethods(_: ReqRespData),
       (l: List[HTTPMethod], d: ReqRespData) => l.contains(d.method),
-      b9[C],
-      (r: SimpleResult[C,List[HTTPMethod]]) => r.data.setStatusCode(405).setResponseHeader("Allow", r.value.map(_.toString).mkString(", "))
+      b9,
+      (r: SimpleResult[List[HTTPMethod]]) => r.data.setStatusCode(405).setResponseHeader("Allow", r.value.map(_.toString).mkString(", "))
     )
 
   /* Malformed Request? */
-  def b9[C]: Decision[C] = Decision("v3b9", true, (r: Resource[C]) => r.isMalformed(_: ReqRespData, _: C), 400, b8[C])
+  lazy val b9: Decision = Decision("v3b9", true, (r: Resource) => r.isMalformed(_: ReqRespData), 400, b8)
 
   /* Is Authorized? */
-  def b8[C]: Decision[C] = Decision(
+  lazy val b8: Decision = Decision(
     "v3b8",
     AuthSuccess,
-    (r: Resource[C]) => r.isAuthorized(_: ReqRespData, _: C),
-    b7[C],
-    (r: SimpleResult[C,AuthResult]) => r.value match {
+    (r: Resource) => r.isAuthorized(_: ReqRespData),
+    b7,
+    (r: SimpleResult[AuthResult]) => r.value match {
       case AuthFailure(headerVal) => r.data.setResponseHeader("WWW-Authenticate", headerVal).setStatusCode(401);
       case _ => r.data
     }
   )
   
-  def b7[C]: Decision[C] = Decision("v3b7",true,(r: Resource[C]) => r.isForbidden(_: ReqRespData, _: C), 403, b6[C])
+  lazy val b7: Decision = Decision("v3b7",true,(r: Resource) => r.isForbidden(_: ReqRespData), 403, b6)
   
-  def b6[C]: Decision[C] = null
+  lazy val b6: Decision = null
 }
