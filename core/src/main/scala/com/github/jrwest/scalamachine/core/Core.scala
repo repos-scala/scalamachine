@@ -39,7 +39,7 @@ case object GET extends HTTPMethod {
   override def toString = "GET"
 }
 case object HEAD extends HTTPMethod {
-  override def toString = "POST"
+  override def toString = "HEAD"
 }
 case object POST extends HTTPMethod {
   override def toString = "POST"
