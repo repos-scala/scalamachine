@@ -60,6 +60,23 @@ case object OPTIONS extends HTTPMethod {
   override def toString = "OPTIONS"
 }
 
+object HTTPMethod {
+  // currently, unknown strings are assumed to be GETS
+  // this is under assumption that wherever scalamachine is embedded
+  // handles unknown HTTP methods properly, thinking about changing to an unapply
+  // and letting implementations decide on how to handle the option (throw/fold/fail/etc)
+  def fromString(methodStr: String): HTTPMethod = methodStr.toLowerCase match {
+    case "OPTIONS" => OPTIONS
+    case "HEAD" => HEAD
+    case "TRACE" => TRACE
+    case "CONNECT" => CONNECT
+    case "DELETE" => DELETE
+    case "PUT" => PUT
+    case "POST" => POST
+    case _ => GET
+  }
+}
+
 sealed trait Result[+T] {
   def data: ReqRespData
     
@@ -81,15 +98,20 @@ case object AuthSuccess extends AuthResult
 case class AuthFailure(headerValue: String) extends AuthResult
 
 
-trait Resource {
+trait Resource {    
   //def init: C
-  def serviceAvailable(data: ReqRespData): Result[Boolean]
-  def knownMethods(data: ReqRespData): Result[List[HTTPMethod]]
-  def uriTooLong(data: ReqRespData): Result[Boolean]
-  def allowedMethods(data: ReqRespData): Result[List[HTTPMethod]]
-  def isMalformed(data: ReqRespData): Result[Boolean]
-  def isAuthorized(data: ReqRespData): Result[AuthResult]
-  def isForbidden(data: ReqRespData): Result[Boolean]
+  def serviceAvailable(data: ReqRespData): Result[Boolean] = default(true, data)
+  def knownMethods(data: ReqRespData): Result[List[HTTPMethod]] = default(
+    List(OPTIONS,TRACE,CONNECT,HEAD,GET,POST,PUT,DELETE), 
+    data
+  )
+  def uriTooLong(data: ReqRespData): Result[Boolean] = default(false,data)
+  def allowedMethods(data: ReqRespData): Result[List[HTTPMethod]] = default(GET :: Nil, data)
+  def isMalformed(data: ReqRespData): Result[Boolean] = default(false,data)
+  def isAuthorized(data: ReqRespData): Result[AuthResult] = default(AuthSuccess,data)
+  def isForbidden(data: ReqRespData): Result[Boolean] = default(false,data)
+  
+  private def default[A](value: A, data: ReqRespData): Result[A] = SimpleResult(value,data) 
 }
 
 trait Decision {
