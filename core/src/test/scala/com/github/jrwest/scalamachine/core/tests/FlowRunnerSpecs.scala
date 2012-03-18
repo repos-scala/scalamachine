@@ -93,9 +93,9 @@ class FlowRunnerSpecs extends Specification with Mockito { def is =
   
   def testErrorResultReturns500Response = {
     val secondDecision = decisionReturning(createResult(), None)
-    val firstDecision = decisionReturning(ErrorResult(null,ImmutableReqRespData(GET)), Some(secondDecision))
+    val firstDecision = decisionReturning(ErrorResult(null,ReqRespData()), Some(secondDecision))
     val flow = newFlow
-    val result = flow.run(firstDecision, mock[Resource], ImmutableReqRespData(GET))
+    val result = flow.run(firstDecision, mock[Resource], ReqRespData())
     result.statusCode must beEqualTo(500)
   }
   
@@ -110,9 +110,9 @@ class FlowRunnerSpecs extends Specification with Mockito { def is =
   def testHaltResultReturnsResponseWithHaltCode = {
     val code = 401
     val secondDecision = decisionReturning(createResult(), None)
-    val firstDecision = decisionReturning(HaltResult(code,ImmutableReqRespData(GET)), Some(secondDecision))
+    val firstDecision = decisionReturning(HaltResult(code,ReqRespData()), Some(secondDecision))
     val flow = newFlow
-    val result = flow.run(firstDecision, mock[Resource], ImmutableReqRespData(GET))
+    val result = flow.run(firstDecision, mock[Resource], ReqRespData())
     result.statusCode must beEqualTo(code)
   }
 

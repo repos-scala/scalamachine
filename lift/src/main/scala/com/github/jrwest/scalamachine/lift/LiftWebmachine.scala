@@ -12,7 +12,7 @@ trait LiftWebmachine {
 
   def wrap(res: => Box[LiftResponse]): () => Box[LiftResponse] = () => res  
 
-  def toData(req: Req): ReqRespData = ImmutableReqRespData(method = parseMethod(req.request.method))
+  def toData(req: Req) = ReqRespData(method = parseMethod(req.request.method)) // TODO: complete conversion
 
   def fromData(data: ReqRespData): Box[LiftResponse] = Full(InMemoryResponse(
     data = Array(), // FIXME

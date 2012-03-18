@@ -9,26 +9,15 @@ package com.github.jrwest.scalamachine.core
 
 // TODO: split all of the below into seperate files/packages etc (cleanup)
 
-trait ReqRespData {
-  
-  /* Request Data */
-  def method: HTTPMethod
-  def pathParts: List[String]
-  
-  /* Response Data */
-  def statusCode: Int
-  def setStatusCode(code: Int): ReqRespData
+case class ReqRespData(
+                        pathParts: List[String] = Nil,
+                        method: HTTPMethod = GET,
+                        statusCode: Int = 200,
+                        responseHeaders: Map[String,String] = Map()
+                      ) {
 
-  def responseHeaders: Map[String, String]
-  def responseHeader(name: String): Option[String]
-  def setResponseHeader(name: String, value: String): ReqRespData
-}
-
-// TODO: this was kind of whipped together. doesn't make sense to initialize some of the response data
-// may need something similar to scaliak's options or shadow fields that are options, or an apply helper
-// also not sure we need both the trait and the case class, just case class may suffice
-case class ImmutableReqRespData(method: HTTPMethod, pathParts: List[String] = Nil, statusCode: Int = 200, responseHeaders: Map[String,String] = Map()) extends ReqRespData {
   def setStatusCode(code: Int) = copy(statusCode = code)
+
   def responseHeader(name: String) = responseHeaders.get(name.toLowerCase)
   def setResponseHeader(name: String, value: String) = copy(responseHeaders = responseHeaders + (name.toLowerCase -> value))
 }

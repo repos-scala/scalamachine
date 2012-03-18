@@ -86,7 +86,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   // we don't care about the context in these tests
 
   def createResource = mock[Resource]
-  def createData(method: HTTPMethod = GET) = ImmutableReqRespData(method = method)  
+  def createData(method: HTTPMethod = GET) = ReqRespData(method = method)
 
   def testDecision(decision: Decision,
                    stubF: (Resource, ReqRespData) => Unit,
