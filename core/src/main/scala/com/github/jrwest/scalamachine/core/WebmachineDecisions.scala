@@ -1,12 +1,5 @@
 package com.github.jrwest.scalamachine.core
 
-/**
- * Created by IntelliJ IDEA.
- * User: jordanrw
- * Date: 3/11/12
- * Time: 11:35 PM
- */
-
 trait WebmachineDecisions {
 
   /* Service Available? */

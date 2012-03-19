@@ -5,13 +5,6 @@ import matcher.MatchResult
 import mock._
 import com.github.jrwest.scalamachine.core._
 
-/**
- * Created by IntelliJ IDEA.
- * User: jordanrw
- * Date: 2/28/12
- * Time: 1:20 AM
- */
-
 class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisions { def is = ""            ^
   "WebMachine V3".title                                                             ^
   """

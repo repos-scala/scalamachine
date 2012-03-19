@@ -1,12 +1,5 @@
 package com.github.jrwest.scalamachine.core
 
-/**
- * Created by IntelliJ IDEA.
- * User: jordanrw
- * Date: 2/27/12
- * Time: 11:15 PM 
- */
-
 // TODO: split all of the below into seperate files/packages etc (cleanup)
 
 case class ReqRespData(
