@@ -30,9 +30,10 @@ object Dependencies {
 object ScalamachineBuild extends Build {
   import BuildSettings._
   import Dependencies._
+  import ShellPrompt._
 
   lazy val scalamachine = Project("scalamachine", file("."),
-    settings = standardSettings,
+    settings = standardSettings ++ Seq(shellPrompt <<= prompt),
     aggregate = Seq(core,lift)
   )
 
@@ -40,7 +41,8 @@ object ScalamachineBuild extends Build {
     settings = standardSettings ++
       Seq(
         name := "scalamachine-core",
-        libraryDependencies ++= Seq(specs2,scalacheck,mockito,hamcrest)
+        libraryDependencies ++= Seq(specs2,scalacheck,mockito,hamcrest),
+        shellPrompt <<= prompt
       )
   )
   
@@ -49,7 +51,8 @@ object ScalamachineBuild extends Build {
     settings = standardSettings ++
       Seq(
         name := "scalamachine-lift",
-        libraryDependencies ++= Seq(liftweb)
+        libraryDependencies ++= Seq(liftweb),
+        shellPrompt <<= prompt
       )
   )
   
@@ -58,31 +61,26 @@ object ScalamachineBuild extends Build {
     settings = standardSettings ++ 
       Seq(
         name := "scalamachine-lift-example",
-        libraryDependencies ++= Seq(logback)
+        libraryDependencies ++= Seq(logback),
+        shellPrompt <<= prompt
       )
   )
 
 }
 
-/*
 object ShellPrompt {
-  object devnull extends ProcessLogger {
-    def info (s: => String) {}
-    def error (s: => String) { }
-    def buffer[T] (f: => T): T = f
-  }
-  def currBranch = (
-    ("git status -sb" lines_! devnull headOption)
-      getOrElse "-" stripPrefix "## "
-    )
-
-  val buildShellPrompt = {
-    (state: State) => {
-      val currProject = Project.extract (state).currentProject.id
-      "sbt %s:%s> ".format (
-        currProject, currBranch
-      )
+  val prompt = name(name => { state: State =>
+    object devnull extends ProcessLogger {
+      def info(s: => String) {}
+      def error(s: => String) { }
+      def buffer[T](f: => T): T = f
     }
-  }
+    val current = """\*\s+(\w+)""".r
+    def gitBranches = ("git branch --no-color" lines_! devnull mkString)
+    "%s | %s> " format (
+      name,
+      current findFirstMatchIn gitBranches map (_.group(1)) getOrElse "-"
+      )
+  })
 }
-*/
+
