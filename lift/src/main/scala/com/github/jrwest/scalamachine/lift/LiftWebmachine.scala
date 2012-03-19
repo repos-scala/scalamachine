@@ -6,13 +6,13 @@ import net.liftweb.common.{Full, Box}
 
 
 trait LiftWebmachine {
-  this: DispatchTable[Req, Box[LiftResponse], Function0] => 
+  this: DispatchTable[Req, Box[LiftResponse], Function0] =>
 
   def path(req: Req): List[String] = req.path.partPath
 
   def wrap(res: => Box[LiftResponse]): () => Box[LiftResponse] = () => res  
 
-  def toData(req: Req) = ReqRespData(method = parseMethod(req.request.method)) // TODO: complete conversion
+  def toData(req: Req) = ReqRespData(method = parseMethod(req.request.method), pathParts = path(req)) // TODO: complete conversion once ReqRespData is filled out
 
   def fromData(data: ReqRespData): Box[LiftResponse] = Full(InMemoryResponse(
     data = Array(), // FIXME

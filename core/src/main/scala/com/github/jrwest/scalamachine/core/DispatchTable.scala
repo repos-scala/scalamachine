@@ -13,7 +13,7 @@ trait DispatchTable[-A,B,+W[_]] extends PartialFunction[A,W[B]] {
     val data = toData(req)
     wrap {
       fromData {        
-        _routes.find(_.isDefinedAt(path(req)))
+        _routes.find(_.isDefinedAt(data.pathParts))
           .map(r => flowRunner.run(firstDecision, r(data.pathParts), data))
           .getOrElse(handle404(data))
       }
