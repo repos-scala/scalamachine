@@ -29,14 +29,22 @@ sealed trait Route extends PartialFunction[Seq[String],(Resource,PathData)] {
 
   private def buildPathData(path: Seq[String]): Option[PathData] = {
     if ((hasStar && path.size >= pathTerms.size - 1) || (pathTerms.size == path.size)) {
-      val matches = (path,pathTerms).zipped.forall { (token: String, term: RouteTerm) =>
-        term match {
-          case StringPart(expected) => expected == token
-          case _ => true
+      @annotation.tailrec
+      def matchAndExtract(ps: Stream[String], prts: Stream[RouteTerm], infoAcc: Map[Symbol,String]): (Boolean,Map[Symbol,String]) = (ps,prts) match {
+        case (Stream.Empty,_) => (true, infoAcc)
+        case (_,Stream.Empty) => (true, infoAcc)
+        case (p #:: psRest, pr #:: prtsRest) => pr match {
+          case StringPart(expected) => 
+            if (expected == p) matchAndExtract(psRest,prtsRest,infoAcc)
+            else (false,infoAcc)
+          case DataPart(key) => matchAndExtract(psRest,prtsRest,infoAcc + (key -> p))
+          case _ => matchAndExtract(psRest,prtsRest,infoAcc)
+            
         }
       }
+      val (matches,pathInfo) = matchAndExtract(path.toStream,pathTerms.toStream,Map())
       val tokens = if (hasStar) path drop (pathTerms.size - 1) else Nil
-      if (matches) Some(PathData(tokens = tokens)) else None
+      if (matches) Some(PathData(tokens = tokens, info = pathInfo)) else None
     } else None
   }
 

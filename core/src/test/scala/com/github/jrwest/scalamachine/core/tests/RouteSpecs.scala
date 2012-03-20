@@ -64,8 +64,7 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
           "path data has left over tokens seperated by slash as dispatch string"    ! AllDataRouteWithStar.testLeftoverTokensDispPath ^
           "path data has empty path tokens Seq if num tokens == num route terms"    ! AllDataRouteWithStar.testPathTokensAlwaysEmpty ^
           "path data has left over tokens in path tokens Seq with order preserved"  ! AllDataRouteWithStar.testLeftoverTokensPathTokens ^p^p^
-      "path data never has an empty path info map"                                  ! skipped ^
-      "path data's path info contains key corresponding to token for each data part"! skipped ^
+      "path data's path info contains key corresponding to token for each data part"! testMixedRoutesPathInfo ^
                                                                                     end
 
 
@@ -147,12 +146,7 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
         routeF(buildMixedRouteTerms(pathParts,dataIdxs)).isDefinedAt(changedParts.toList) must beFalse
       }
     }
-    
-    val buildMixedRouteTerms: (List[String],Set[Int]) => List[RouteTerm] =
-      (pathParts, dataIdxs) => pathParts.zipWithIndex.map {
-        case (s,idx) if dataIdxs.contains(idx) => DataPart(Symbol(s))
-        case (s,_) => StringPart(s)
-      }    
+       
   }
 
   object MixedRoutesWithStar extends MixedRoutesShared with MixedTermsPathDataShared {
@@ -193,6 +187,16 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
       }
     }
 
+  }
+  
+  def testMixedRoutesPathInfo = forAll(for { (a,b) <- pathAndDataPartIdxs;c <- Arbitrary.arbitrary[Boolean] } yield (a,b,c)) {
+    (data: (List[String],Set[Int],Boolean)) => {
+      val (pathParts,dataIdxs,bool) = data
+      val terms = buildMixedRouteTerms(pathParts,dataIdxs)
+      val route = if (bool) routeMatching(terms,null) else routeStartingWith(terms,null)
+      val expected = pathParts.zipWithIndex.filter(t => dataIdxs.contains(t._2)).map(tpl => (Symbol(tpl._1),tpl._1))
+      route.apply(pathParts)._2.info must containAllOf(expected).only
+    }
   }
 
   object AllDataRouteWithStar extends AllDataPathDataShared {
@@ -316,6 +320,11 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
     n <- Gen.choose(1,ls.size-1)
   } yield (ls,idxs,n)
 
+  val buildMixedRouteTerms: (List[String],Set[Int]) => List[RouteTerm] =
+    (pathParts, dataIdxs) => pathParts.zipWithIndex.map {
+      case (s,idx) if dataIdxs.contains(idx) => DataPart(Symbol(s))
+      case (s,_) => StringPart(s)
+    }
 
   def atleastOnePartDoesntMatch(routeF: List[String] => Route) = forAll(pathAndChangeIndexAndValue) {
     (data: (List[String],Int,String)) => {
