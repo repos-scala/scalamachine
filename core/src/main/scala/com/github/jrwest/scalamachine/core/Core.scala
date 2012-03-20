@@ -2,17 +2,33 @@ package com.github.jrwest.scalamachine.core
 
 // TODO: split all of the below into seperate files/packages etc (cleanup)
 
+case class PathData(tokens: Seq[String] = Nil, info: Map[Symbol,String] = Map()) {
+  val dispPath = tokens.mkString("/")
+}
+
 case class ReqRespData(
                         pathParts: List[String] = Nil,
+                        pathData: PathData = PathData(),
                         method: HTTPMethod = GET,
                         statusCode: Int = 200,
                         responseHeaders: Map[String,String] = Map()
                       ) {
-
-  def setStatusCode(code: Int) = copy(statusCode = code)
+  
+  
+  // TODO: make private?
+  def setPathData(newPathData: PathData) = copy(pathData = newPathData)
+  
+  def setStatusCode(code: Int) = copy(statusCode = code)  
 
   def responseHeader(name: String) = responseHeaders.get(name.toLowerCase)
   def setResponseHeader(name: String, value: String) = copy(responseHeaders = responseHeaders + (name.toLowerCase -> value))
+  def mergeResponseHeaders(newHeaders: Map[String, String]) = copy(responseHeaders = responseHeaders ++ newHeaders)
+
+  val path = pathParts.mkString("/")
+  val pathTokens = pathData.tokens
+  val dispPath = pathData.dispPath
+  val pathInfo = pathData.info
+
 }
 
 // not so sure about these yet, was done in a hurry

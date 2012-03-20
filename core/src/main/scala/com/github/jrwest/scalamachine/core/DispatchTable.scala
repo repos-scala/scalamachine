@@ -14,7 +14,10 @@ trait DispatchTable[-A,B,+W[_]] extends PartialFunction[A,W[B]] {
     wrap {
       fromData {        
         _routes.find(_.isDefinedAt(data.pathParts))
-          .map(r => flowRunner.run(firstDecision, r(data.pathParts), data))
+          .map(route => {
+            val (resource,pathData) = route(data.pathParts)
+            flowRunner.run(firstDecision, resource, data.setPathData(pathData))
+          })
           .getOrElse(handle404(data))
       }
     }
