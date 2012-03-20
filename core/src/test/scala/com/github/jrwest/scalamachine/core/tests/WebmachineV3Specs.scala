@@ -56,23 +56,24 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
                                                                                     p^p^
   "B6 - Valid Content-* Headers?"                                                   ^
     "asks resource if content headers are valid"                                    ^
-      "if they are, decision B5 is returned"                                        ! skipped ^
-      "if they are not, a response with code 501 is returned"                       ! skipped ^
+      "if they are, decision B5 is returned"                                        ! testValidContentHeadersTrue ^
+      "if they are not, a response with code 501 is returned"                       ! testValidContentHeadersFalse ^
                                                                                     p^p^
   "B5 - Known Content Type?"                                                        ^
     "asks resource if the Content-Type is known"                                    ^
-      "if it is, decision B4 is returned"                                           ! skipped ^
-      "if it is not, a response with code 415 is returned"                          ! skipped ^
+      "if it is, decision B4 is returned"                                           ! testKnownContentTypeTrue ^
+      "if it is not, a response with code 415 is returned"                          ! testKnownContentTypeFalse ^
                                                                                     p^p^
   "B4 - Request Entity Too Large?"                                                  ^
     "asks resource if the request entity length is valid"                           ^
-      "if it is, decision B3 is returned"                                           ! skipped ^
-      "if it is not, a response with code 413 is returned"                          ! skipped ^
+      "if it is, decision B3 is returned"                                           ! testIsValidEntityLengthTrue ^
+      "if it is not, a response with code 413 is returned"                          ! testIsValidEntityLengthFalse ^
                                                                                     p^p^
   "B3 - OPTIONS?"                                                                   ^
     "if the request method is OPTIONS"                                              ^
-      "a response with code 200 is returned"                                        ! skipped ^
-      "otherwise, decision C3 is returned"                                          ! skipped ^
+      "a response with code 200 is returned"                                        ! testRequestIsOptions ^
+      "response has headers returned by Resource.options"                           ! testRequestIsOptionsUsesResourceOptionsHeaders ^p^
+    "otherwise, decision C3 is returned"                                            ! testRequestIsNotOptions ^
                                                                                     p^p^
                                                                                     end
 
@@ -205,6 +206,53 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     testDecisionReturnsData(b7,(r,d) => r.isForbidden(any) returns SimpleResult(true,d)) {
       _.statusCode must beEqualTo(403)
     }
+  }
+
+  def testValidContentHeadersTrue = {
+    testDecisionReturnsDecision(b6,b5,(r,d) => r.contentHeadersValid(any) returns SimpleResult(true,d))
+  }
+  
+  def testValidContentHeadersFalse = {
+    testDecisionReturnsData(b6,(r,d) => r.contentHeadersValid(any) returns SimpleResult(false,d)) {
+      _.statusCode must beEqualTo(501)
+    }
+  }
+
+  def testKnownContentTypeTrue = {
+    testDecisionReturnsDecision(b5,b4,(r,d) => r.isKnownContentType(any) returns SimpleResult(true,d))
+  }
+  
+  def testKnownContentTypeFalse = {
+    testDecisionReturnsData(b5,(r,d) => r.isKnownContentType(any) returns SimpleResult(false,d)) {
+      _.statusCode must beEqualTo(415)
+    }
+  }
+  
+  def testIsValidEntityLengthTrue = {
+    testDecisionReturnsDecision(b4,b3,(r,d) => r.isValidEntityLength(any) returns SimpleResult(true,d))
+  }
+  
+  def testIsValidEntityLengthFalse = {
+    testDecisionReturnsData(b4,(r,d) => r.isValidEntityLength(any) returns SimpleResult(false,d)) {
+      _.statusCode must beEqualTo(413)
+    }
+  }
+
+  def testRequestIsOptions = {
+    testDecisionReturnsData(b3,(r,d) => r.options(any) returns SimpleResult(Map[String,String](),d), data = createData(method=OPTIONS)) {
+      _.statusCode must beEqualTo(200)
+    }
+  }
+  
+  def testRequestIsOptionsUsesResourceOptionsHeaders = {
+    val testHeaders =  Map("X-A" -> "a", "X-B" -> "b")
+    testDecisionReturnsData(b3,(r,d) => r.options(any) returns SimpleResult(testHeaders,d), data = createData(method=OPTIONS)) {
+      _.responseHeaders must containAllOf(testHeaders.toList)
+    }
+  }
+
+  def testRequestIsNotOptions = {
+    testDecisionReturnsDecision(b3,c3, (r,d) => (), data = createData(method=POST))
   }
   
 }

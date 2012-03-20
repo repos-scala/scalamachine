@@ -38,5 +38,25 @@ trait WebmachineDecisions {
   
   lazy val b7: Decision = Decision("v3b7",true,(r: Resource) => r.isForbidden(_: ReqRespData), 403, b6)
   
-  lazy val b6: Decision = null
+  lazy val b6: Decision = Decision("v3b6",true,(r: Resource) => r.contentHeadersValid(_: ReqRespData), b5, 501)
+
+  lazy val b5: Decision = Decision("v3b5",true,(r: Resource) => r.isKnownContentType(_: ReqRespData), b4, 415)
+  
+  lazy val b4: Decision = Decision("v3b4",true,(r: Resource) => r.isValidEntityLength(_: ReqRespData), b3, 413)
+  
+  lazy val b3: Decision = new Decision {
+    def name: String = "v3b3"
+
+    def decide(resource: Resource, data: ReqRespData): (Result[Any], Option[Decision]) = {
+      data.method match {
+        case OPTIONS => {
+          val hdrs = resource.options(data) match { case SimpleResult(hs,_) => hs; case _ => Map[String,String]() }
+          (HaltResult(200, hdrs, data), None)
+        }
+        case _ => (EmptyResult(data), Some(c3))
+      }
+    }
+  }
+
+  lazy val c3: Decision = null
 }

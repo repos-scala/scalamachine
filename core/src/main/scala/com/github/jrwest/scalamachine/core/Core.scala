@@ -75,6 +75,14 @@ case class HaltResult(code: Int, data: ReqRespData) extends Result[Nothing] {
   private[core] def setData(d: ReqRespData) = copy(data = d)
 }
 
+case class EmptyResult(data: ReqRespData) extends Result[Nothing] {
+  private[core] def setData(d: ReqRespData) = copy(data = d)
+}
+
+object HaltResult {
+  def apply(code: Int, headers: Map[String,String], data: ReqRespData): HaltResult = HaltResult(code, data.mergeResponseHeaders(headers))
+}
+
 sealed trait AuthResult
 case object AuthSuccess extends AuthResult
 case class AuthFailure(headerValue: String) extends AuthResult
@@ -92,6 +100,10 @@ trait Resource {
   def isMalformed(data: ReqRespData): Result[Boolean] = default(false,data)
   def isAuthorized(data: ReqRespData): Result[AuthResult] = default(AuthSuccess,data)
   def isForbidden(data: ReqRespData): Result[Boolean] = default(false,data)
+  def contentHeadersValid(data: ReqRespData): Result[Boolean] = default(true,data)
+  def isKnownContentType(data: ReqRespData): Result[Boolean] = default(true,data)
+  def isValidEntityLength(data: ReqRespData): Result[Boolean] = default(true,data)
+  def options(data: ReqRespData): Result[Map[String, String]] = default(Map(), data)
   
   private def default[A](value: A, data: ReqRespData): Result[A] = SimpleResult(value,data) 
 }
