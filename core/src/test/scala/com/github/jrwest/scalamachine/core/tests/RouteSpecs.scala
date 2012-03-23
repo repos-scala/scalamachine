@@ -1,10 +1,11 @@
 package com.github.jrwest.scalamachine.core.tests
 
 import org.specs2._
-import com.github.jrwest.scalamachine.core.Route._
+import com.github.jrwest.scalamachine.core.dispatch.Route._
 import org.scalacheck.{Arbitrary, Prop, Gen}
 import Prop._
 import com.github.jrwest.scalamachine.core._
+import dispatch._
 
 
 class RouteSpecs extends Specification with ScalaCheck { def is =

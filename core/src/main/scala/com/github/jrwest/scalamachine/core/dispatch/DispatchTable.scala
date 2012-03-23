@@ -1,10 +1,15 @@
 package com.github.jrwest.scalamachine.core
+package dispatch
 
-trait DispatchTable[-A,B,+W[_]] extends PartialFunction[A,W[B]] {
+import flow._
+
+trait DispatchTable[-A, B, +W[_]] extends PartialFunction[A, W[B]] {
 
   private var _routes: List[Route] = Nil
 
-  def addRoute(route: Route) { _routes ::= route }
+  def addRoute(route: Route) {
+    _routes ::= route
+  }
 
   def isDefinedAt(req: A): Boolean = _routes.find(_.isDefinedAt(path(req))).isDefined
 
@@ -12,12 +17,12 @@ trait DispatchTable[-A,B,+W[_]] extends PartialFunction[A,W[B]] {
   def apply(req: A): W[B] = {
     val data = toData(req)
     wrap {
-      fromData {        
+      fromData {
         _routes.find(_.isDefinedAt(data.pathParts))
           .map(route => {
-            val (resource,pathData) = route(data.pathParts)
-            flowRunner.run(firstDecision, resource, data.setPathData(pathData))
-          })
+          val (resource, pathData) = route(data.pathParts)
+          flowRunner.run(firstDecision, resource, data.setPathData(pathData))
+        })
           .getOrElse(handle404(data))
       }
     }
@@ -40,8 +45,4 @@ trait DispatchTable[-A,B,+W[_]] extends PartialFunction[A,W[B]] {
 
   def fromData(data: ReqRespData): B
 
-}
-
-trait V3DispatchTable[-A,B,+W[_]] extends DispatchTable[A,B,W] with WebmachineDecisions {
-  val firstDecision = b13
 }

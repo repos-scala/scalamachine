@@ -3,13 +3,8 @@ package com.github.jrwest.scalamachine.core.tests
 import org.specs2._
 import mock._
 import com.github.jrwest.scalamachine.core._
+import flow._
 
-/**
- * Created by IntelliJ IDEA.
- * User: jordanrw
- * Date: 2/27/12
- * Time: 11:12 PM
- */
 
 class FlowRunnerSpecs extends Specification with Mockito { def is =
   "FlowRunner".title                                                                ^
@@ -36,6 +31,8 @@ class FlowRunnerSpecs extends Specification with Mockito { def is =
                                                                                     p^p^
                                                                                     end
 
+  // TODO: sets content type based on metadata, encodes body properly based on content encoding (see webmachine_dispatch_core:respond)
+
   trait TestFlowTracking extends FlowRunnerBase {
     var steps = List[(Decision, Either[Result[Any],Decision])]()
     abstract override protected def runDecisionInner(resource: Resource, decision: Decision, data: ReqRespData) = {
@@ -54,9 +51,9 @@ class FlowRunnerSpecs extends Specification with Mockito { def is =
     val decision = mock[Decision]
     decision.decide(any, any) returns ((result, next))
     decision
-  } 
-  
-  def testTerminatesWhenNoDecisionReturned = {    
+  }
+
+  def testTerminatesWhenNoDecisionReturned = {
     val returnedResult = createResult()
     val decision = decisionReturning(returnedResult, None)
     val flow = newFlow
@@ -72,7 +69,7 @@ class FlowRunnerSpecs extends Specification with Mockito { def is =
     newFlow.run(decision, mock[Resource], startData) must
       beEqualTo(endData) and not(beEqualTo(startData))
   }
-  
+
   def testContinuesWithNextDecisionOnSimpleResult = {
     val secondDecision = decisionReturning(createResult(), None)
     val firstDecision = decisionReturning(createResult(), Some(secondDecision))
@@ -90,7 +87,7 @@ class FlowRunnerSpecs extends Specification with Mockito { def is =
     flow.run(firstDecision, mock[Resource], mock[ReqRespData])
     flow.steps.size must beEqualTo(1)
   }
-  
+
   def testErrorResultReturns500Response = {
     val secondDecision = decisionReturning(createResult(), None)
     val firstDecision = decisionReturning(ErrorResult(null,ReqRespData()), Some(secondDecision))
@@ -98,7 +95,7 @@ class FlowRunnerSpecs extends Specification with Mockito { def is =
     val result = flow.run(firstDecision, mock[Resource], ReqRespData())
     result.statusCode must beEqualTo(500)
   }
-  
+
   def testHaltResultDoesNotRunNextDecision = {
     val secondDecision = decisionReturning(createResult(), None)
     val firstDecision = decisionReturning(HaltResult(400,mock[ReqRespData]), Some(secondDecision))
@@ -106,7 +103,7 @@ class FlowRunnerSpecs extends Specification with Mockito { def is =
     flow.run(firstDecision, mock[Resource], mock[ReqRespData])
     flow.steps.size must beEqualTo(1)
   }
-  
+
   def testHaltResultReturnsResponseWithHaltCode = {
     val code = 401
     val secondDecision = decisionReturning(createResult(), None)

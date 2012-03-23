@@ -4,6 +4,7 @@ import net.liftweb._
 import http._
 import com.github.jrwest.scalamachine.lift.LiftWebmachineV3
 import com.github.jrwest.scalamachine.core.Route._
+import com.github.jrwest.scalamachine.core.dispatch.{StringPart, Route}
 import com.github.jrwest.scalamachine.core.StringPart
 import code.resources.UnavailableResource
 

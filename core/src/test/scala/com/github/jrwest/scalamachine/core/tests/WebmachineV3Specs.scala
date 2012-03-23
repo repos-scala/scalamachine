@@ -4,6 +4,8 @@ import org.specs2._
 import matcher.MatchResult
 import mock._
 import com.github.jrwest.scalamachine.core._
+import flow._
+import v3.WebmachineDecisions
 
 class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisions { def is = ""            ^
   "WebMachine V3".title                                                             ^

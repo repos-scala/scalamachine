@@ -1,8 +1,10 @@
 package com.github.jrwest.scalamachine.lift
 
-import com.github.jrwest.scalamachine.core._
 import net.liftweb.http.{InMemoryResponse, Req, LiftResponse}
 import net.liftweb.common.{Full, Box}
+import com.github.jrwest.scalamachine.core._
+import dispatch.DispatchTable
+import v3.V3DispatchTable
 
 
 trait LiftWebmachine {

@@ -2,14 +2,9 @@ package com.github.jrwest.scalamachine.core
 
 import util.parsing.combinator.JavaTokenParsers
 
-
 object Util extends AcceptHeaderParsers {
   def acceptToMediaTypes(acceptStr: String): List[MediaInfo] = (parseAll(acceptHeader, acceptStr) getOrElse Nil).sortWith(_.qVal > _.qVal)
 }
-
-case class MediaInfo(mediaRangeType: String, mediaRangeParams: List[(String,String)], qVal: Double, acceptParams: List[(String,String)])
-case class ContentType(mediaType: String, params: Map[String, String] = Map())
-
 trait AcceptHeaderParsers extends JavaTokenParsers {
 
   protected def acceptHeader: Parser[List[MediaInfo]] = repsep(mediaInfo, ",")
