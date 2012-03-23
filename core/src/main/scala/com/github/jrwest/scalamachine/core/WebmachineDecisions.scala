@@ -35,17 +35,22 @@ trait WebmachineDecisions {
       case _ => r.data
     }
   )
-  
+
+  /* Is Forbidden? */
   lazy val b7: Decision = Decision("v3b7",true,(r: Resource) => r.isForbidden(_: ReqRespData), 403, b6)
-  
+
+  /* Content-* Headers Are Valid? */
   lazy val b6: Decision = Decision("v3b6",true,(r: Resource) => r.contentHeadersValid(_: ReqRespData), b5, 501)
 
+  /* Is Known Content-Type? */
   lazy val b5: Decision = Decision("v3b5",true,(r: Resource) => r.isKnownContentType(_: ReqRespData), b4, 415)
-  
+
+  /* Request Entity Too Large? */
   lazy val b4: Decision = Decision("v3b4",true,(r: Resource) => r.isValidEntityLength(_: ReqRespData), b3, 413)
-  
+
+  /* OPTIONS? */
   lazy val b3: Decision = new Decision {
-    def name: String = "v3b3"
+    val name: String = "v3b3"
 
     def decide(resource: Resource, data: ReqRespData): (Result[Any], Option[Decision]) = {
       data.method match {
@@ -58,5 +63,26 @@ trait WebmachineDecisions {
     }
   }
 
-  lazy val c3: Decision = null
+  /* Accept Exists? */
+  lazy val c3: Decision = new Decision {
+    val name: String = "v3c3"
+    
+    def decide(resource: Resource,  data: ReqRespData): (Result[Any],Option[Decision]) = {
+      data.requestHeader("Accept") match {
+        case Some(_) => (EmptyResult(data),Some(c4))
+        case None => {
+          // TODO: change this to handle empty list of content types
+          // TODO: get rid of hacky cast
+          val cType = resource.contentTypesProvided(data).asInstanceOf[SimpleResult[List[(ContentType,ReqRespData => Result[String])]]].value.head._1
+          val newData = data.copy(metadata = data.metadata.copy(contentType = Option(cType)))
+          (EmptyResult(newData),Some(d4))
+        }
+      }
+    }
+  }
+
+  /* Acceptable Media Type Available? */
+  lazy val c4: Decision = null
+  
+  lazy val d4: Decision = null
 }

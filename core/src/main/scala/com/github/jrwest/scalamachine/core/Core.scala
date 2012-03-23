@@ -2,6 +2,8 @@ package com.github.jrwest.scalamachine.core
 
 // TODO: split all of the below into seperate files/packages etc (cleanup)
 
+case class Metadata(contentType: Option[ContentType] = None)
+
 case class PathData(tokens: Seq[String] = Nil, info: Map[Symbol,String] = Map()) {
   val dispPath = tokens.mkString("/")
 }
@@ -11,24 +13,30 @@ case class ReqRespData(
                         pathData: PathData = PathData(),
                         method: HTTPMethod = GET,
                         statusCode: Int = 200,
-                        responseHeaders: Map[String,String] = Map()
+                        requestHeaders: Map[String,String] = Map(),
+                        responseHeaders: Map[String,String] = Map(),
+                        metadata: Metadata = Metadata()
                       ) {
   
   
   // TODO: make private?
   def setPathData(newPathData: PathData) = copy(pathData = newPathData)
-  
-  def setStatusCode(code: Int) = copy(statusCode = code)  
-
-  def responseHeader(name: String) = responseHeaders.get(name.toLowerCase)
-  def setResponseHeader(name: String, value: String) = copy(responseHeaders = responseHeaders + (name.toLowerCase -> value))
-  def mergeResponseHeaders(newHeaders: Map[String, String]) = copy(responseHeaders = responseHeaders ++ newHeaders)
 
   val path = pathParts.mkString("/")
   val pathTokens = pathData.tokens
   val dispPath = pathData.dispPath
   val pathInfo = pathData.info
+  
+  def setStatusCode(code: Int) = copy(statusCode = code)  
 
+  def requestHeader(name: String) = header(name,requestHeaders)
+
+  def responseHeader(name: String) = header(name, responseHeaders)
+  def setResponseHeader(name: String, value: String) = copy(responseHeaders = responseHeaders + (name.toLowerCase -> value))
+  def mergeResponseHeaders(newHeaders: Map[String, String]) = copy(responseHeaders = responseHeaders ++ newHeaders)
+
+  private def header(name: String, headers: Map[String,String]) = headers.get(name.toLowerCase)
+  
 }
 
 // not so sure about these yet, was done in a hurry
@@ -104,7 +112,7 @@ case object AuthSuccess extends AuthResult
 case class AuthFailure(headerValue: String) extends AuthResult
 
 
-trait Resource {    
+trait Resource {
   //def init: C
   def serviceAvailable(data: ReqRespData): Result[Boolean] = default(true, data)
   def knownMethods(data: ReqRespData): Result[List[HTTPMethod]] = default(
@@ -120,8 +128,15 @@ trait Resource {
   def isKnownContentType(data: ReqRespData): Result[Boolean] = default(true,data)
   def isValidEntityLength(data: ReqRespData): Result[Boolean] = default(true,data)
   def options(data: ReqRespData): Result[Map[String, String]] = default(Map(), data)
+
+  def contentTypesProvided(data: ReqRespData): Result[List[(ContentType,ReqRespData => Result[String])]] = {
+    default((ContentType("text/html") -> defaultResponse) :: Nil, data)
+  }
+    
+    
+  private def default[A](value: A, data: ReqRespData): Result[A] = SimpleResult(value,data)
+  private val defaultResponse: ReqRespData => Result[String] = default("hello, scalamachine", _)
   
-  private def default[A](value: A, data: ReqRespData): Result[A] = SimpleResult(value,data) 
 }
 
 trait Decision {

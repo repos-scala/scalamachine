@@ -74,13 +74,45 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
       "a response with code 200 is returned"                                        ! testRequestIsOptions ^
       "response has headers returned by Resource.options"                           ! testRequestIsOptionsUsesResourceOptionsHeaders ^p^
     "otherwise, decision C3 is returned"                                            ! testRequestIsNotOptions ^
+                                                                                    p^
+  "C3 - Accept Exists?"                                                             ^
+    "If the Accept header doesn't exist"                                            ^
+      "D4 is returned and 1st type in resources provided list is set in metadata"   ! testMissingAcceptHeader ^
+    "If the Accept header exists decision C4 is returned"                           ! testAcceptHeaderExists ^
+                                                                                    p^
+  "C4 - Acceptable Media Type Available?"                                           ^
+    "if the media type is provided by the resource"                                 ^
+      "Decision D4 is returned & the mediatype is set as content type in metadata"  ! skipped ^p^
+    "if the media type is not provided by the resource"                             ^
+      "response with code 406 is returned"                                          ! skipped ^
                                                                                     p^p^
+  "D4 - Accept-Language Exists?"                                                    ^
+    "if Accept-Language header exists decision D5 is returned"                      ! skipped ^
+    "otherwise decision E5 is returned"                                             ! skipped ^
+                                                                                    p^
+  "D5 - Accept-Language Availble?"                                                  ^
+    "asks resource if language is available"                                        ^
+      "if it is, decision E5 is returned"                                           ! skipped ^
+      "otherwise, a response with code 406 is returned"                             ! skipped ^
+                                                                                    p^p^
+  "E5 - Accept-Charset Exists?"                                                     ^
+    "If the Accept-Charset header exists decision E6 is returned"                   ! skipped ^
+    "Otherwise"                                                                     ^
+      """If "*" charset is acceptable to resource, decision F6 is returned"""       ! skipped ^
+      "otherwise, a response with code 406 is returned"                             ! skipped ^
+                                                                                    p^p^
+  "E6 - Accept-Charset Available?"                                                  ^
+    "If resource specifies charset negotiation short circuting, F6 is returned"     ! skipped ^
+    "If the charset is provided by the resource"                                    ^
+      "the chosen charset is set in the metadata"                                   ! skipped ^
+      "decision F6 is returned"                                                     ! skipped ^p^
+    "If charset is not provided by the resource, response w/ code 406 returned"     ! skipped ^
                                                                                     end
 
   // we don't care about the context in these tests
 
   def createResource = mock[Resource]
-  def createData(method: HTTPMethod = GET) = ReqRespData(method = method)
+  def createData(method: HTTPMethod = GET, headers: Map[String,String] = Map()) = ReqRespData(method = method, requestHeaders = headers)
 
   def testDecision(decision: Decision,
                    stubF: (Resource, ReqRespData) => Unit,
@@ -98,6 +130,16 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
                                   data: ReqRespData = createData()): MatchResult[Any] = {
     testDecision(toTest, stubF, resource, data) {
       (_: ReqRespData, mbNextDecision: Option[Decision]) => mbNextDecision must beSome.which { _ == expectedDecision }
+    }
+  }
+  
+  def testDecisionReturnsDecisionAndData(toTest: Decision,
+                                         expectedDecision: Decision,
+                                         stubF: (Resource, ReqRespData) => Unit,
+                                         resource: Resource = createResource,
+                                         data: ReqRespData = createData())(f: ReqRespData => MatchResult[Any]): MatchResult[Any] = {
+    testDecision(toTest, stubF, resource, data) {
+      (data: ReqRespData, mbNextDecision: Option[Decision]) => mbNextDecision must beSome.which { _ == expectedDecision } and f(data)
     }
   }
   
@@ -254,5 +296,19 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   def testRequestIsNotOptions = {
     testDecisionReturnsDecision(b3,c3, (r,d) => (), data = createData(method=POST))
   }
-  
+
+  def testMissingAcceptHeader = {
+    val ctypes: List[(ContentType,ReqRespData => Result[String])] =
+      (ContentType("text/html"), SimpleResult("",_: ReqRespData)) :: (ContentType("text/plain"), SimpleResult("",_: ReqRespData)) ::  Nil
+
+    testDecisionReturnsDecisionAndData(c3,d4,(r,d) => r.contentTypesProvided(any) returns SimpleResult(ctypes,d)) {
+      _.metadata.contentType must beSome.like {
+        case meta => meta must beEqualTo(ctypes.head._1)
+      }
+    }
+  }
+
+  def testAcceptHeaderExists = {
+    testDecisionReturnsDecision(c3,c4,(r,d) => r.contentTypesProvided(any) returns SimpleResult(Nil,d),data = createData(headers = Map("accept" -> "text/html")))
+  }
 }
