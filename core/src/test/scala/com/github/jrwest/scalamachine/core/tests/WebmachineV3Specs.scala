@@ -114,15 +114,15 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   // we don't care about the context in these tests
 
   def createResource = mock[Resource]
-  def createData(method: HTTPMethod = GET, headers: Map[String,String] = Map()) = ReqRespData(method = method, requestHeaders = headers)
+  def createData(method: HTTPMethod = GET, headers: Map[String,String] = Map()) = ReqRespData(method = method, requestHdrs = headers)
 
   def testDecision(decision: Decision,
                    stubF: (Resource, ReqRespData) => Unit,
                    resource: Resource = createResource,
                    data: ReqRespData = createData())(f: (ReqRespData, Option[Decision]) => MatchResult[Any]): MatchResult[Any] = {
     stubF(resource, data) // make call to stub/mock
-    val (result, mbNextDecision) = decision.decide(resource, data)
-    f(result.data, mbNextDecision)
+    val (_, newData, mbNextDecision) = decision.decide(resource, data)
+    f(newData, mbNextDecision)
   }
 
   def testDecisionReturnsDecision(toTest: Decision,
@@ -156,47 +156,47 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
                           
   
   def testServiceAvailTrue = {
-    testDecisionReturnsDecision(b13, b12, (r,d) => r.serviceAvailable(any) returns SimpleResult(true,d))
+    testDecisionReturnsDecision(b13, b12, (r,d) => r.serviceAvailable(any) returns ((ValueRes(true),d)))
   }
 
   def testServiceAvailFalse = {
-    testDecisionReturnsData(b13, (r,d) => r.serviceAvailable(any) returns SimpleResult(false, d)) {
+    testDecisionReturnsData(b13, (r,d) => r.serviceAvailable(any) returns ((ValueRes(false), d))) {
       _.statusCode must beEqualTo(503)
     }
   }
 
   def testKnownMethodTrue = {
-    testDecisionReturnsDecision(b12, b11, (r,d) => r.knownMethods(any) returns SimpleResult(List(GET,POST), d))
+    testDecisionReturnsDecision(b12, b11, (r,d) => r.knownMethods(any) returns ((ValueRes(List(GET,POST)), d)))
   }
   
   def testKnownMethodFalse = {
-    testDecisionReturnsData(b12, (r,d) => r.knownMethods(any) returns SimpleResult(List(GET),d), data = createData(method = POST)) {
+    testDecisionReturnsData(b12, (r,d) => r.knownMethods(any) returns ((ValueRes(List(GET)),d)), data = createData(method = POST)) {
       _.statusCode must beEqualTo(501)
     }
   }
   
   def testURITooLongFalse = {
-    testDecisionReturnsDecision(b11, b10, (r,d) => r.uriTooLong(any) returns SimpleResult(false,d))
+    testDecisionReturnsDecision(b11, b10, (r,d) => r.uriTooLong(any) returns ((ValueRes(false),d)))
   }
   
   def testURITooLongTrue = {
-    testDecisionReturnsData(b11, (r,d) => r.uriTooLong(any) returns SimpleResult(true,d)) {
+    testDecisionReturnsData(b11, (r,d) => r.uriTooLong(any) returns ((ValueRes(true),d))) {
       _.statusCode must beEqualTo(414)
     }
   }
 
   def testAllowedMethodTrue = {
-    testDecisionReturnsDecision(b10, b9, (r,d) => r.allowedMethods(any) returns SimpleResult(List(GET,POST),d))
+    testDecisionReturnsDecision(b10, b9, (r,d) => r.allowedMethods(any) returns ((ValueRes(List(GET,POST)),d)))
   }
 
   def testAllowedMethodFalseRespCode = {
-    testDecisionReturnsData(b10,(r,d) => r.allowedMethods(any) returns SimpleResult(List(GET,DELETE),d), data = createData(method = POST)) {
+    testDecisionReturnsData(b10,(r,d) => r.allowedMethods(any) returns ((ValueRes(List(GET,DELETE)),d)), data = createData(method = POST)) {
       _.statusCode must beEqualTo(405)
     }
   }
 
   def testAllowedMethodFalseAllowHeader = {
-    testDecisionReturnsData(b10, (r, d) => r.allowedMethods(any) returns SimpleResult(List(GET,POST,DELETE),d), data = createData(method=PUT)) {
+    testDecisionReturnsData(b10, (r, d) => r.allowedMethods(any) returns ((ValueRes(List(GET,POST,DELETE)),d)), data = createData(method=PUT)) {
       _.responseHeader("Allow") must beSome.like {
         case s => s must contain("GET") and contain("POST") and contain("DELETE") // this could be improved (use the actual list above)
       }
@@ -204,94 +204,96 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   }
   
   def testMalformedFalse = {
-    testDecisionReturnsDecision(b9, b8, (r,d) => r.isMalformed(any) returns SimpleResult(false,d))
+    testDecisionReturnsDecision(b9, b8, (r,d) => r.isMalformed(any) returns ((ValueRes(false),d)))
   }
 
   def testMalformedTrue = {
-    testDecisionReturnsData(b9,(r,d) => r.isMalformed(any) returns SimpleResult(true,d)) {
+    testDecisionReturnsData(b9,(r,d) => r.isMalformed(any) returns ((ValueRes(true),d))) {
       _.statusCode must beEqualTo(400)
     }
   }
 
   def testAuthTrue = {
-    testDecisionReturnsDecision(b8, b7, (r,d) => r.isAuthorized(any) returns SimpleResult(AuthSuccess,d))
+    testDecisionReturnsDecision(b8, b7, (r,d) => r.isAuthorized(any) returns ((ValueRes(AuthSuccess),d)))
   }
   
   def testAuthFalseRespCode = {
-    testDecisionReturnsData(b8,(r,d) => r.isAuthorized(any) returns SimpleResult(AuthFailure("something"),d)) {
+    testDecisionReturnsData(b8,(r,d) => r.isAuthorized(any) returns ((ValueRes(AuthFailure("something")),d))) {
       _.statusCode must beEqualTo(401)
     }
   }
 
   def testAuthFalseHaltResult = {
-    testDecisionReturnsData(b8, (r,d) => r.isAuthorized(any) returns HaltResult(500,d)) {
+    testDecisionReturnsData(b8, (r,d) => r.isAuthorized(any) returns ((HaltRes(500),d))) {
       _.responseHeader("WWW-Authenticate") must beNone
     }
   }
   
   def testAuthFalseErrorResult = {
-    testDecisionReturnsData(b8, (r,d) => r.isAuthorized(any) returns ErrorResult(null,d)) {
+    testDecisionReturnsData(b8, (r,d) => r.isAuthorized(any) returns ((ErrorRes(null),d))) {
       _.responseHeader("WWW-Authenticate") must beNone
     }
   }
   
   def testAuthFalseAuthHeader = {
     val headerValue = "somevalue"
-    testDecisionReturnsData(b8, (r,d) => r.isAuthorized(any) returns SimpleResult(AuthFailure(headerValue),d)) {
+    testDecisionReturnsData(b8, (r,d) => r.isAuthorized(any) returns ((ValueRes(AuthFailure(headerValue)),d))) {
       _.responseHeader("WWW-Authenticate") must beSome.which { _ == headerValue }
     }
   }
   
   def testForbiddenFalse = {
-    testDecisionReturnsDecision(b7,b6,(r,d) => r.isForbidden(any) returns SimpleResult(false,d))
+    testDecisionReturnsDecision(b7,b6,(r,d) => r.isForbidden(any) returns ((ValueRes(false),d)))
   }
   
   def testForbiddenTrue = {
-    testDecisionReturnsData(b7,(r,d) => r.isForbidden(any) returns SimpleResult(true,d)) {
+    testDecisionReturnsData(b7,(r,d) => r.isForbidden(any) returns ((ValueRes(true),d))) {
       _.statusCode must beEqualTo(403)
     }
   }
 
   def testValidContentHeadersTrue = {
-    testDecisionReturnsDecision(b6,b5,(r,d) => r.contentHeadersValid(any) returns SimpleResult(true,d))
+    testDecisionReturnsDecision(b6,b5,(r,d) => r.contentHeadersValid(any) returns ((ValueRes(true),d)))
   }
   
   def testValidContentHeadersFalse = {
-    testDecisionReturnsData(b6,(r,d) => r.contentHeadersValid(any) returns SimpleResult(false,d)) {
+    testDecisionReturnsData(b6,(r,d) => r.contentHeadersValid(any) returns ((ValueRes(false),d))) {
       _.statusCode must beEqualTo(501)
     }
   }
 
   def testKnownContentTypeTrue = {
-    testDecisionReturnsDecision(b5,b4,(r,d) => r.isKnownContentType(any) returns SimpleResult(true,d))
+    testDecisionReturnsDecision(b5,b4,(r,d) => r.isKnownContentType(any) returns ((ValueRes(true),d)))
   }
   
   def testKnownContentTypeFalse = {
-    testDecisionReturnsData(b5,(r,d) => r.isKnownContentType(any) returns SimpleResult(false,d)) {
+    testDecisionReturnsData(b5,(r,d) => r.isKnownContentType(any) returns ((ValueRes(false),d))) {
       _.statusCode must beEqualTo(415)
     }
   }
   
   def testIsValidEntityLengthTrue = {
-    testDecisionReturnsDecision(b4,b3,(r,d) => r.isValidEntityLength(any) returns SimpleResult(true,d))
+    testDecisionReturnsDecision(b4,b3,(r,d) => r.isValidEntityLength(any) returns ((ValueRes(true),d)))
   }
   
   def testIsValidEntityLengthFalse = {
-    testDecisionReturnsData(b4,(r,d) => r.isValidEntityLength(any) returns SimpleResult(false,d)) {
+    testDecisionReturnsData(b4,(r,d) => r.isValidEntityLength(any) returns ((ValueRes(false),d))) {
       _.statusCode must beEqualTo(413)
     }
   }
 
   def testRequestIsOptions = {
-    testDecisionReturnsData(b3,(r,d) => r.options(any) returns SimpleResult(Map[String,String](),d), data = createData(method=OPTIONS)) {
+    testDecisionReturnsData(b3,(r,d) => r.options(any) returns ((ValueRes(Map[String,String]()),d)), data = createData(method=OPTIONS)) {
       _.statusCode must beEqualTo(200)
     }
   }
   
   def testRequestIsOptionsUsesResourceOptionsHeaders = {
     val testHeaders =  Map("X-A" -> "a", "X-B" -> "b")
-    testDecisionReturnsData(b3,(r,d) => r.options(any) returns SimpleResult(testHeaders,d), data = createData(method=OPTIONS)) {
-      _.responseHeaders must containAllOf(testHeaders.toList)
+    testDecisionReturnsData(b3,(r,d) => r.options(any) returns ((ValueRes(testHeaders),d)), data = createData(method=OPTIONS)) {
+      _.responseHeaders must containAllOf(testHeaders.toList) ^^ { 
+        (d1: (String, String), d2: (String, String)) => d1._1.equalsIgnoreCase(d2._1) && d1._2.equalsIgnoreCase(d2._2)
+      }
     }
   }
 
@@ -300,10 +302,10 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   }
 
   def testMissingAcceptHeader = {
-    val ctypes: List[(ContentType,ReqRespData => Result[String])] =
-      (ContentType("text/html"), SimpleResult("",_: ReqRespData)) :: (ContentType("text/plain"), SimpleResult("",_: ReqRespData)) ::  Nil
+    val ctypes: List[(ContentType,ReqRespData => (Res[String],ReqRespData))] =
+      (ContentType("text/html"), (d: ReqRespData) => ((ValueRes(""),d))) :: (ContentType("text/plain"), (d: ReqRespData) => ((ValueRes(""), d))) ::  Nil
 
-    testDecisionReturnsDecisionAndData(c3,d4,(r,d) => r.contentTypesProvided(any) returns SimpleResult(ctypes,d)) {
+    testDecisionReturnsDecisionAndData(c3,d4,(r,d) => r.contentTypesProvided(any) returns ((ValueRes(ctypes),d))) {
       _.metadata.contentType must beSome.like {
         case meta => meta must beEqualTo(ctypes.head._1)
       }
@@ -311,6 +313,6 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   }
 
   def testAcceptHeaderExists = {
-    testDecisionReturnsDecision(c3,c4,(r,d) => r.contentTypesProvided(any) returns SimpleResult(Nil,d),data = createData(headers = Map("accept" -> "text/html")))
+    testDecisionReturnsDecision(c3,c4,(r,d) => r.contentTypesProvided(any) returns ((ValueRes(Nil),d)),data = createData(headers = Map("accept" -> "text/html")))
   }
 }

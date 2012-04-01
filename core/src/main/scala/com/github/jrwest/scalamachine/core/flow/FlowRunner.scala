@@ -12,7 +12,7 @@ trait FlowRunnerBase {
   protected def runDecisionOuter(resource: Resource, decision: Decision, data: ReqRespData): ReqRespData
 
   // same as above but with access to decision result and next decision info
-  protected def runDecisionInner(resource: Resource, decision: Decision, data: ReqRespData): (Result[Any],Option[Decision])
+  protected def runDecisionInner(resource: Resource, decision: Decision, data: ReqRespData): (Res[Any],ReqRespData,Option[Decision])
 
 }
 
@@ -28,10 +28,10 @@ class FlowRunner extends FlowRunnerBase {
   // can build an "optimized trait" later
   protected def runDecisionOuter(resource: Resource, decision: Decision, data: ReqRespData): ReqRespData = {
     runDecisionInner(resource, decision, data) match {
-      case (SimpleResult(_, newData), Some(nextDecision)) => runDecisionOuter(resource, nextDecision, newData)
-      case (ErrorResult(_, newData), _) => newData.setStatusCode(500)
-      case (HaltResult(code, newData), _) => newData.setStatusCode(code)
-      case (result, _) => result.data
+      case (ValueRes(_),newData, Some(nextDecision)) => runDecisionOuter(resource, nextDecision, newData)
+      case (ErrorRes(_),newData, _) => newData.setStatusCode(500)
+      case (HaltRes(code),newData, _) => newData.setStatusCode(code)
+      case (_,newData, _) => newData
     }
   }
 
