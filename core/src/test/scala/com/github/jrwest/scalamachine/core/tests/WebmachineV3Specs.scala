@@ -91,8 +91,8 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
       "response with code 406 is returned"                                          ! testMediaTypeNotProvided ^
                                                                                     p^p^
   "D4 - Accept-Language Exists?"                                                    ^
-    "if Accept-Language header exists decision D5 is returned"                      ! skipped ^
-    "otherwise decision E5 is returned"                                             ! skipped ^
+    "if Accept-Language header exists decision D5 is returned"                      ! testHasAcceptLanguage ^
+    "otherwise decision E5 is returned"                                             ! testMissingAcceptLanguage ^
                                                                                     p^
   "D5 - Accept-Language Availble?"                                                  ^
     "asks resource if language is available"                                        ^
@@ -344,5 +344,13 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
         case ct => ct must beEqualTo(ContentType("text/html"))
       }
     }
+  }
+
+  def testMissingAcceptLanguage = {
+    testDecisionReturnsDecision(d4,e5,(r,d) => {})
+  }
+
+  def testHasAcceptLanguage = {
+    testDecisionReturnsDecision(d4,d5,(r,d) => {},data = createData(headers = Map("accept-Language" -> "en/us")))
   }
 }

@@ -140,5 +140,20 @@ trait WebmachineDecisions {
     }
   }
 
-  lazy val d4: Decision = null
+  lazy val d4: Decision = new Decision {
+    val name = "v3d4" 
+
+    def decide(resource: Resource, data: ReqRespData) = {
+      val nextDecision = (requestHeadersL member "accept-language").get(data) >| d5 getOrElse e5  
+      (EmptyRes,data,Some(nextDecision))
+    }
+  }
+
+  lazy val d5: Decision = new Decision {
+    val name = "v3d5"
+
+    def decide(resource: Resource, data: ReqRespData): (Res[Any], ReqRespData, Option[Decision]) = null
+  }
+
+  lazy val e5: Decision = null
 }
