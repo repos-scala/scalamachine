@@ -104,8 +104,8 @@ trait WebmachineDecisions {
     }
 
     private def performDecision(resource: Resource): State[ReqRespData,Decision] = for {
-        mbAcceptHeader <- responseHeadersL member "accept"
-        decision <- if (mbAcceptHeader.isDefined) State((c4,_: ReqRespData)) else resolveContentType(resource)
+        mbAcceptHeader <- requestHeadersL member "accept"
+        decision <- if (mbAcceptHeader.isDefined) State((c4, _: ReqRespData)) else resolveContentType(resource)
       } yield decision
 
 
