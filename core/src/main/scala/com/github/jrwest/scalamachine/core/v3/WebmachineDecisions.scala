@@ -17,7 +17,13 @@ trait WebmachineDecisions {
   lazy val b13: Decision = Decision("v3b13", true, (r: Resource) => r.serviceAvailable(_: ReqRespData), b12, 503)
 
   /* Known Methods */
-  lazy val b12: Decision = Decision("v3b12", (r: Resource) => r.knownMethods(_: ReqRespData), (l: List[HTTPMethod], d: ReqRespData) => l.contains(d.method), b11, 501)
+  lazy val b12: Decision = 
+    Decision(
+      "v3b12", 
+      (r: Resource) => r.knownMethods(_: ReqRespData), 
+      (l: List[HTTPMethod], d: ReqRespData) => l.contains(d.method), 
+      b11, 
+      501)
 
   /* URI Too Long? */
   lazy val b11: Decision = Decision("v3b11", true, (r: Resource) => r.uriTooLong(_: ReqRespData), 414, b10)
@@ -128,7 +134,7 @@ trait WebmachineDecisions {
         val chooseMedia: State[ReqRespData,Option[Decision]] = for {
           // should never hit the default of the getOrElse but type system requires it
           acceptHeader <- ((requestHeadersL member "accept").st map { _ getOrElse "*/*" })
-          provided <- State((d: ReqRespData) => resource.contentTypesProvided(d)) map { (ctp: Res[ContentTypesProvided]) =>  (ctp getOrElse Nil).unzip._1 }          
+          provided <- State((d: ReqRespData) => resource.contentTypesProvided(d)).map((ctp: Res[ContentTypesProvided]) => (ctp getOrElse Nil).unzip._1)
           contentType <- State((d: ReqRespData) => (Util.chooseMediaType(provided,acceptHeader),d))
           _ <- (metadataL <=< contentTypeL) := contentType
           _ <- if (!contentType.isDefined) statusCodeL := 406 else statusCodeL.st
