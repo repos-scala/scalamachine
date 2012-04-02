@@ -96,8 +96,8 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
                                                                                     p^
   "D5 - Accept-Language Availble?"                                                  ^
     "asks resource if language is available"                                        ^
-      "if it is, decision E5 is returned"                                           ! skipped ^
-      "otherwise, a response with code 406 is returned"                             ! skipped ^
+      "if it is, decision E5 is returned"                                           ! testIsLanguageAvailableTrue ^
+      "otherwise, a response with code 406 is returned"                             ! testIsLanguageAvailableFalse ^
                                                                                     p^p^
   "E5 - Accept-Charset Exists?"                                                     ^
     "If the Accept-Charset header exists decision E6 is returned"                   ! skipped ^
@@ -113,7 +113,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     "If charset is not provided by the resource, response w/ code 406 returned"     ! skipped ^
                                                                                     end
 
-  // we don't care about the context in these tests
+  // TODO: change D5 to do real language negotiation like ruby webmachine implementation                                                                                    
 
   def createResource = mock[Resource]
   def createData(method: HTTPMethod = GET, headers: Map[String,String] = Map()) = ReqRespData(method = method, requestHdrs = headers)
@@ -351,6 +351,16 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   }
 
   def testHasAcceptLanguage = {
-    testDecisionReturnsDecision(d4,d5,(r,d) => {},data = createData(headers = Map("accept-Language" -> "en/us")))
+    testDecisionReturnsDecision(d4,d5,(r,d) => {},data = createData(headers = Map("accept-language" -> "en/us")))
+  }
+
+  def testIsLanguageAvailableFalse = {
+    testDecisionReturnsData(d5,(r,d) => r.isLanguageAvailable(any) returns ((ValueRes(false),d)), data = createData(headers = Map("accept-language" -> "en/us"))) {
+      _.statusCode must beEqualTo(406)
+    }
+  }
+
+  def testIsLanguageAvailableTrue = {
+    testDecisionReturnsDecision(d5,e5,(r,d) => r.isLanguageAvailable(any) returns ((ValueRes(true),d)), data = createData(headers = Map("accept-language" -> "en/us")))
   }
 }

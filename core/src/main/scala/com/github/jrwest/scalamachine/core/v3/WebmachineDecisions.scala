@@ -149,11 +149,7 @@ trait WebmachineDecisions {
     }
   }
 
-  lazy val d5: Decision = new Decision {
-    val name = "v3d5"
-
-    def decide(resource: Resource, data: ReqRespData): (Res[Any], ReqRespData, Option[Decision]) = null
-  }
+  lazy val d5: Decision = Decision("v3d5", true, (r: Resource) => r.isLanguageAvailable(_: ReqRespData), e5, 406)
 
   lazy val e5: Decision = null
 }

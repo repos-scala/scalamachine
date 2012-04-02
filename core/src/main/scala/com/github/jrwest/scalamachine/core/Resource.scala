@@ -33,6 +33,9 @@ trait Resource {
     (default((ContentType("text/html") -> defaultResponse) :: Nil), data)
   }
 
+  // TODO: change to real content negotiation like ruby port
+  def isLanguageAvailable(data: ReqRespData): (Res[Boolean],ReqRespData) = (default(true), data)
+
 
   private def default[A](value: A): Res[A] = ValueRes(value)
 
