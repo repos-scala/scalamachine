@@ -80,6 +80,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   "C3 - Accept Exists?"                                                             ^
     "If the Accept header doesn't exist"                                            ^
       "D4 is returned and 1st type in resources provided list is set in metadata"   ! testMissingAcceptHeader ^
+      "If provided list empty, text/plain is set in metadata, D4 still returned"    ! testMissingAcceptEmptyProvidedList ^p^
     "If the Accept header exists decision C4 is returned"                           ! testAcceptHeaderExists ^
                                                                                     p^
   "C4 - Acceptable Media Type Available?"                                           ^
@@ -310,6 +311,16 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
         case meta => meta must beEqualTo(ctypes.head._1)
       }
     }
+  }
+
+  def testMissingAcceptEmptyProvidedList = {
+    val ctypes: List[(ContentType, ReqRespData => (Res[String],ReqRespData))] = Nil
+
+    testDecisionReturnsDecisionAndData(c3,d4,(r,d) => r.contentTypesProvided(any) returns ((ValueRes(ctypes),d))) {
+      _.metadata.contentType must beSome.like {
+        case meta => meta must beEqualTo(ContentType("text/plain"))
+      }
+    }    
   }
 
   def testAcceptHeaderExists = {

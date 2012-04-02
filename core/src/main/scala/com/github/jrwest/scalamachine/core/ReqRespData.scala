@@ -1,10 +1,6 @@
 package com.github.jrwest.scalamachine.core
 
-case class Metadata(contentType: Option[ContentType] = None)
-
-case class PathData(tokens: Seq[String] = Nil, info: Map[Symbol,String] = Map()) {
-  val dispPath = tokens.mkString("/")
-}
+import scalaz.Lens._
 
 case class ReqRespData(
                         pathParts: List[String] = Nil,
@@ -45,10 +41,19 @@ case class ReqRespData(
 }
 
 object ReqRespData {
-  import scalaz.Lens._
-
   val statusCodeL: ReqRespData @-@ Int = lensG(_.statusCode, d => c => d copy (statusCode = c))
   val responseHeadersL: ReqRespData @-@ Map[String, String] = lensG(_.responseHeaders, d => hdrs => d copy (responseHdrs = hdrs))
-  
-
+  val requestHeadersL: ReqRespData @-@ Map[String, String] = lensG(_.requestHeaders, d => hdrs => d copy (requestHdrs = hdrs))
+  val metadataL: ReqRespData @-@ Metadata = lensG(_.metadata, d => meta => d copy (metadata = meta))
 }
+
+case class Metadata(contentType: Option[ContentType] = None)
+
+object Metadata {
+  val contentTypeL: Metadata @-@ Option[ContentType] = lensG(_.contentType, m => ct => m copy (contentType = ct))
+}
+
+case class PathData(tokens: Seq[String] = Nil, info: Map[Symbol,String] = Map()) {
+  val dispPath = tokens.mkString("/")
+}
+

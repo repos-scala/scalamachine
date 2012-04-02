@@ -1,6 +1,8 @@
 package com.github.jrwest.scalamachine.core
 
 trait Resource {
+  import Resource.ContentTypesProvided
+
   //def init: C
   def serviceAvailable(data: ReqRespData): (Res[Boolean],ReqRespData) = (default(true), data)
 
@@ -27,7 +29,7 @@ trait Resource {
 
   def options(data: ReqRespData): (Res[Map[String, String]],ReqRespData) = (default(Map()), data)
 
-  def contentTypesProvided(data: ReqRespData): (Res[List[(ContentType, ReqRespData => (Res[String], ReqRespData))]],ReqRespData) = {
+  def contentTypesProvided(data: ReqRespData): (Res[ContentTypesProvided],ReqRespData) = {
     (default((ContentType("text/html") -> defaultResponse) :: Nil), data)
   }
 
@@ -36,5 +38,9 @@ trait Resource {
 
   private val defaultResponse: ReqRespData => (Res[String], ReqRespData) = (default("hello, scalamachine"), _)
 
+}
+
+object Resource {
+  type ContentTypesProvided = List[(ContentType, ReqRespData => (Res[String],ReqRespData))]
 }
 

@@ -2,12 +2,15 @@ package com.github.jrwest.scalamachine.core
 package v3
 
 import flow._
-import scalaz.StateT
+import scalaz.{State,StateT}
+import scalaz.syntax.functor._
 
 
 trait WebmachineDecisions {
   
-  import ReqRespData.{statusCodeL, responseHeadersL}
+  import ReqRespData._
+  import Metadata._
+  import Resource.ContentTypesProvided
 
   /* Service Available? */
   lazy val b13: Decision = Decision("v3b13", true, (r: Resource) => r.serviceAvailable(_: ReqRespData), b12, 503)
@@ -87,22 +90,33 @@ trait WebmachineDecisions {
 
   /* Accept Exists? */
   lazy val c3: Decision = new Decision {
+    import scalaz.syntax.std.allV.ToListVFromList
+
+    // TODO: move somewhere more global it will probably be used elsewhere
+    val defaultContentType = ContentType("text/plain")
+
     val name: String = "v3c3"
 
     def decide(resource: Resource, data: ReqRespData): (Res[Any], ReqRespData, Option[Decision]) = {
-      data.requestHeader("Accept") match {
-        case Some(_) => (EmptyRes,data, Some(c4))
-        case None => {
-          // TODO: change this to handle empty list of content types
-          // TODO: get rid of hacky cast
-          // TODO: state/lenses
-          val (res, newData) = resource.contentTypesProvided(data)
-          val cType = res.asInstanceOf[ValueRes[List[(ContentType, ReqRespData => (ValueRes[String],ReqRespData))]]].value.head._1
-          val finalData = newData.copy(metadata = newData.metadata.copy(contentType = Option(cType)))
-          (EmptyRes, finalData, Some(d4))
-        }
-      }
+      val (nextDecision, finalData) = performDecision(resource)(data)
+
+      (EmptyRes,finalData,Some(nextDecision))
     }
+
+    private def performDecision(resource: Resource): State[ReqRespData,Decision] = for {
+        hasAcceptHeader <- (responseHeadersL member "accept").st map { _.isDefined }
+        decision <- if (hasAcceptHeader) State((c4,_: ReqRespData)) else resolveContentType(resource)
+      } yield decision
+
+
+    private def resolveContentType(r: Resource): State[ReqRespData,Decision] = for {
+        res <- State[ReqRespData,Res[ContentTypesProvided]](s => r.contentTypesProvided(s))
+        cType <- State((s: ReqRespData) => (firstOrDefault(res),s))
+        _ <- (metadataL <=< contentTypeL) := Option(cType)
+      } yield d4 
+
+    private def firstOrDefault(res: Res[ContentTypesProvided]): ContentType =  
+      (res map { (_: ContentTypesProvided).toNel.map(_.head._1) getOrElse defaultContentType }) | defaultContentType            
   }
 
   /* Acceptable Media Type Available? */
