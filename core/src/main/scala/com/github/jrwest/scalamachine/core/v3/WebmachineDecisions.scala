@@ -3,6 +3,7 @@ package v3
 
 import flow._
 import scalaz.{State,StateT}
+import scalaz.std.option._
 import scalaz.syntax.functor._
 
 
@@ -120,7 +121,24 @@ trait WebmachineDecisions {
   }
 
   /* Acceptable Media Type Available? */
-  lazy val c4: Decision = null
+  lazy val c4: Decision = new Decision {
+    val name: String = "v3c4"
+
+    def decide(resource: Resource, data: ReqRespData): (Res[Any],ReqRespData,Option[Decision]) = {
+        val chooseMedia: State[ReqRespData,Option[Decision]] = for {
+          // should never hit the default of the getOrElse but type system requires it
+          acceptHeader <- ((requestHeadersL member "accept").st map { _ getOrElse "*/*" })
+          provided <- State((d: ReqRespData) => resource.contentTypesProvided(d)) map { (ctp: Res[ContentTypesProvided]) =>  (ctp getOrElse Nil).unzip._1 }          
+          contentType <- State((d: ReqRespData) => (Util.chooseMediaType(provided,acceptHeader),d))
+          _ <- (metadataL <=< contentTypeL) := contentType
+          _ <- if (!contentType.isDefined) statusCodeL := 406 else statusCodeL.st
+        } yield contentType >| d4
+
+        val (nextDecision, finalData) = chooseMedia(data)
+
+        (EmptyRes,finalData,nextDecision)
+    }
+  }
 
   lazy val d4: Decision = null
 }

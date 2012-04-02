@@ -1,9 +1,11 @@
 package com.github.jrwest.scalamachine.core.tests
 
 import org.specs2._
-import com.github.jrwest.scalamachine.core.Util._
+import com.github.jrwest.scalamachine.core._
+import Util._
 import org.scalacheck.{Arbitrary, Gen, Prop}
 import Prop._
+import org.specs2.matcher.Matcher
 
 class UtilSpecs extends Specification with ScalaCheck { def is =
   "Utility Functions".title                                                         ^
@@ -15,7 +17,7 @@ class UtilSpecs extends Specification with ScalaCheck { def is =
                                                                                     p^
   "Parsing accept header values"                                                    ^
     "If the header value is empty, an empty list is returned"                       ! { acceptToMediaTypes("") must beEmpty } ^
-    "If the header value is invalid, an empty list is returned"                     ! skipped ^
+    "If the header value is invalid, an empty list is returned"                     ! { acceptToMediaTypes("abc") must beEmpty } ^
     "If the header value is valid"                                                  ^
       "If the value contains no commas a single element is always returned"         ! singleMediaEntryReturnsSize1 ^
       "If the value contains comma seperated values"                                ^
@@ -24,13 +26,17 @@ class UtilSpecs extends Specification with ScalaCheck { def is =
           "items are sorted by q val, with default q=1"                             ! testSortedQVals ^
                                                                                     endp^
   "Choosing Content Types given provided types and accept header value"             ^
-    "Given an empty list of provided content types, None is returned"               ! skipped ^
-    "Given no acceptable media types, None is returned"                             ! skipped ^
-    "Given an invalid acceptable media header, None is returned"                    ! skipped ^
-    "Given non-empty list provided and valid header"                                ^
-      "If there is no acceptable type none is returned"                             ! skipped ^
-      "The first acceptable type (from sorted list) is returned otherwise"          ! skipped ^
+    "Given an empty list of provided content types, None is returned"               ! testEmptyProvidedValidAccept ^
+    "Given an invalid acceptable media header, None is returned"                    ! testInvalidAcceptHeader ^
+    "Given a provided list containing one content type and a valid header"          ^
+      "If there is no acceptable type None is returned"                             ! testOneProvidedNoAcceptable ^
+      "if there is an acceptable content type the only type provided is returned"   ! testOneProvidedWithAcceptable ^p^
+    "Given a provided list containing > 1 content type and a valid header"          ^
+      "If there is noacceptable type None is returned"                              ! skipped ^
+      "If there is an acceptable media type the one w/ highest q value is chosen"   ! skipped ^
                                                                                     end
+
+  // TODO: add tests for sorting by specificity                                                                                    
 
   val nonEmptyStr = Gen.alphaStr suchThat { str =>
     str.size > 0 && str != "q"
@@ -91,4 +97,24 @@ class UtilSpecs extends Specification with ScalaCheck { def is =
     }
   }.set(minTestsOk->10)
 
+  def testEmptyProvidedValidAccept = chooseMediaType(Nil, "text/plain") must beNone
+  def testInvalidAcceptHeader = chooseMediaType(List(ContentType("text/plain")), "invalid") must beNone 
+
+  def testOneProvidedNoAcceptable = {
+    val allBeNone: Matcher[Seq[Option[ContentType]]] = beNone.forall
+    val testCt = ContentType("text/html")
+    val notMatching = List("foo/bar", "application/*", "text/plain")
+
+    (chooseMediaType(testCt :: Nil, notMatching.mkString(", ")) must beNone) and 
+      (notMatching.map(chooseMediaType(testCt :: Nil, _)) must allBeNone)
+  }
+  def testOneProvidedWithAcceptable = {
+    val testCt = ContentType("text/html")
+    val matching = List("*", "*/*", "text/*", "text/html")
+
+    val allBeExpectedContentType: Matcher[Seq[Option[ContentType]]] = (beSome.which { (_: ContentType) == testCt }).forall
+
+    (matching.map(chooseMediaType(testCt :: Nil, _)) must allBeExpectedContentType) and 
+      (chooseMediaType(testCt :: Nil, matching.mkString(", ")) must beSome.like { case ct => ct must beEqualTo(testCt) })
+  }
 }

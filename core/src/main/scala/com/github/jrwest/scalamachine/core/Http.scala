@@ -1,7 +1,6 @@
 package com.github.jrwest.scalamachine.core
 
-case class MediaInfo(mediaRangeType: String,
-                     mediaRangeParams: List[(String,String)],
+case class MediaInfo(mediaRange: ContentType,
                      qVal: Double,
                      acceptParams: List[(String,String)])
 

@@ -4,6 +4,7 @@ import org.specs2._
 import matcher.MatchResult
 import mock._
 import com.github.jrwest.scalamachine.core._
+import Resource.ContentTypesProvided
 import flow._
 import v3.WebmachineDecisions
 
@@ -85,9 +86,9 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
                                                                                     p^
   "C4 - Acceptable Media Type Available?"                                           ^
     "if the media type is provided by the resource"                                 ^
-      "Decision D4 is returned & the mediatype is set as content type in metadata"  ! skipped ^p^
+      "Decision D4 is returned & the mediatype is set as content type in metadata"  ! testMediaTypeProvided ^p^
     "if the media type is not provided by the resource"                             ^
-      "response with code 406 is returned"                                          ! skipped ^
+      "response with code 406 is returned"                                          ! testMediaTypeNotProvided ^
                                                                                     p^p^
   "D4 - Accept-Language Exists?"                                                    ^
     "if Accept-Language header exists decision D5 is returned"                      ! skipped ^
@@ -132,7 +133,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
                                   resource: Resource = createResource,
                                   data: ReqRespData = createData()): MatchResult[Any] = {
     testDecision(toTest, stubF, resource, data) {
-      (_: ReqRespData, mbNextDecision: Option[Decision]) => mbNextDecision must beSome.which { _ == expectedDecision }
+      (_: ReqRespData, mbNextDecision: Option[Decision]) => mbNextDecision must beSome.like { case d => d must_== expectedDecision }
     }
   }
   
@@ -303,27 +304,45 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   }
 
   def testMissingAcceptHeader = {
-    val ctypes: List[(ContentType,ReqRespData => (Res[String],ReqRespData))] =
+    val ctypes: ContentTypesProvided =
       (ContentType("text/html"), (d: ReqRespData) => ((ValueRes(""),d))) :: (ContentType("text/plain"), (d: ReqRespData) => ((ValueRes(""), d))) ::  Nil
 
     testDecisionReturnsDecisionAndData(c3,d4,(r,d) => r.contentTypesProvided(any) returns ((ValueRes(ctypes),d))) {
       _.metadata.contentType must beSome.like {
-        case meta => meta must beEqualTo(ctypes.head._1)
+        case ct => ct must beEqualTo(ctypes.head._1)
       }
     }
   }
 
   def testMissingAcceptEmptyProvidedList = {
-    val ctypes: List[(ContentType, ReqRespData => (Res[String],ReqRespData))] = Nil
+    val ctypes: ContentTypesProvided = Nil
 
     testDecisionReturnsDecisionAndData(c3,d4,(r,d) => r.contentTypesProvided(any) returns ((ValueRes(ctypes),d))) {
       _.metadata.contentType must beSome.like {
-        case meta => meta must beEqualTo(ContentType("text/plain"))
+        case ct => ct must beEqualTo(ContentType("text/plain"))
       }
     }    
   }
 
   def testAcceptHeaderExists = {
     testDecisionReturnsDecision(c3,c4,(r,d) => r.contentTypesProvided(any) returns ((ValueRes(Nil),d)),data = createData(headers = Map("accept" -> "text/html")))
+  }
+
+  def testMediaTypeNotProvided = {
+    val ctypes: ContentTypesProvided = (ContentType("text/html"), (d: ReqRespData) => (ValueRes(""), d)) :: Nil
+
+    testDecisionReturnsData(c4,(r,d) => r.contentTypesProvided(any) returns ((ValueRes(ctypes),d)), data = createData(headers = Map("accept" -> "text/plain"))) {
+      _.statusCode must beEqualTo(406)
+    }
+  }
+
+  def testMediaTypeProvided = {
+    val ctypes: ContentTypesProvided = (ContentType("text/html"), (d: ReqRespData) => (ValueRes(""), d)) :: Nil
+
+    testDecisionReturnsDecisionAndData(c4,d4,(r,d) => r.contentTypesProvided(any) returns ((ValueRes(ctypes),d)), data = createData(headers = Map("accept" -> "text/html"))) {
+      _.metadata.contentType must beSome.like { 
+        case ct => ct must beEqualTo(ContentType("text/html"))
+      }
+    }
   }
 }
