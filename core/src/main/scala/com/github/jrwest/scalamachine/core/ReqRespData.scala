@@ -2,6 +2,8 @@ package com.github.jrwest.scalamachine.core
 
 import scalaz.Lens._
 
+// TODO: make headers type alias
+// TODO: use scalaz CaseInsensitive for header key?
 case class ReqRespData(
                         pathParts: List[String] = Nil,
                         pathData: PathData = PathData(),
