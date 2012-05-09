@@ -118,6 +118,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     "If charset is not provided by the resource, response w/ code 406 returned"     ! skipped ^
                                                                                     end
 
+  // TODO: tests around halt result, error result, empty result, since that logic is no longer in flow runner where test used to be
   // TODO: change D5 to do real language negotiation like ruby webmachine implementation                                                                                    
 
   def createResource = mock[Resource]

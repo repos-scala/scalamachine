@@ -80,7 +80,7 @@ trait WebmachineDecisions {
   lazy val b3: Decision = new Decision {
     val name: String = "v3b3"
     val default = HaltRes(200)
-    override def decide2(resource: Resource): State[ReqRespData, Res[Decision]] = {
+    protected def decide(resource: Resource): State[ReqRespData, Res[Decision]] = {
       // TODO: refactor w/ other type definition
       type S[X] = State[ReqRespData, X]
       def handle(method: HTTPMethod): State[ReqRespData,Res[Decision]] = method match {
@@ -107,7 +107,7 @@ trait WebmachineDecisions {
 
     val name: String = "v3c3"
 
-    override def decide2(resource: Resource): State[ReqRespData, Res[Decision]] = {
+    protected def decide(resource: Resource): State[ReqRespData, Res[Decision]] = {
       performDecision(resource).map(_.point[Res])
     }
 
@@ -131,7 +131,7 @@ trait WebmachineDecisions {
   lazy val c4: Decision = new Decision {
     val name: String = "v3c4"
 
-    override def decide2(resource: Resource): State[ReqRespData, Res[Decision]] = {
+    protected def decide(resource: Resource): State[ReqRespData, Res[Decision]] = {
       // TODO: refactor w/ similar typedefs
       type S[X] = State[ReqRespData, X]
       for {
@@ -147,7 +147,7 @@ trait WebmachineDecisions {
   lazy val d4: Decision = new Decision {
     val name = "v3d4" 
 
-    override def decide2(resource: Resource): State[ReqRespData, Res[Decision]] = {
+    protected def decide(resource: Resource): State[ReqRespData, Res[Decision]] = {
       (requestHeadersL member "accept-language").st.map(_ >| d5.point[Res] | e5.point[Res])
     }
   }
@@ -158,7 +158,7 @@ trait WebmachineDecisions {
     def name: String = "v3e5"
 
 
-    override def decide2(resource: Resource): State[ReqRespData, Res[Decision]] = {
+    protected def decide(resource: Resource): State[ReqRespData, Res[Decision]] = {
       // maybe can't call this all the time
       val missingAccept: State[ReqRespData, Res[(Decision,Option[String])]] = State((d: ReqRespData) => {
         val (res, newData) = resource.charsetsProvided(d)
@@ -179,12 +179,12 @@ trait WebmachineDecisions {
   lazy val e6: Decision = new Decision {
     def name: String = "v3e6"
 
-    override def decide2(resource: Resource): State[ReqRespData, Res[Decision]] = null
+    protected def decide(resource: Resource): State[ReqRespData, Res[Decision]] = null
   }
 
   lazy val f6: Decision = new Decision {
     def name: String = "v3f6"
 
-    override def decide2(resource: Resource): State[ReqRespData, Res[Decision]] = null
+    protected def decide(resource: Resource): State[ReqRespData, Res[Decision]] = null
   }
 }
