@@ -96,6 +96,15 @@ case class ResT[M[_],A](run: M[Res[A]]) {
   }
 }
 
+object ResT extends ResTFunctions
+
+trait ResTFunctions {
+  import scalaz.~>
+  def resT[M[_]] = new (({type λ[α] = M[Res[α]]})#λ ~> ({type λ[α] = ResT[M, α]})#λ) {
+    def apply[A](a: M[Res[A]]) = new ResT[M, A](a)
+  }
+}
+
 sealed trait AuthResult
 case object AuthSuccess extends AuthResult
 case class AuthFailure(headerValue: String) extends AuthResult

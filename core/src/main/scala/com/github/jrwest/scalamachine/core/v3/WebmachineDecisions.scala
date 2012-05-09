@@ -8,6 +8,7 @@ import scalaz.syntax.functor._
 import scalaz.syntax.pointed._
 import scalaz.{State, StateT}
 import Decision.FlowState
+import ResT._
 
 
 trait WebmachineDecisions {
@@ -85,9 +86,9 @@ trait WebmachineDecisions {
       def handle(method: HTTPMethod): State[ReqRespData,Res[Decision]] = method match {
         case OPTIONS => {
           val set = for {
-            hdrs <- ResT[FlowState,Map[String,String]](State((d: ReqRespData) => resource.options(d)))
-            _ <- ResT[FlowState,Map[String,String]]((responseHeadersL ++= hdrs.toList).map(_.point[Res]))
-            _ <- ResT[FlowState,Nothing](State((d: ReqRespData) => (HaltRes(200), d)))
+            hdrs <- resT[FlowState](State((d: ReqRespData) => resource.options(d)))
+            _ <- resT[FlowState]((responseHeadersL ++= hdrs.toList).map(_.point[Res]))
+            _ <- resT[FlowState](State((d: ReqRespData) => ((HaltRes(200): Res[Decision]), d)))
           } yield c3 // we will never get here
           set.run
         }
@@ -155,15 +156,15 @@ trait WebmachineDecisions {
     def name: String = "v3e5"
 
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = {      
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = {
       val missingAccept: State[ReqRespData, Res[(Decision,Option[String])]] = State((d: ReqRespData) => {
         val (res, newData) = resource.charsetsProvided(d)
         (res flatMap { _.fold(some = provided => Util.chooseCharset(provided.unzip._1, "*").fold(some = chosen => ValueRes((f6,some(chosen))), none = HaltRes(406)), none = ValueRes((f6,some("")))) }, newData)
       })
       val act = for {
-        mbHeader <- ResT[FlowState,Option[String]]((requestHeadersL member "accept-charset").st map { _.point[Res] })
-        r <- mbHeader >| ResT[FlowState,(Decision,Option[String])]((ValueRes((e6, none[String])): Res[(Decision,Option[String])]).point[FlowState]) | ResT[FlowState,(Decision,Option[String])](missingAccept)
-        _ <- ResT[FlowState,Option[String]](((metadataL <=< chosenCharsetL) := r._2).map(_.point[Res]))
+        mbHeader <- resT[FlowState]((requestHeadersL member "accept-charset").st map { _.point[Res] })
+        r <- mbHeader >| resT[FlowState]((ValueRes((e6, none[String])): Res[(Decision,Option[String])]).point[FlowState]) | resT[FlowState](missingAccept)
+        _ <- resT[FlowState](((metadataL <=< chosenCharsetL) := r._2).map(_.point[Res]))
       } yield r._1
       act.run
     }
