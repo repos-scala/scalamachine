@@ -2,7 +2,6 @@ package com.github.jrwest.scalamachine.core
 
 import scalaz.{Functor, Monad}
 
-
 sealed trait Res[+A]
 // change to traits with apply, and equal/show instances?
 case class ValueRes[+A](value: A) extends Res[A] {
@@ -107,6 +106,7 @@ case class ResT[M[_],A](run: M[Res[A]]) {
   }
 }
 
+// TODO: ResT type class instances
 object ResT extends ResTFunctions
 
 trait ResTFunctions {
@@ -116,17 +116,11 @@ trait ResTFunctions {
   }
 }
 
-sealed trait AuthResult
-case object AuthSuccess extends AuthResult
-case class AuthFailure(headerValue: String) extends AuthResult
-
-object AuthResult {
-  implicit def authResult2Ops(r: AuthResult): AuthResultOps = new AuthResultOps(r)
-}
-
-class AuthResultOps(r: AuthResult) {
-  def fold[T](success: T, failure: String => T): T = r match {
+sealed trait AuthResult {
+  def fold[T](success: T, failure: String => T): T = this match {
     case AuthSuccess => success
     case AuthFailure(s) => failure(s)
   }
-} 
+}
+case object AuthSuccess extends AuthResult
+case class AuthFailure(headerValue: String) extends AuthResult
