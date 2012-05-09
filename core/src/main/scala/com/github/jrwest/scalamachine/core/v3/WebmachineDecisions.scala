@@ -7,6 +7,7 @@ import optionSyntax._
 import scalaz.syntax.functor._
 import scalaz.syntax.pointed._
 import scalaz.{State, StateT}
+import Decision.FlowState
 
 
 trait WebmachineDecisions {
@@ -81,18 +82,16 @@ trait WebmachineDecisions {
     val name: String = "v3b3"
     val default = HaltRes(200)
     protected def decide(resource: Resource): State[ReqRespData, Res[Decision]] = {
-      // TODO: refactor w/ other type definition
-      type S[X] = State[ReqRespData, X]
       def handle(method: HTTPMethod): State[ReqRespData,Res[Decision]] = method match {
         case OPTIONS => {
           val set = for {
-            hdrs <- ResT[S,Map[String,String]](State((d: ReqRespData) => resource.options(d)))
-            _ <- ResT[S,Map[String,String]]((responseHeadersL ++= hdrs.toList).map(_.point[Res]))
-            _ <- ResT[S,Nothing](State((d: ReqRespData) => (HaltRes(200), d)))
+            hdrs <- ResT[FlowState,Map[String,String]](State((d: ReqRespData) => resource.options(d)))
+            _ <- ResT[FlowState,Map[String,String]]((responseHeadersL ++= hdrs.toList).map(_.point[Res]))
+            _ <- ResT[FlowState,Nothing](State((d: ReqRespData) => (HaltRes(200), d)))
           } yield c3 // we will never get here
           set.run
         }
-        case _ => c3.point[Res].point[S]
+        case _ => c3.point[Res].point[FlowState]
       }
       methodL.st flatMap { handle(_) }
     }
@@ -107,7 +106,7 @@ trait WebmachineDecisions {
 
     val name: String = "v3c3"
 
-    protected def decide(resource: Resource): State[ReqRespData, Res[Decision]] = {
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = {
       performDecision(resource).map(_.point[Res])
     }
 
@@ -131,14 +130,12 @@ trait WebmachineDecisions {
   lazy val c4: Decision = new Decision {
     val name: String = "v3c4"
 
-    protected def decide(resource: Resource): State[ReqRespData, Res[Decision]] = {
-      // TODO: refactor w/ similar typedefs
-      type S[X] = State[ReqRespData, X]
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = {
       for {
         acceptHeader <- ((requestHeadersL member "accept").st map { _ getOrElse "*/*" })
         providedResult <- State((d: ReqRespData) => resource.contentTypesProvided(d))
-        provided <- (providedResult getOrElse Nil).unzip._1.point[S]
-        contentType <- Util.chooseMediaType(provided, acceptHeader).point[S]
+        provided <- (providedResult getOrElse Nil).unzip._1.point[FlowState]
+        contentType <- Util.chooseMediaType(provided, acceptHeader).point[FlowState]
         _ <- (metadataL <=< contentTypeL) := contentType
       } yield contentType >| d4.point[Res] | HaltRes(406)
     }
@@ -147,7 +144,7 @@ trait WebmachineDecisions {
   lazy val d4: Decision = new Decision {
     val name = "v3d4" 
 
-    protected def decide(resource: Resource): State[ReqRespData, Res[Decision]] = {
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = {
       (requestHeadersL member "accept-language").st.map(_ >| d5.point[Res] | e5.point[Res])
     }
   }
@@ -158,18 +155,16 @@ trait WebmachineDecisions {
     def name: String = "v3e5"
 
 
-    protected def decide(resource: Resource): State[ReqRespData, Res[Decision]] = {
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = {
       // maybe can't call this all the time
       val missingAccept: State[ReqRespData, Res[(Decision,Option[String])]] = State((d: ReqRespData) => {
         val (res, newData) = resource.charsetsProvided(d)
         (res flatMap { _.fold(some = provided => Util.chooseCharset(provided.unzip._1, "*").fold(some = chosen => ValueRes((f6,some(chosen))), none = HaltRes(406)), none = ValueRes((f6,some("")))) }, newData)
       })
-      // TODO: refactor w/ similar type declarations
-      type S[X] = State[ReqRespData,X]
       val act = for {
-        mbHeader <- ResT[S,Option[String]]((requestHeadersL member "accept-charset").st map { _.point[Res] })
-        r <- mbHeader >| ResT[S,(Decision,Option[String])]((ValueRes((e6, none[String])): Res[(Decision,Option[String])]).point[S]) | ResT[S,(Decision,Option[String])](missingAccept)
-        _ <- ResT[S,Option[String]](((metadataL <=< chosenCharsetL) := r._2).map(_.point[Res]))
+        mbHeader <- ResT[FlowState,Option[String]]((requestHeadersL member "accept-charset").st map { _.point[Res] })
+        r <- mbHeader >| ResT[FlowState,(Decision,Option[String])]((ValueRes((e6, none[String])): Res[(Decision,Option[String])]).point[FlowState]) | ResT[FlowState,(Decision,Option[String])](missingAccept)
+        _ <- ResT[FlowState,Option[String]](((metadataL <=< chosenCharsetL) := r._2).map(_.point[Res]))
       } yield r._1
       act.run
     }
@@ -179,12 +174,12 @@ trait WebmachineDecisions {
   lazy val e6: Decision = new Decision {
     def name: String = "v3e6"
 
-    protected def decide(resource: Resource): State[ReqRespData, Res[Decision]] = null
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }
 
   lazy val f6: Decision = new Decision {
     def name: String = "v3f6"
 
-    protected def decide(resource: Resource): State[ReqRespData, Res[Decision]] = null
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }
 }

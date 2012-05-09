@@ -5,11 +5,11 @@ import scalaz.State
 
 
 trait Decision {
-
+  import Decision.FlowState
 
   def name: String
 
-  def apply(resource: Resource): State[ReqRespData, Option[Decision]] = {
+  def apply(resource: Resource): FlowState[Option[Decision]] = {
     import ReqRespData.statusCodeL
     for {
       res <- decide(resource)
@@ -21,7 +21,7 @@ trait Decision {
     } yield res.toOption
   }
 
-  protected def decide(resource: Resource): State[ReqRespData, Res[Decision]]
+  protected def decide(resource: Resource): FlowState[Res[Decision]]
 
   override def equals(o: Any): Boolean = o match {
     case o: Decision => o.name == name
@@ -36,6 +36,7 @@ object Decision {
   import ReqRespData.statusCodeL
 
   import scalaz.syntax.pointed._
+  type FlowState[T] = State[ReqRespData, T]
   type ResourceF[T] = Resource => ReqRespData => (Res[T], ReqRespData)
   type CheckF[T] = (T, ReqRespData) => Boolean
   type HandlerF[T] = (T,ReqRespData) => ReqRespData
@@ -46,12 +47,11 @@ object Decision {
   def apply[T](decisionName: String, test: ResourceF[T], check: CheckF[T], onSuccess: Handler[T], onFailure: Handler[T]) = new Decision {
     def name: String = decisionName
 
-    protected def decide(resource: Resource): State[ReqRespData, Res[Decision]] = {
-      type S[X] = State[ReqRespData,X]
-      val nextT: ResT[S,Decision] = for {
-        value <- ResT[S,T](State((d: ReqRespData) => test(resource)(d)))
-        handler <- ResT[S,Handler[T]](State((d: ReqRespData) => if (check(value, d)) (onSuccess.point[Res],d) else (onFailure.point[Res], d)))
-        next <- ResT[S,Decision](State((d: ReqRespData) => handler match {
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = {
+      val nextT: ResT[FlowState,Decision] = for {
+        value <- ResT[FlowState,T](State((d: ReqRespData) => test(resource)(d)))
+        handler <- ResT[FlowState,Handler[T]](State((d: ReqRespData) => if (check(value, d)) (onSuccess.point[Res],d) else (onFailure.point[Res], d)))
+        next <- ResT[FlowState,Decision](State((d: ReqRespData) => handler match {
           case Left(f) => ((EmptyRes: Res[Decision]), f(value, d))
           case Right(decision) => (ValueRes(decision), d)
         }))
