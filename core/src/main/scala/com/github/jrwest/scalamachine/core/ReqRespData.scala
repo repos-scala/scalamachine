@@ -47,12 +47,14 @@ object ReqRespData {
   val responseHeadersL: ReqRespData @-@ Map[String, String] = lensG(_.responseHeaders, d => hdrs => d copy (responseHdrs = hdrs))
   val requestHeadersL: ReqRespData @-@ Map[String, String] = lensG(_.requestHeaders, d => hdrs => d copy (requestHdrs = hdrs))
   val metadataL: ReqRespData @-@ Metadata = lensG(_.metadata, d => meta => d copy (metadata = meta))
+  val methodL: ReqRespData @-@ HTTPMethod = lensG(_.method, d => m => d copy (method = m))
 }
 
-case class Metadata(contentType: Option[ContentType] = None)
+case class Metadata(contentType: Option[ContentType] = None, chosenCharset: Option[String] = None)
 
 object Metadata {
   val contentTypeL: Metadata @-@ Option[ContentType] = lensG(_.contentType, m => ct => m copy (contentType = ct))
+  val chosenCharsetL: Metadata @-@ Option[String] = lensG(_.chosenCharset, m => cc => m copy (chosenCharset = cc))
 }
 
 case class PathData(tokens: Seq[String] = Nil, info: Map[Symbol,String] = Map()) {

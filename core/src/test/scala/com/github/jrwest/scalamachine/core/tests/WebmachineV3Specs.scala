@@ -4,9 +4,11 @@ import org.specs2._
 import matcher.MatchResult
 import mock._
 import com.github.jrwest.scalamachine.core._
-import Resource.ContentTypesProvided
+import Resource._
 import flow._
 import v3.WebmachineDecisions
+import scalaz.NonEmptyList
+import NonEmptyList.nel
 
 class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisions { def is = ""            ^
   "WebMachine V3".title                                                             ^
@@ -100,10 +102,13 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
       "otherwise, a response with code 406 is returned"                             ! testIsLanguageAvailableFalse ^
                                                                                     p^p^
   "E5 - Accept-Charset Exists?"                                                     ^
-    "If the Accept-Charset header exists decision E6 is returned"                   ! skipped ^
+    "If the Accept-Charset header exists decision E6 is returned"                   ! testAcceptCharsetExists ^
     "Otherwise"                                                                     ^
-      """If "*" charset is acceptable to resource, decision F6 is returned"""       ! skipped ^
-      "otherwise, a response with code 406 is returned"                             ! skipped ^
+      """If "*" charset is acceptable to resource"""                                ^
+        "decision F6 is returned"                                                   ! testAcceptMissingStarAcceptable ^
+        "first charset provided by resource is set as chosen in metadata"           ! testAcceptMissingStarOkCharsetChosen ^p^
+      "If resource specifies charset negotioation short circuting, F6 is returned"  ! testAcceptMissingCharsetNegShortCurcuit ^
+      "otherwise, a response with code 406 is returned"                             ! testAcceptMissingStartNotAcceptable ^
                                                                                     p^p^
   "E6 - Accept-Charset Available?"                                                  ^
     "If resource specifies charset negotiation short circuting, F6 is returned"     ! skipped ^
@@ -123,7 +128,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
                    resource: Resource = createResource,
                    data: ReqRespData = createData())(f: (ReqRespData, Option[Decision]) => MatchResult[Any]): MatchResult[Any] = {
     stubF(resource, data) // make call to stub/mock
-    val (_, newData, mbNextDecision) = decision.decide(resource, data)
+    val (mbNextDecision, newData) = decision(resource)(data)
     f(newData, mbNextDecision)
   }
 
@@ -362,5 +367,33 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
 
   def testIsLanguageAvailableTrue = {
     testDecisionReturnsDecision(d5,e5,(r,d) => r.isLanguageAvailable(any) returns ((ValueRes(true),d)), data = createData(headers = Map("accept-language" -> "en/us")))
+  }
+
+  def testAcceptCharsetExists = {
+    testDecisionReturnsDecision(e5,e6,(r,d) => {}, data = createData(headers = Map("accept-charset" -> "*")))
+  }
+
+  def testAcceptMissingStarAcceptable = {
+    val provided: CharsetsProvided = Some(("abc", identity[String](_)) :: Nil)
+    testDecisionReturnsDecision(e5,f6,(r,d) => r.charsetsProvided(any) returns ((ValueRes(provided),d)))
+  }
+
+  def testAcceptMissingStarOkCharsetChosen = {
+    val provided: CharsetsProvided = Some(("abc", identity[String](_)) :: Nil)
+    testDecisionReturnsDecisionAndData(e5,f6,(r,d) => r.charsetsProvided(any) returns ((ValueRes(provided),d))) {
+      _.metadata.chosenCharset must beSome.like { case c => c must beEqualTo("abc") }
+    }
+  }
+
+  def testAcceptMissingCharsetNegShortCurcuit = {
+    val provided: CharsetsProvided = None
+    testDecisionReturnsDecision(e5,f6,(r,d) => r.charsetsProvided(any) returns ((ValueRes(provided), d)))
+  }
+
+  def testAcceptMissingStartNotAcceptable = {
+    val provided: CharsetsProvided = Some(Nil)
+    testDecisionReturnsData(e5,(r,d) => r.charsetsProvided(any) returns ((ValueRes(provided),d))) {
+      _.statusCode must beEqualTo(406)
+    }
   }
 }

@@ -1,7 +1,9 @@
 package com.github.jrwest.scalamachine.core
 
+import scalaz.NonEmptyList
+
 trait Resource {
-  import Resource.ContentTypesProvided
+  import Resource._
 
   //def init: C
   def serviceAvailable(data: ReqRespData): (Res[Boolean],ReqRespData) = (default(true), data)
@@ -36,6 +38,7 @@ trait Resource {
   // TODO: change to real content negotiation like ruby port
   def isLanguageAvailable(data: ReqRespData): (Res[Boolean],ReqRespData) = (default(true), data)
 
+  def charsetsProvided(data: ReqRespData): (Res[CharsetsProvided],ReqRespData) = (default(None), data)
 
   private def default[A](value: A): Res[A] = ValueRes(value)
 
@@ -45,5 +48,6 @@ trait Resource {
 
 object Resource {
   type ContentTypesProvided = List[(ContentType, ReqRespData => (Res[String],ReqRespData))]
+  type CharsetsProvided = Option[List[(String,String => String)]] // None value specifies charset negotiation short-circuiting
 }
 

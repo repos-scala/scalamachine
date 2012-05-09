@@ -34,8 +34,43 @@ object Util extends AcceptHeaderParsers {
     doChoose(provided, acceptToMediaTypes(acceptHeader))
   }
 
+  def chooseCharset(provided: List[String], acceptCharsetHeader: String): Option[String] = {
+    val default = "ISO-8859-1"
+
+    @annotation.tailrec
+    def doChoose(acceptable: List[(String,Double)]): Option[String] = acceptable match {
+      case Nil => None
+      case (a, q) :: rest if q > 0 && provided.contains(a) => Some(a)
+      case _ :: rest => doChoose(rest)
+    }
+
+    lazy val acceptable = acceptCharsetToList(acceptCharsetHeader)
+    def tryAnyDefault: Option[String] = {
+      val defaultPriority: Option[Double] = acceptable.find(_._1 == default).map(_._2)
+      val starPriority: Option[Double] = acceptable.find(_._1 == "*").map(_._2)
+      val defaultOk = (starPriority, defaultPriority) match {
+        case (Some(q), None) if q == 0.0 => false
+        case (Some(_), None) => true
+        case (_, Some(q)) if q == 0.0 => false
+        case (_, _) => true
+      }
+      val anyOk = starPriority match {
+        case Some(q) if q > 0 => true
+        case _ => false
+      }
+
+      if (anyOk) provided.headOption
+      else if (defaultOk) provided.find(_ == default)
+      else None
+    }
+
+    doChoose(acceptable) map { Option(_) } getOrElse tryAnyDefault
+  }
+
   def acceptToMediaTypes(acceptStr: String): List[MediaInfo] = (parseAll(acceptHeader, acceptStr) getOrElse Nil).sortWith(_.qVal > _.qVal)
 
+  def acceptCharsetToList(acceptCharsetStr: String): List[(String,Double)] =
+    parseAll(acceptCharsets, acceptCharsetStr) getOrElse Nil sortWith(_._2 > _._2)
 }
 
 
@@ -47,6 +82,10 @@ trait AcceptHeaderParsers extends JavaTokenParsers {
     case range~None => MediaInfo(range,1.0,Nil)
     case range~Some(q~ap) => MediaInfo(range,q,ap)
   }
+
+  protected def acceptCharsets: Parser[List[(String,Double)]] = repsep(acceptCharset, """,""".r)
+
+  protected def acceptCharset: Parser[(String,Double)] = """[^,;]+""".r ~ opt(qParam) ^^ { case h~t => (h,t.getOrElse(1.0)) }
 
   protected def qParam: Parser[Double] = ";q=" ~> floatingPointNumber ^^ {
     v => {
@@ -70,6 +109,5 @@ trait AcceptHeaderParsers extends JavaTokenParsers {
   protected def subTypeAll = (desc ~ """/\*""".r) ^^ { case head~tail => head+tail }
 
   protected def desc: Parser[String] = """[\w\.-]*""".r
-
 
 }

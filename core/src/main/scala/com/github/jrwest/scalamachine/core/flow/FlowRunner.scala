@@ -21,7 +21,15 @@ trait FlowRunnerBase {
 class FlowRunner extends FlowRunnerBase {
 
   def run(decision: Decision, resource: Resource, data: ReqRespData): ReqRespData = {
-    runDecisionOuter(resource, decision, data)
+    runDecisionOuter(resource, decision, data) // tests pass but its wrong
+    //runDecisionOuter2(resource, decision, data) // tests fail because mocking is off but its correct
+  }
+
+  def runDecisionOuter2(decision: Decision, resource: Resource, data: ReqRespData): ReqRespData = {
+    decision(resource)(data) match {
+      case (Some(next), newData) => runDecisionOuter2(next, resource, newData)
+      case (None, newData) => newData
+    }
   }
 
   // can't mark this tail recursive if we want it to be stackable :(
