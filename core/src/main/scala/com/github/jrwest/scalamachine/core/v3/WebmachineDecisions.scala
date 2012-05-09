@@ -155,8 +155,7 @@ trait WebmachineDecisions {
     def name: String = "v3e5"
 
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = {
-      // maybe can't call this all the time
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = {      
       val missingAccept: State[ReqRespData, Res[(Decision,Option[String])]] = State((d: ReqRespData) => {
         val (res, newData) = resource.charsetsProvided(d)
         (res flatMap { _.fold(some = provided => Util.chooseCharset(provided.unzip._1, "*").fold(some = chosen => ValueRes((f6,some(chosen))), none = HaltRes(406)), none = ValueRes((f6,some("")))) }, newData)
