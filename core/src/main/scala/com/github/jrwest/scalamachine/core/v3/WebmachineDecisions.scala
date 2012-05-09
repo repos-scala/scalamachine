@@ -4,9 +4,8 @@ package v3
 import flow._
 import scalaz.std.option._
 import optionSyntax._
-import scalaz.syntax.functor._
 import scalaz.syntax.pointed._
-import scalaz.{State, StateT}
+import scalaz.State
 import Decision.FlowState
 import Res._
 import ResT._
