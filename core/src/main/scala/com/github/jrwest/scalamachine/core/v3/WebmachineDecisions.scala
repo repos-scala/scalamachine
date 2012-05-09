@@ -8,6 +8,7 @@ import scalaz.syntax.functor._
 import scalaz.syntax.pointed._
 import scalaz.{State, StateT}
 import Decision.FlowState
+import Res._
 import ResT._
 
 
@@ -88,7 +89,7 @@ trait WebmachineDecisions {
           val set = for {
             hdrs <- resT[FlowState](State((d: ReqRespData) => resource.options(d)))
             _ <- resT[FlowState]((responseHeadersL ++= hdrs.toList).map(_.point[Res]))
-            _ <- resT[FlowState](State((d: ReqRespData) => ((HaltRes(200): Res[Decision]), d)))
+            _ <- resT[FlowState](State((d: ReqRespData) => (halt[Decision](200), d)))
           } yield c3 // we will never get here
           set.run
         }

@@ -51,7 +51,22 @@ trait ResOps[A] {
 }
 
 
-object Res {
+object Res extends ResFunctions with ResInstances {
+
+  implicit def resOps[T](r: Res[T]): ResOps[T] = new ResOps[T] {
+    def res: Res[T] = r
+  }
+
+}
+
+trait ResFunctions {
+  def result[A](a: => A): Res[A] = ValueRes(a)
+  def halt[A](code: => Int): Res[A] = HaltRes(code)
+  def error[A](reason: => Any): Res[A] = ErrorRes(reason)
+  def empty[A]: Res[A] = EmptyRes
+}
+
+trait ResInstances {
   import scalaz.{Monad, Traverse, Applicative}
   implicit val resScalazInstances = new Traverse[Res] with Monad[Res] {
     def point[A](a: => A): Res[A] = ValueRes(a)
@@ -63,10 +78,6 @@ object Res {
         case _ => G.point(EmptyRes)
       }
     def bind[A, B](fa: Res[A])(f: A => Res[B]): Res[B] = fa flatMap f
-  }
-
-  implicit def resOps[T](r: Res[T]): ResOps[T] = new ResOps[T] {
-    def res: Res[T] = r
   }
 }
 

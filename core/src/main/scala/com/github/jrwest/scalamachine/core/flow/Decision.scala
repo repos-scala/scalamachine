@@ -34,6 +34,7 @@ trait Decision {
 
 object Decision {
   import ReqRespData.statusCodeL
+  import Res._
 
   import scalaz.syntax.pointed._
   type FlowState[T] = State[ReqRespData, T]
@@ -50,9 +51,9 @@ object Decision {
     protected def decide(resource: Resource): FlowState[Res[Decision]] = {
       val nextT: ResT[FlowState,Decision] = for {
         value <- ResT[FlowState,T](State((d: ReqRespData) => test(resource)(d)))
-        handler <- ResT[FlowState,Handler[T]](State((d: ReqRespData) => if (check(value, d)) (onSuccess.point[Res],d) else (onFailure.point[Res], d)))
+        handler <- ResT[FlowState,Handler[T]](State((d: ReqRespData) => if (check(value, d)) (result(onSuccess),d) else (result(onFailure), d)))
         next <- ResT[FlowState,Decision](State((d: ReqRespData) => handler match {
-          case Left(f) => ((EmptyRes: Res[Decision]), f(value, d))
+          case Left(f) => (empty[Decision], f(value, d))
           case Right(decision) => (ValueRes(decision), d)
         }))
       } yield next
