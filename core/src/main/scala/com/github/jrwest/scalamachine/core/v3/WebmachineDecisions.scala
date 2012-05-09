@@ -171,9 +171,9 @@ trait WebmachineDecisions {
 
       val act = for {
         mbHeader <- resT[FlowState]((requestHeadersL member "accept-charset").st map { _.point[Res] })
-        r <- mbHeader >| resT[FlowState](result((e6, none[String])).point[FlowState]) | missingAccept
-        _ <- resT[FlowState](((metadataL <=< chosenCharsetL) := r._2).map(_.point[Res]))
-      } yield r._1
+        (decision, chosen) <- mbHeader >| resT[FlowState](result((e6, none[String])).point[FlowState]) | missingAccept
+        _ <- resT[FlowState](((metadataL <=< chosenCharsetL) := chosen).map(_.point[Res]))
+      } yield decision
       act.run
     }
 

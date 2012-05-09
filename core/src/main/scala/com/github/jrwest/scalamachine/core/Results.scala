@@ -41,6 +41,13 @@ trait ResOps[A] {
     case _ => default
   }
 
+  def filter(p: A => Boolean): Res[A] = res match {
+    case ValueRes(a) => if (p(a)) ValueRes(a) else EmptyRes
+    case ErrorRes(e) => ErrorRes(e)
+    case HaltRes(c) => HaltRes(c)
+    case EmptyRes => EmptyRes
+  }
+
   def |(default: => A) = getOrElse(default)
 
   def toOption: Option[A] = res match {
@@ -92,6 +99,7 @@ object ValueRes {
 
 case class ResT[M[_],A](run: M[Res[A]]) {
   self =>
+
   def map[B](f: A => B)(implicit F: Functor[M]): ResT[M,B] = {
     ResT(F.map(self.run)((_: Res[A]) map f))
   }
@@ -103,6 +111,10 @@ case class ResT[M[_],A](run: M[Res[A]]) {
       case r @ ErrorRes(_) => M.point(r: Res[B])
       case r @ EmptyRes => M.point(r: Res[B])
     })
+  }
+
+  def filter(p: A => Boolean)(implicit M: Monad[M]) = {
+    ResT(M.bind(self.run) { res => M.point(res filter p) })
   }
 }
 
