@@ -10,13 +10,12 @@ import scalaz.{State, StateT}
 import Decision.FlowState
 import Res._
 import ResT._
+import ReqRespData._
+import Metadata._
+import Resource._
 
 
 trait WebmachineDecisions {
-  
-  import ReqRespData._
-  import Metadata._
-  import Resource._
 
   /* Service Available? */
   lazy val b13: Decision = Decision("v3b13", true, (r: Resource) => r.serviceAvailable(_: ReqRespData), b12, 503)
