@@ -157,13 +157,21 @@ trait WebmachineDecisions {
 
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = {
-      val missingAccept: State[ReqRespData, Res[(Decision,Option[String])]] = State((d: ReqRespData) => {
-        val (res, newData) = resource.charsetsProvided(d)
-        (res flatMap { _.fold(some = provided => Util.chooseCharset(provided.unzip._1, "*").fold(some = chosen => ValueRes((f6,some(chosen))), none = HaltRes(406)), none = ValueRes((f6,some("")))) }, newData)
-      })
+      def choose(mbProvided: Resource.CharsetsProvided): Res[(Decision, Option[String])] =
+        mbProvided.map { provided =>
+          Util.chooseCharset(provided.unzip._1, "*")
+            .map(c => result((f6, some(c))))
+            .getOrElse(halt(406))
+        } getOrElse { result((f6, none)) }
+
+      val missingAccept: ResT[FlowState, (Decision,Option[String])] = for {
+        mbProvided <- resT[FlowState](State((d: ReqRespData) => resource.charsetsProvided(d)))
+        r <- resT[FlowState](choose(mbProvided).point[FlowState])
+      } yield r
+
       val act = for {
         mbHeader <- resT[FlowState]((requestHeadersL member "accept-charset").st map { _.point[Res] })
-        r <- mbHeader >| resT[FlowState]((ValueRes((e6, none[String])): Res[(Decision,Option[String])]).point[FlowState]) | resT[FlowState](missingAccept)
+        r <- mbHeader >| resT[FlowState](result((e6, none[String])).point[FlowState]) | missingAccept
         _ <- resT[FlowState](((metadataL <=< chosenCharsetL) := r._2).map(_.point[Res]))
       } yield r._1
       act.run
