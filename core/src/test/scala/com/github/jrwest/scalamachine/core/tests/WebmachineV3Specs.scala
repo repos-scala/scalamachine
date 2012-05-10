@@ -126,12 +126,13 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     "if the accept-encoding header exists, decision F7 is returned"                 ! testAcceptEncodingExists ^
     "if the accept-encoding header is missing"                                      ^
       """if "identity;q=1.0,*;q=0.5" is acceptable"""                               ^
-        "chosen is set as the value of Content-Encoding header, G7 returned"        ! testAcceptMissingDefaultAcceptable ^p^
-      "otherwise, a response with code 406 is returned"                             ! testAcceptMissingDefaultNotAcceptable ^
+        "chosen is set as the value of Content-Encoding header, G7 returned"        ! testAcceptEncodingMissingDefaultAcceptable ^p^
+      "otherwise, a response with code 406 is returned"                             ! testAcceptEncodingMissingDefaultNotAcceptable ^
                                                                                     p^p^
   "F7 - Accept Encoding Available?"                                                 ^
-    "If charset is provided by the resource, F6 returned, chosen set in response"   ! skipped ^
-    "If charset is not provided, response w/ code 406 returned"                     ! skipped ^
+    "If resource specifies encoding neg. short circuiting, G7 returned"             ! testAcceptEncodingExistsShortCircuit ^
+    "If charset is provided by the resource, G7 returned, chosen set in response"   ! testAcceptEncodingExistsAcceptable ^
+    "If charset is not provided, response w/ code 406 returned"                     ! testAcceptEncodingExistsNotAcceptable ^
                                                                                     end
 
 
@@ -483,7 +484,6 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   }
 
   def testF6MediaAndCharsetChosen = {
-    println("media & charset chosen")
     val provided: EncodingsProvided = None
     val contentType = ContentType("application/json", Map("a" -> "b", "c" -> "d"))
     val charset = "ISO-8859-1"
@@ -498,7 +498,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     testDecisionReturnsDecision(f6,f7,r => {}, data = createData(headers = Map("accept-encoding" -> "*")))
   }
 
-  def testAcceptMissingDefaultAcceptable = {
+  def testAcceptEncodingMissingDefaultAcceptable = {
     val encoding = "some-encoding"
     val provided: EncodingsProvided = Some((encoding, identity[String](_)) :: Nil)
     testDecisionReturnsDecisionAndData(f6,g7,_.encodingsProvided(any) answers mkAnswer(provided)) {
@@ -508,10 +508,32 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     }
   }
 
-  def testAcceptMissingDefaultNotAcceptable = {
+  def testAcceptEncodingMissingDefaultNotAcceptable = {
     val provided: EncodingsProvided = Some(Nil)
     testDecisionReturnsData(f6,_.encodingsProvided(any) answers mkAnswer(provided)) {
       _.statusCode must beEqualTo(406)
+    }
+  }
+
+  def testAcceptEncodingExistsShortCircuit = {
+    val provided: EncodingsProvided = None
+    testDecisionReturnsDecision(f7,g7,_.encodingsProvided(any) answers mkAnswer(provided), data = createData(headers = Map("accept-encoding" -> "ISO-8859-1")))
+  }
+
+  def testAcceptEncodingExistsAcceptable = {
+    val encoding = "gzip"
+    val provided: EncodingsProvided = Some((encoding, identity[String](_)) :: Nil)
+    testDecisionReturnsDecisionAndData(f7,g7,_.encodingsProvided(any) answers mkAnswer(provided), data = createData(headers = Map("accept-encoding" -> encoding))) {
+      _.responseHeader("content-encoding") must beSome.like {
+        case enc => enc must beEqualTo(encoding)
+      }
+    }
+  }
+
+  def testAcceptEncodingExistsNotAcceptable = {
+    val provided: EncodingsProvided = Some(Nil)
+    testDecisionReturnsData(f7,_.encodingsProvided(any) answers mkAnswer(provided), data = createData(headers = Map("accept-encoding" -> "ISO-8859-1"))) {
+      d => (d.responseHeader("content-coding") must beNone) and (d.statusCode must beEqualTo(406))
     }
   }
 

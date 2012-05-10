@@ -204,7 +204,16 @@ trait WebmachineDecisions {
   lazy val f7: Decision = new Decision {
     def name: String = "v3f7"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = {
+      val act = for {
+        // like e6 we can assume we have already tested the default case and we won't ever run if we get here
+        header <- resT[FlowState]((requestHeadersL member "accept-encoding").st map { _.getOrElse("identity;q=1.0,*;q=0.5").point[Res] })
+        decision <- chooseEncoding(resource, header)
+      } yield decision
+
+      act.run
+    }
+
   }
 
   lazy val g7: Decision = new Decision {
