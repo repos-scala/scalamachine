@@ -35,27 +35,28 @@ trait Decision {
 object Decision {
   import ReqRespData.statusCodeL
   import Res._
+  import ResT._
 
   import scalaz.syntax.pointed._
   type FlowState[T] = State[ReqRespData, T]
   type ResourceF[T] = Resource => ReqRespData => (Res[T], ReqRespData)
   type CheckF[T] = (T, ReqRespData) => Boolean
-  type HandlerF[T] = (T,ReqRespData) => ReqRespData
+  type HandlerF[T] = T => FlowState[T]
   type Handler[T] = Either[HandlerF[T],Decision]
 
-  private[this] def setStatus[T](code: Int): HandlerF[T] = (_,d) => (statusCodeL := code) exec d
+  private[this] def setStatus[T](code: Int): HandlerF[T] = v => for { _ <- statusCodeL := code } yield v
 
   def apply[T](decisionName: String, test: ResourceF[T], check: CheckF[T], onSuccess: Handler[T], onFailure: Handler[T]) = new Decision {
     def name: String = decisionName
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = {
       val nextT: ResT[FlowState,Decision] = for {
-        value <- ResT[FlowState,T](State((d: ReqRespData) => test(resource)(d)))
-        handler <- ResT[FlowState,Handler[T]](State((d: ReqRespData) => if (check(value, d)) (result(onSuccess),d) else (result(onFailure), d)))
-        next <- ResT[FlowState,Decision](State((d: ReqRespData) => handler match {
-          case Left(f) => (empty[Decision], f(value, d))
-          case Right(decision) => (ValueRes(decision), d)
-        }))
+        value <- resT[FlowState](State((d: ReqRespData) => test(resource)(d)))
+        handler <- resT[FlowState](State((d: ReqRespData) => if (check(value, d)) (result(onSuccess),d) else (result(onFailure), d)))
+        next <- resT[FlowState](handler match {
+          case Left(f) => f(value) >| empty[Decision]
+          case Right(decision) => result(decision).point[FlowState]
+        })
       } yield next
 
       nextT.run

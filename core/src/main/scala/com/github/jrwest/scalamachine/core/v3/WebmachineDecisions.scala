@@ -38,13 +38,10 @@ trait WebmachineDecisions {
       (r: Resource) => r.allowedMethods(_: ReqRespData),
       (l: List[HTTPMethod], d: ReqRespData) => l.contains(d.method),
       b9,
-      (r: List[HTTPMethod], data: ReqRespData) => {
-        val notAllowed: State[ReqRespData,Unit] = for {
+      (r: List[HTTPMethod]) => for {
           _ <- (statusCodeL := 405)
           _ <- (responseHeadersL += (("Allow" -> r.map(_.toString).mkString(", "))))
-        } yield ()
-        notAllowed exec data
-      }
+        } yield r
     )
 
   /* Malformed Request? */
@@ -56,13 +53,13 @@ trait WebmachineDecisions {
     AuthSuccess,
     (r: Resource) => r.isAuthorized(_: ReqRespData),
     b7,
-    (r: AuthResult, data: ReqRespData) => (for {
+    (r: AuthResult) => for {
       _ <- r.fold(
         failure = (failMsg: String) => (responseHeadersL += ("WWW-Authenticate" -> failMsg)),
         success = responseHeadersL.st
       )
       _ <- (statusCodeL := 401)
-    } yield ()) exec data
+    } yield r
   )
 
   /* Is Forbidden? */
