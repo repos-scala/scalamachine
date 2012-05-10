@@ -1,7 +1,5 @@
 package com.github.jrwest.scalamachine.core
 
-import scalaz.NonEmptyList
-
 trait Resource {
   import Resource._
 
