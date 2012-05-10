@@ -33,10 +33,35 @@ class UtilSpecs extends Specification with ScalaCheck { def is =
       "if there is an acceptable content type the only type provided is returned"   ! testOneProvidedWithAcceptable ^p^
     "Given a provided list containing > 1 content type and a valid header"          ^
       "If there is noacceptable type None is returned"                              ! skipped ^
-      "If there is an acceptable media type the one w/ highest q value is chosen"   ! skipped ^
+      "If there is an acceptable media type the one w/ highest q value is chosen"   ! skipped ^    
+                                                                                    endp^
+  "Parsing Accept Charset Header Values"                                            ^
+    "If the header value is empty, an empty list is returned"                       ! { acceptCharsetToList("") must beEmpty } ^
+    "if the header value is valid"                                                  ^
+      "If the value contains no commas a single element is always returned"         ! testOneAcceptCharset ^
+      "If the value contains comma seperated values"                                ^
+        "returned list contains entry per value"                                    ! testManyAcceptCharset ^
+        "Sorting"                                                                   ^
+          "items are sorted by q val, with default q=1"                             ! testSortAcceptCharset ^
+                                                                                    endp^
+  "Choosing Charset given provided types and accept-charset header value"           ^
+    "Given an empty list of provided content types, None is returned"               ! { chooseCharset(Nil, "*") must beNone } ^
+    "Given a non-empty provided list and a valid header"                            ^
+      "if none of the acceptable types (excluding *) are provided"                  ^
+        "if star priority is not 0, first provided type is returned"                ! testNoneAcceptableStarNot0 ^
+        "if star priority is 0"                                                     ^
+          "if default (ISO-8859-1) priority is not 0"                               ^
+            "if it is provided, it is returned"                                     ! testNoneAcceptableDefaultAcceptableProvided ^
+            "if it is not provided, none is returned"                               ! testNoneAcceptableDefaultAcceptableNotProvided ^p^
+          "if default (ISO-8859-1) priority is 0"                                   ^
+            "None is returned"                                                      ! testNoneAcceptableDefaultNotAcceptable^p^p^p^
+     "if acceptable type contained in provided list"                                ^
+       "values with priority 0 are not returned"                                    ! testPriorityZeroNotReturned ^
+       "if the priority is not 0"                                                   ^
+         "the highest priority value is returned"                                   ! testHighestPriorityReturned ^
                                                                                     end
 
-  // TODO: add tests for sorting by specificity                                                                                    
+  // TODO: add tests for sorting by specificity of content type
 
   val nonEmptyStr = Gen.alphaStr suchThat { str =>
     str.size > 0 && str != "q"
@@ -67,7 +92,7 @@ class UtilSpecs extends Specification with ScalaCheck { def is =
         types + "/" + types  + (if (!params.isEmpty) params.map(s => s + "=" + s).mkString(";",";","") else "")
       }
     if (hasQ) {
-      (fullType + (";q=%s" format qVal.toString.take(5)) + (if (!params.isEmpty) params.map(s => s + "=" + s).mkString(";",";","") else ""),
+      (fullType + mkQ(qVal) + (if (!params.isEmpty) params.map(s => s + "=" + s).mkString(";",";","") else ""),
         qVal,hasQ)
     } else (fullType,qVal,hasQ)
   }
@@ -75,6 +100,8 @@ class UtilSpecs extends Specification with ScalaCheck { def is =
   val mediaEntry = for {
     (m,_,_) <- mediaEntryAndQ
   } yield m
+
+  def mkQ(qVal: Double): String = ";q=%s" format qVal.toString.take(5)
 
   // TODO: these could be improved by actually taking the parts of the entry and checking the generated data
   def singleMediaEntryReturnsSize1 = forAll(mediaEntry) {
@@ -116,5 +143,112 @@ class UtilSpecs extends Specification with ScalaCheck { def is =
 
     (matching.map(chooseMediaType(testCt :: Nil, _)) must allBeExpectedContentType) and 
       (chooseMediaType(testCt :: Nil, matching.mkString(", ")) must beSome.like { case ct => ct must beEqualTo(testCt) })
+  }
+
+  def testOneAcceptCharset = forAll(nonEmptyStr,Gen.choose(0.0,1.0),Arbitrary.arbitrary[Boolean]) {
+    (charset: String, qVal: Double, hasQ: Boolean) => {
+      val qStr = if (hasQ) mkQ(qVal) else ""
+      val string = charset + qStr
+      acceptCharsetToList(string) must haveSize(1) and have(
+        (tpl: (String,Double)) => {
+          tpl._1 == charset && tpl._2 == (if (hasQ) qVal.toString.take(5).toDouble else 1.0)
+        }
+      )
+    }
+  }
+
+  def testManyAcceptCharset = forAll(
+    Gen.containerOf[List,String](nonEmptyStr),
+    Gen.containerOf[List,Double](Gen.choose(0.0,1.0)),
+    Gen.containerOf[List,Boolean](Arbitrary.arbitrary[Boolean])) {
+    (charsets: List[String], qVals: List[Double], hasQs: List[Boolean]) => {
+      val zipped = (charsets, qVals, hasQs).zipped.toList
+      val string = (for { (c,q,hq) <- zipped } yield { if (hq) c + mkQ(q) else c }).mkString(", ")
+      acceptCharsetToList(string) must haveSize(zipped.size)
+    }
+  }
+
+  def testSortAcceptCharset = forAll(
+    Gen.containerOf[List,String](nonEmptyStr),
+    Gen.containerOf[List,Double](Gen.choose(0.0,1.0)),
+    Gen.containerOf[List,Boolean](Arbitrary.arbitrary[Boolean])) {
+    (charsets: List[String], qVals: List[Double], hasQs: List[Boolean]) => {
+      val zipped = (charsets, qVals, hasQs).zipped.toList
+      val string = (for { (c,q,hq) <- zipped } yield { if (hq) c + mkQ(q) else c }).mkString(", ")
+      // need to reverse because beSorted checks ascending order and we want descending
+      acceptCharsetToList(string).unzip._2.reverse must beSorted
+    }
+  }.set(minTestsOk -> 10)
+
+  val random = new scala.util.Random
+  def testNoneAcceptableStarNot0 = forAll(
+    Gen.containerOf[List,String](nonEmptyStr) suchThat { _.size > 0 },
+    Gen.containerOf[List,String](nonEmptyStr)  suchThat { _.size > 0 }) {
+    (provided: List[String], acceptable: List[String]) => {
+      val length = acceptable.length
+      val index = if (length == 0) 0 else random.nextInt(length)
+      val finalProvided = provided filterNot { acceptable.contains(_) }
+      val (beforeStar, afterStar) = acceptable.splitAt(index)
+      val headerVal = ((beforeStar :+ "*;q=1.0") ++ afterStar).mkString(", ")
+      chooseCharset(finalProvided, headerVal) must beSome.like {
+        case str => str must beEqualTo(finalProvided.head)
+      }
+    }
+  }
+
+  def testNoneAcceptableDefaultAcceptableProvided = forAll(
+    Gen.containerOf[List,String](nonEmptyStr) suchThat { _.size > 0 },
+    Gen.containerOf[List,String](nonEmptyStr)  suchThat { _.size > 0 }) {
+      (provided: List[String], acceptable: List[String]) => {
+        val finalProvided = "ISO-8859-1" :: (provided filterNot { acceptable.contains(_) })
+        val headerVal = acceptable.mkString(", ")
+        chooseCharset(finalProvided, headerVal) must beSome.like {
+          case str => str must beEqualTo("ISO-8859-1")
+        }
+      }
+    }
+
+  def testNoneAcceptableDefaultAcceptableNotProvided = forAll(
+    Gen.containerOf[List,String](nonEmptyStr) suchThat { _.size > 0 },
+    Gen.containerOf[List,String](nonEmptyStr)  suchThat { _.size > 0 }) {
+    (provided: List[String], acceptable: List[String]) => {
+      val finalProvided = (provided filterNot { acceptable.contains(_) })
+      val headerVal = acceptable.mkString(", ")
+      chooseCharset(finalProvided, headerVal) must beNone
+    }
+  }
+
+  def testNoneAcceptableDefaultNotAcceptable = forAll(
+    Gen.containerOf[List,String](nonEmptyStr) suchThat { _.size > 0 },
+    Gen.containerOf[List,String](nonEmptyStr)  suchThat { _.size > 0 }) {
+    (provided: List[String], acceptable: List[String]) => {
+      val finalProvided = "ISO-8859-1" :: (provided filterNot { acceptable.contains(_) })
+      val headerVal = acceptable.mkString(", ") + ", ISO-8859-1;q=0"
+      chooseCharset(finalProvided, headerVal) must beNone
+    }
+  }
+
+  def testPriorityZeroNotReturned = check {
+    (list: List[String]) => {
+      val headerVal = list.map(_ + ";q=0.0").mkString(", ")
+      chooseCharset(list, headerVal) must beNone
+    }
+  }
+
+  def testHighestPriorityReturned = forAll(
+    Gen.containerOf[List,String](nonEmptyStr) suchThat { _.size > 0 },
+    Gen.containerOf[List,Double](Gen.choose(0.001, 1.0)) suchThat { _.size > 0 }) {
+      (list: List[String], qVals: List[Double]) => {
+        // nasty hack to make trimmed precision qs unique
+        // we need them to be not equal to avoid ambiguity in the test
+        // when two have the same priority
+        val finalQs = qVals.map(_.toString.take(5)).toSet.toList.map((_: String).toDouble)
+        val zipped = (list,finalQs).zipped
+        val headerVal = zipped.map(_ + mkQ(_)).mkString(", ")
+        val expected = zipped.toList.sortWith(_._2 > _._2).head._1
+        chooseCharset(zipped.unzip._1.toList, headerVal) must beSome.like {
+          case str => str must beEqualTo(expected)
+        }
+      }
   }
 }

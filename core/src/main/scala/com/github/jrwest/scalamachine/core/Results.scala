@@ -1,6 +1,6 @@
 package com.github.jrwest.scalamachine.core
 
-
+import scalaz.{Functor, Monad}
 
 sealed trait Res[+A]
 // change to traits with apply, and equal/show instances?
@@ -20,16 +20,59 @@ case object EmptyRes extends Res[Nothing] {
 trait ResOps[A] {
   def res: Res[A]
 
+  def map[B](f: A => B): Res[B] = {
+    res match {
+      case ValueRes(r) => ValueRes(f(r))
+      case ErrorRes(e) => ErrorRes(e)
+      case HaltRes(c)  => HaltRes(c)
+      case EmptyRes => EmptyRes
+    }
+  }
+
+  def flatMap[B](f: A => Res[B]): Res[B] = res match {
+    case ValueRes(v) => f(v)
+    case ErrorRes(e) => ErrorRes(e)
+    case HaltRes(c) => HaltRes(c)
+    case EmptyRes => EmptyRes
+  }
+
   def getOrElse[B >: A](default: => B) = res match {
     case ValueRes(a) => a
     case _ => default
   }
 
+  def filter(p: A => Boolean): Res[A] = res match {
+    case ValueRes(a) => if (p(a)) ValueRes(a) else EmptyRes
+    case ErrorRes(e) => ErrorRes(e)
+    case HaltRes(c) => HaltRes(c)
+    case EmptyRes => EmptyRes
+  }
+
   def |(default: => A) = getOrElse(default)
+
+  def toOption: Option[A] = res match {
+    case ValueRes(a) => Some(a)
+    case _ => None
+  }
 }
 
 
-object Res {
+object Res extends ResFunctions with ResInstances {
+
+  implicit def resOps[T](r: Res[T]): ResOps[T] = new ResOps[T] {
+    def res: Res[T] = r
+  }
+
+}
+
+trait ResFunctions {
+  def result[A](a: => A): Res[A] = ValueRes(a)
+  def halt[A](code: => Int): Res[A] = HaltRes(code)
+  def error[A](reason: => Any): Res[A] = ErrorRes(reason)
+  def empty[A]: Res[A] = EmptyRes
+}
+
+trait ResInstances {
   import scalaz.{Monad, Traverse, Applicative}
   implicit val resScalazInstances = new Traverse[Res] with Monad[Res] {
     def point[A](a: => A): Res[A] = ValueRes(a)
@@ -40,16 +83,7 @@ object Res {
         case ErrorRes(e) => G.point(ErrorRes(e))
         case _ => G.point(EmptyRes)
       }
-    def bind[A, B](fa: Res[A])(f: A => Res[B]): Res[B] = fa match {
-      case ValueRes(v) => f(v)
-      case ErrorRes(e) => ErrorRes(e)
-      case HaltRes(c) => HaltRes(c)
-      case EmptyRes => EmptyRes
-    }
-  }
-
-  implicit def resOps[T](r: Res[T]): ResOps[T] = new ResOps[T] {
-    def res: Res[T] = r
+    def bind[A, B](fa: Res[A])(f: A => Res[B]): Res[B] = fa flatMap f
   }
 }
 
@@ -63,17 +97,42 @@ object ValueRes {
   }
 }
 
-sealed trait AuthResult
-case object AuthSuccess extends AuthResult
-case class AuthFailure(headerValue: String) extends AuthResult
+case class ResT[M[_],A](run: M[Res[A]]) {
+  self =>
 
-object AuthResult {
-  implicit def authResult2Ops(r: AuthResult): AuthResultOps = new AuthResultOps(r)
+  def map[B](f: A => B)(implicit F: Functor[M]): ResT[M,B] = {
+    ResT(F.map(self.run)((_: Res[A]) map f))
+  }
+
+  def flatMap[B](f: A => ResT[M,B])(implicit M: Monad[M]) = {
+    ResT(M.bind(self.run) {
+      case ValueRes(v) => f(v).run
+      case r @ HaltRes(_) => M.point(r: Res[B])
+      case r @ ErrorRes(_) => M.point(r: Res[B])
+      case r @ EmptyRes => M.point(r: Res[B])
+    })
+  }
+
+  def filter(p: A => Boolean)(implicit M: Monad[M]) = {
+    ResT(M.bind(self.run) { res => M.point(res filter p) })
+  }
 }
 
-class AuthResultOps(r: AuthResult) {
-  def fold[T](success: T, failure: String => T): T = r match {
+// TODO: ResT type class instances
+object ResT extends ResTFunctions
+
+trait ResTFunctions {
+  import scalaz.~>
+  def resT[M[_]] = new (({type λ[α] = M[Res[α]]})#λ ~> ({type λ[α] = ResT[M, α]})#λ) {
+    def apply[A](a: M[Res[A]]) = new ResT[M, A](a)
+  }
+}
+
+sealed trait AuthResult {
+  def fold[T](success: T, failure: String => T): T = this match {
     case AuthSuccess => success
     case AuthFailure(s) => failure(s)
   }
-} 
+}
+case object AuthSuccess extends AuthResult
+case class AuthFailure(headerValue: String) extends AuthResult
