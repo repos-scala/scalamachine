@@ -34,9 +34,10 @@ object Util extends AcceptHeaderParsers {
     doChoose(provided, acceptToMediaTypes(acceptHeader))
   }
 
-  def chooseCharset(provided: List[String], acceptCharsetHeader: String): Option[String] = {
-    val default = "ISO-8859-1"
+  val chooseCharset: (List[String], String) => Option[String] = chooseAcceptable(_,_,"ISO-8859-1")
+  val chooseEncoding: (List[String], String) => Option[String] = chooseAcceptable(_,_,"identity")
 
+  def chooseAcceptable(provided: List[String], acceptCharsetHeader: String, default: String): Option[String] = {
     @annotation.tailrec
     def doChoose(acceptable: List[(String,Double)]): Option[String] = acceptable match {
       case Nil => None

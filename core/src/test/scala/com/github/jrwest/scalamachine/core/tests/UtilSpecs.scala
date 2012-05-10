@@ -35,25 +35,25 @@ class UtilSpecs extends Specification with ScalaCheck { def is =
       "If there is noacceptable type None is returned"                              ! skipped ^
       "If there is an acceptable media type the one w/ highest q value is chosen"   ! skipped ^    
                                                                                     endp^
-  "Parsing Accept Charset Header Values"                                            ^
+  "Parsing Accept Charset/Encoding Header Values"                                   ^
     "If the header value is empty, an empty list is returned"                       ! { acceptCharsetToList("") must beEmpty } ^
     "if the header value is valid"                                                  ^
-      "If the value contains no commas a single element is always returned"         ! testOneAcceptCharset ^
+      "If the value contains no commas a single element is always returned"         ! testOneAcceptValue ^
       "If the value contains comma seperated values"                                ^
-        "returned list contains entry per value"                                    ! testManyAcceptCharset ^
+        "returned list contains entry per value"                                    ! testManyAcceptValues ^
         "Sorting"                                                                   ^
-          "items are sorted by q val, with default q=1"                             ! testSortAcceptCharset ^
+          "items are sorted by q val, with default q=1"                             ! testSortAcceptValues ^
                                                                                     endp^
   "Choosing Charset given provided types and accept-charset header value"           ^
-    "Given an empty list of provided content types, None is returned"               ! { chooseCharset(Nil, "*") must beNone } ^
+    "Given an empty list of provided content types, None is returned"               ! { chooseAcceptable(Nil, "*", "somedefault") must beNone } ^
     "Given a non-empty provided list and a valid header"                            ^
       "if none of the acceptable types (excluding *) are provided"                  ^
         "if star priority is not 0, first provided type is returned"                ! testNoneAcceptableStarNot0 ^
         "if star priority is 0"                                                     ^
-          "if default (ISO-8859-1) priority is not 0"                               ^
+          "if default priority is not 0"                                            ^
             "if it is provided, it is returned"                                     ! testNoneAcceptableDefaultAcceptableProvided ^
             "if it is not provided, none is returned"                               ! testNoneAcceptableDefaultAcceptableNotProvided ^p^
-          "if default (ISO-8859-1) priority is 0"                                   ^
+          "if default priority is 0"                                                ^
             "None is returned"                                                      ! testNoneAcceptableDefaultNotAcceptable^p^p^p^
      "if acceptable type contained in provided list"                                ^
        "values with priority 0 are not returned"                                    ! testPriorityZeroNotReturned ^
@@ -145,7 +145,7 @@ class UtilSpecs extends Specification with ScalaCheck { def is =
       (chooseMediaType(testCt :: Nil, matching.mkString(", ")) must beSome.like { case ct => ct must beEqualTo(testCt) })
   }
 
-  def testOneAcceptCharset = forAll(nonEmptyStr,Gen.choose(0.0,1.0),Arbitrary.arbitrary[Boolean]) {
+  def testOneAcceptValue = forAll(nonEmptyStr,Gen.choose(0.0,1.0),Arbitrary.arbitrary[Boolean]) {
     (charset: String, qVal: Double, hasQ: Boolean) => {
       val qStr = if (hasQ) mkQ(qVal) else ""
       val string = charset + qStr
@@ -157,7 +157,7 @@ class UtilSpecs extends Specification with ScalaCheck { def is =
     }
   }
 
-  def testManyAcceptCharset = forAll(
+  def testManyAcceptValues = forAll(
     Gen.containerOf[List,String](nonEmptyStr),
     Gen.containerOf[List,Double](Gen.choose(0.0,1.0)),
     Gen.containerOf[List,Boolean](Arbitrary.arbitrary[Boolean])) {
@@ -168,7 +168,7 @@ class UtilSpecs extends Specification with ScalaCheck { def is =
     }
   }
 
-  def testSortAcceptCharset = forAll(
+  def testSortAcceptValues = forAll(
     Gen.containerOf[List,String](nonEmptyStr),
     Gen.containerOf[List,Double](Gen.choose(0.0,1.0)),
     Gen.containerOf[List,Boolean](Arbitrary.arbitrary[Boolean])) {
@@ -200,10 +200,11 @@ class UtilSpecs extends Specification with ScalaCheck { def is =
     Gen.containerOf[List,String](nonEmptyStr) suchThat { _.size > 0 },
     Gen.containerOf[List,String](nonEmptyStr)  suchThat { _.size > 0 }) {
       (provided: List[String], acceptable: List[String]) => {
-        val finalProvided = "ISO-8859-1" :: (provided filterNot { acceptable.contains(_) })
+        val default = "ISO-8859-1"
+        val finalProvided = default :: (provided filterNot { acceptable.contains(_) })
         val headerVal = acceptable.mkString(", ")
-        chooseCharset(finalProvided, headerVal) must beSome.like {
-          case str => str must beEqualTo("ISO-8859-1")
+        chooseAcceptable(finalProvided, headerVal, default) must beSome.like {
+          case str => str must beEqualTo(default)
         }
       }
     }
@@ -214,7 +215,7 @@ class UtilSpecs extends Specification with ScalaCheck { def is =
     (provided: List[String], acceptable: List[String]) => {
       val finalProvided = (provided filterNot { acceptable.contains(_) })
       val headerVal = acceptable.mkString(", ")
-      chooseCharset(finalProvided, headerVal) must beNone
+      chooseAcceptable(finalProvided, headerVal, "default") must beNone
     }
   }
 
@@ -222,16 +223,17 @@ class UtilSpecs extends Specification with ScalaCheck { def is =
     Gen.containerOf[List,String](nonEmptyStr) suchThat { _.size > 0 },
     Gen.containerOf[List,String](nonEmptyStr)  suchThat { _.size > 0 }) {
     (provided: List[String], acceptable: List[String]) => {
-      val finalProvided = "ISO-8859-1" :: (provided filterNot { acceptable.contains(_) })
-      val headerVal = acceptable.mkString(", ") + ", ISO-8859-1;q=0"
-      chooseCharset(finalProvided, headerVal) must beNone
+      val default = "ISO-8859-1"
+      val finalProvided = default :: (provided filterNot { acceptable.contains(_) })
+      val headerVal = acceptable.mkString(", ") + ", " + default + ";q=0"
+      chooseAcceptable(finalProvided, headerVal, default) must beNone
     }
   }
 
   def testPriorityZeroNotReturned = check {
     (list: List[String]) => {
       val headerVal = list.map(_ + ";q=0.0").mkString(", ")
-      chooseCharset(list, headerVal) must beNone
+      chooseAcceptable(list, headerVal, "default") must beNone
     }
   }
 
@@ -246,7 +248,7 @@ class UtilSpecs extends Specification with ScalaCheck { def is =
         val zipped = (list,finalQs).zipped
         val headerVal = zipped.map(_ + mkQ(_)).mkString(", ")
         val expected = zipped.toList.sortWith(_._2 > _._2).head._1
-        chooseCharset(zipped.unzip._1.toList, headerVal) must beSome.like {
+        chooseAcceptable(zipped.unzip._1.toList, headerVal, "default") must beSome.like {
           case str => str must beEqualTo(expected)
         }
       }
