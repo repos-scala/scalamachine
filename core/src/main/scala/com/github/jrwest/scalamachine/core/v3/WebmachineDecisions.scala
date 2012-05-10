@@ -138,6 +138,7 @@ trait WebmachineDecisions {
     }
   }
 
+  /* Accept-Language Exists? */
   lazy val d4: Decision = new Decision {
     val name = "v3d4" 
 
@@ -146,8 +147,10 @@ trait WebmachineDecisions {
     }
   }
 
+  /* Acceptable Language Available? */
   lazy val d5: Decision = Decision("v3d5", true, (r: Resource) => r.isLanguageAvailable(_: ReqRespData), e5, 406)
 
+  /* Accept-Charset Exists? */
   lazy val e5: Decision = new Decision {
     def name: String = "v3e5"
 
@@ -162,6 +165,7 @@ trait WebmachineDecisions {
 
   }
 
+  /* Acceptable Charset Available? */
   lazy val e6: Decision = new Decision {
     def name: String = "v3e6"
 
@@ -177,6 +181,7 @@ trait WebmachineDecisions {
     }
   }
 
+  /* Accept-Encoding Exists? */
   lazy val f6: Decision = new Decision {
     def name: String = "v3f6"
 
