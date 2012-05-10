@@ -153,22 +153,9 @@ trait WebmachineDecisions {
 
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = {
-      def choose(mbProvided: Resource.CharsetsProvided): Res[(Decision, Option[String])] =
-        mbProvided.map { provided =>
-          Util.chooseCharset(provided.unzip._1, "*")
-            .map(c => result((f6, some(c))))
-            .getOrElse(halt(406))
-        } getOrElse { result((f6, none)) }
-
-      val missingAccept: ResT[FlowState, (Decision,Option[String])] = for {
-        mbProvided <- resT[FlowState](State((d: ReqRespData) => resource.charsetsProvided(d)))
-        r <- resT[FlowState](choose(mbProvided).point[FlowState])
-      } yield r
-
       val act = for {
         mbHeader <- resT[FlowState]((requestHeadersL member "accept-charset").st map { _.point[Res] })
-        (decision, chosen) <- mbHeader >| resT[FlowState](result((e6, none[String])).point[FlowState]) | missingAccept
-        _ <- resT[FlowState](((metadataL <=< chosenCharsetL) := chosen).map(_.point[Res]))
+        decision <- mbHeader >| resT[FlowState](result(e6).point[FlowState]) | chooseCharset(resource, "*")
       } yield decision
       act.run
     }
@@ -178,7 +165,16 @@ trait WebmachineDecisions {
   lazy val e6: Decision = new Decision {
     def name: String = "v3e6"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = {
+      val act = for {
+        // we can assume that the getOrElse case will never be run because of e5 but if it is the case
+        // star will still be handled appropriately
+        header <- resT[FlowState]((requestHeadersL member "accept-charset").st map { _.getOrElse("*").point[Res] })
+        decision <- chooseCharset(resource, header)
+      } yield decision
+
+      act.run
+    }
   }
 
   lazy val f6: Decision = new Decision {
@@ -186,4 +182,28 @@ trait WebmachineDecisions {
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }
+
+  private def chooseCharset(resource: Resource, acceptHeader: String): ResT[FlowState, Decision] = {
+
+    val charsetsProvided: ResT[FlowState,CharsetsProvided] = resT[FlowState](State((d: ReqRespData) => resource.charsetsProvided(d)))
+
+    def doChoose(mbProvided: Resource.CharsetsProvided): Res[(Decision, Option[String])] =
+      mbProvided.map { provided =>
+        Util.chooseCharset(provided.unzip._1, acceptHeader)
+          .map(c => result((f6, some(c))))
+          .getOrElse(halt(406))
+      } getOrElse { result((f6, none)) }
+
+    def setCharsetMeta(chosen: Option[String]): ResT[FlowState,Option[String]] =
+      resT[FlowState](((metadataL <=< chosenCharsetL) := chosen).map(_.point[Res]))
+
+    charsetsProvided flatMap { p => resT[FlowState](doChoose(p).point[FlowState]) }
+
+    for {
+      p <- charsetsProvided
+      (decision, chosen) <- resT[FlowState](doChoose(p).point[FlowState])
+      _ <- setCharsetMeta(chosen)
+    } yield decision
+  }
+
 }

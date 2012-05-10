@@ -107,15 +107,13 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
       """If "*" charset is acceptable to resource"""                                ^
         "decision F6 is returned"                                                   ! testAcceptMissingStarAcceptable ^
         "first charset provided by resource is set as chosen in metadata"           ! testAcceptMissingStarOkCharsetChosen ^p^
-      "If resource specifies charset negotioation short circuting, F6 is returned"  ! testAcceptMissingCharsetNegShortCurcuit ^
-      "otherwise, a response with code 406 is returned"                             ! testAcceptMissingStartNotAcceptable ^
+      "If resource specifies charset negotioation short circuting, F6 is returned"  ! testAcceptMissingCharsetNegShortCircuit ^
+      "otherwise, a response with code 406 is returned"                             ! testAcceptMissingStarNotAcceptable ^
                                                                                     p^p^
   "E6 - Accept-Charset Available?"                                                  ^
-    "If resource specifies charset negotiation short circuting, F6 is returned"     ! skipped ^
-    "If the charset is provided by the resource"                                    ^
-      "the chosen charset is set in the metadata"                                   ! skipped ^
-      "decision F6 is returned"                                                     ! skipped ^p^
-    "If charset is not provided by the resource, response w/ code 406 returned"     ! skipped ^
+    "If resource specifies charset negotiation short circuting, F6 is returned"     ! testAcceptExistsCharsetNegShortCircuit ^
+    "If the charset is provided by the resource, f6 returned, chosen set in meta"   ! testAcceptExistsAcceptableSetInMeta ^
+    "If charset is not provided by the resource, response w/ code 406 returned"     ! testAcceptExistsNotAcceptable ^
                                                                                     end
 
   // TODO: tests around halt result, error result, empty result, since that logic is no longer in flow runner where test used to be
@@ -386,15 +384,36 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     }
   }
 
-  def testAcceptMissingCharsetNegShortCurcuit = {
+  def testAcceptMissingCharsetNegShortCircuit = {
     val provided: CharsetsProvided = None
     testDecisionReturnsDecision(e5,f6,(r,d) => r.charsetsProvided(any) returns ((ValueRes(provided), d)))
   }
 
-  def testAcceptMissingStartNotAcceptable = {
+  def testAcceptMissingStarNotAcceptable = {
     val provided: CharsetsProvided = Some(Nil)
     testDecisionReturnsData(e5,(r,d) => r.charsetsProvided(any) returns ((ValueRes(provided),d))) {
       _.statusCode must beEqualTo(406)
     }
   }
+
+  def testAcceptExistsCharsetNegShortCircuit = {
+    val provided: CharsetsProvided = None
+    testDecisionReturnsDecision(e6, f6, (r, d) => r.charsetsProvided(any) returns ((ValueRes(provided), d)), data = createData(headers = Map("accept-charset" -> "ISO-8859-1")))
+  }
+
+  def testAcceptExistsAcceptableSetInMeta = {
+    val charset = "ISO-8859-1"
+    val provided: CharsetsProvided = Some((charset, identity[String](_)) :: Nil)
+    testDecisionReturnsDecisionAndData(e6, f6, (r,d) => r.charsetsProvided(any) returns ((ValueRes(provided), d)), data = createData(headers = Map("accept-charset" -> charset))) {
+      _.metadata.chosenCharset must beSome.which { _ == charset }
+    }
+  }
+
+  def testAcceptExistsNotAcceptable = {
+    val provided: CharsetsProvided = Some(Nil)
+    testDecisionReturnsData(e6, (r,d) => r.charsetsProvided(any) returns ((ValueRes(provided), d)), data = createData(headers = Map("acccept-charset" -> "ISO-8859-1"))) {
+      _.statusCode must beEqualTo(406)
+    }
+  }
+
 }
