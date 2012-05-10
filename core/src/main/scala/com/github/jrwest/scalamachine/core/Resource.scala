@@ -38,6 +38,8 @@ trait Resource {
 
   def charsetsProvided(data: ReqRespData): (Res[CharsetsProvided],ReqRespData) = (default(None), data)
 
+  def encodingsProvided(data: ReqRespData): (Res[CharsetsProvided],ReqRespData) = (default(Some(("identity", identity[String](_)) :: Nil)), data)
+
   private def default[A](value: A): Res[A] = ValueRes(value)
 
   private val defaultResponse: ReqRespData => (Res[String], ReqRespData) = (default("hello, scalamachine"), _)
@@ -46,6 +48,8 @@ trait Resource {
 
 object Resource {
   type ContentTypesProvided = List[(ContentType, ReqRespData => (Res[String],ReqRespData))]
+  // TODO: the encoding functions may not be strings, it depends on the final type of the response body once chosen
   type CharsetsProvided = Option[List[(String,String => String)]] // None value specifies charset negotiation short-circuiting
+  type EncodingsProvided = Option[List[(String,String => String)]] // None values specifies encoding negotiation short-circuiting
 }
 

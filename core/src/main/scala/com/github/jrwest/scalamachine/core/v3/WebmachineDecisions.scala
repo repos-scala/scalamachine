@@ -3,8 +3,10 @@ package v3
 
 import flow._
 import scalaz.std.option._
+import scalaz.std.string._
 import optionSyntax._
 import scalaz.syntax.pointed._
+import scalaz.syntax.order._
 import scalaz.State
 import Decision.FlowState
 import Res._
@@ -185,9 +187,33 @@ trait WebmachineDecisions {
   lazy val f6: Decision = new Decision {
     def name: String = "v3f6"
 
+    protected def decide(resource: Resource): FlowState[Res[Decision]] =  {
+      val act = for {
+        media <- resT[FlowState]((metadataL <=< contentTypeL).st.map(_.getOrElse(ContentType("text/plain")).point[Res]))
+        charset <- resT[FlowState]((metadataL <=< chosenCharsetL).st.map(_.map(";charset=" + _).getOrElse("").point[Res]))
+        _ <- resT[FlowState](((responseHeadersL member "content-type") := some(media.toHeader + charset)).map(_.point[Res]))
+        mbHeader <- resT[FlowState]((requestHeadersL member "accept-encoding").st map { _.point[Res] })
+        decision <- mbHeader >| resT[FlowState](result(f7).point[FlowState]) | chooseEncoding(resource, "identity;q=1.0,*;q=0.5")
+      } yield decision
+
+      act.run
+    }
+  }
+
+  /* Acceptable Encoding Available? */
+  lazy val f7: Decision = new Decision {
+    def name: String = "v3f7"
+
     protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }
 
+  lazy val g7: Decision = new Decision {
+    def name: String = "v3g7"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+  }
+
+  /** Helper Functions **/
   private def chooseCharset(resource: Resource, acceptHeader: String): ResT[FlowState, Decision] = {
 
     val charsetsProvided: ResT[FlowState,CharsetsProvided] = resT[FlowState](State((d: ReqRespData) => resource.charsetsProvided(d)))
@@ -202,12 +228,30 @@ trait WebmachineDecisions {
     def setCharsetMeta(chosen: Option[String]): ResT[FlowState,Option[String]] =
       resT[FlowState](((metadataL <=< chosenCharsetL) := chosen).map(_.point[Res]))
 
-    charsetsProvided flatMap { p => resT[FlowState](doChoose(p).point[FlowState]) }
-
     for {
       p <- charsetsProvided
       (decision, chosen) <- resT[FlowState](doChoose(p).point[FlowState])
       _ <- setCharsetMeta(chosen)
+    } yield decision
+  }
+
+  private def chooseEncoding(resource: Resource, headerValue: String): ResT[FlowState,Decision] = {
+    val encodingsProvided: ResT[FlowState,EncodingsProvided] = resT[FlowState](State((d: ReqRespData) => resource.encodingsProvided(d)))
+
+    def doChoose(mbProvided: Resource.EncodingsProvided): Res[(Decision, Option[String])] =
+      mbProvided.map { provided =>
+        Util.chooseEncoding(provided.unzip._1, headerValue: String)
+          .map(e => result((g7, some(e))))
+          .getOrElse(halt(406))
+      } getOrElse result((g7, none))
+
+    def setEncodingHeader(chosen: Option[String]): FlowState[Option[String]] =
+      (responseHeadersL member "content-encoding") := (chosen filterNot { _ === "identity" })
+
+    for {
+      p <- encodingsProvided
+      (decision, chosen) <- resT[FlowState](doChoose(p).point[FlowState])
+      _ <- resT[FlowState](setEncodingHeader(chosen).map { _.point[Res] })
     } yield decision
   }
 

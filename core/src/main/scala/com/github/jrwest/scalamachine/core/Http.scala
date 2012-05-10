@@ -4,7 +4,12 @@ case class MediaInfo(mediaRange: ContentType,
                      qVal: Double,
                      acceptParams: List[(String,String)])
 
-case class ContentType(mediaType: String, params: Map[String, String] = Map())
+case class ContentType(mediaType: String, params: Map[String, String] = Map()) {
+  def toHeader = "%s%s".format(
+    mediaType,
+    if (params.isEmpty) ""
+    else(for { (k,v) <- params } yield k + "=" + v).mkString(";", ",", "") )
+}
 
 // not so sure about these yet, was done in a hurry
 trait HTTPMethod

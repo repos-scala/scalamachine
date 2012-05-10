@@ -3,14 +3,16 @@ package com.github.jrwest.scalamachine.core.tests
 import org.specs2._
 import matcher.MatchResult
 import mock._
+import org.mockito.{Matchers => MM}
 import com.github.jrwest.scalamachine.core._
 import Resource._
 import flow._
 import v3.WebmachineDecisions
 import scalaz.NonEmptyList
 import NonEmptyList.nel
+import scalaz.Digit._0
 
-class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisions { def is = ""            ^
+class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisions { def is = ""            ^ args(sequential=true) ^
   "WebMachine V3".title                                                             ^
   """
   The WebMachine Version 3 Flow
@@ -112,28 +114,48 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
                                                                                     p^p^
   "E6 - Accept-Charset Available?"                                                  ^
     "If resource specifies charset negotiation short circuting, F6 is returned"     ! testAcceptExistsCharsetNegShortCircuit ^
-    "If the charset is provided by the resource, f6 returned, chosen set in meta"   ! testAcceptExistsAcceptableSetInMeta ^
+    "If the charset is provided by the resource, F6 returned, chosen set in meta"   ! testAcceptExistsAcceptableSetInMeta ^
     "If charset is not provided by the resource, response w/ code 406 returned"     ! testAcceptExistsNotAcceptable ^
+                                                                                    p^
+  "F6 - Accept-Encoding Exists?"                                                    ^
+    "sets the chosen content type/charset in response content type header"          ^
+      """if both are None, "text/plain" is set"""                                   ! testF6MediaAndCharsetNotChosen ^
+      "if just the content type is Some, its string value is set"                   ! testF6MediaChosenCharsetNot ^
+      """if just the charset is Some, "text/plain; charset=<value>" is set"""       ! testF6CharsetChosenMediaNot ^
+      "if both are set the entire string is set"                                    ! testF6MediaAndCharsetChosen ^p^
+    "if the accept-encoding header exists, decision F7 is returned"                 ! testAcceptEncodingExists ^
+    "if the accept-encoding header is missing"                                      ^
+      """if "identity;q=1.0,*;q=0.5" is acceptable"""                               ^
+        "chosen is set as the value of Content-Encoding header, G7 returned"        ! testAcceptMissingDefaultAcceptable ^p^
+      "otherwise, a response with code 406 is returned"                             ! testAcceptMissingDefaultNotAcceptable ^
+                                                                                    p^p^
+  "F7 - Accept Encoding Available?"                                                 ^
+    "If charset is provided by the resource, F6 returned, chosen set in response"   ! skipped ^
+    "If charset is not provided, response w/ code 406 returned"                     ! skipped ^
                                                                                     end
 
+
   // TODO: tests around halt result, error result, empty result, since that logic is no longer in flow runner where test used to be
-  // TODO: change D5 to do real language negotiation like ruby webmachine implementation                                                                                    
+  // TODO: change D5 to do real language negotiation like ruby webmachine implementation
 
   def createResource = mock[Resource]
-  def createData(method: HTTPMethod = GET, headers: Map[String,String] = Map()) = ReqRespData(method = method, requestHdrs = headers)
+  def createData(method: HTTPMethod = GET, headers: Map[String,String] = Map(), metadata: Metadata = Metadata()) = ReqRespData(method = method, requestHdrs = headers, metadata = metadata)
 
   def testDecision(decision: Decision,
-                   stubF: (Resource, ReqRespData) => Unit,
+                   stubF: Resource => Unit,
                    resource: Resource = createResource,
                    data: ReqRespData = createData())(f: (ReqRespData, Option[Decision]) => MatchResult[Any]): MatchResult[Any] = {
-    stubF(resource, data) // make call to stub/mock
+    // The issue with the failing tests is this stub call basically discards the changes we make to the data before the resource call.
+    // one possible (maybe out there) way to resolve is move resources to being state actions (with a subclass that allows you to not need one if possible)
+    // PROBABLY EASIER is to just stub the resource to return the data its given somehow and just used the passed in data above as the intial data to the decision
+    stubF(resource) // make call to stub/mock
     val (mbNextDecision, newData) = decision(resource)(data)
     f(newData, mbNextDecision)
   }
 
   def testDecisionReturnsDecision(toTest: Decision,
                                   expectedDecision: Decision,
-                                  stubF: (Resource, ReqRespData) => Unit,
+                                  stubF: Resource => Unit,
                                   resource: Resource = createResource,
                                   data: ReqRespData = createData()): MatchResult[Any] = {
     testDecision(toTest, stubF, resource, data) {
@@ -143,66 +165,81 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   
   def testDecisionReturnsDecisionAndData(toTest: Decision,
                                          expectedDecision: Decision,
-                                         stubF: (Resource, ReqRespData) => Unit,
+                                         stubF: Resource => Unit,
                                          resource: Resource = createResource,
                                          data: ReqRespData = createData())(f: ReqRespData => MatchResult[Any]): MatchResult[Any] = {
     testDecision(toTest, stubF, resource, data) {
       (data: ReqRespData, mbNextDecision: Option[Decision]) => mbNextDecision must beSome.which { _ == expectedDecision } and f(data)
     }
   }
-  
+
+  // test ReqRespData given no decision was returned
   def testDecisionReturnsData(toTest: Decision,
-                              stubF: (Resource,ReqRespData) => Unit,
+                              stubF: Resource => Unit,
                               resource: Resource = createResource,
                               data: ReqRespData = createData())(f: ReqRespData => MatchResult[Any]): MatchResult[Any] = {
     testDecision(toTest, stubF, resource, data) {
       (retData: ReqRespData, mbNextDecision: Option[Decision]) => (mbNextDecision must beNone) and f(retData)
     }
   }
+
+  // test ReqRespData regardless of whether a decision was returned
+  def testDecisionResultHasData(toTest: Decision,
+                                stubF: Resource => Unit,
+                                resource: Resource = createResource,
+                                data: ReqRespData = createData())(f: ReqRespData => MatchResult[Any]): MatchResult[Any] = {
+    testDecision(toTest, stubF, resource, data) {
+      (retData: ReqRespData, _: Option[Decision]) => f(retData)
+    }
+  }
+
+  def mkAnswer[T](value: T): Any => (Res[T], ReqRespData) = d => (ValueRes(value), d.asInstanceOf[ReqRespData])
+  def mkResAnswer[T](value: Res[T]): Any => (Res[T], ReqRespData) = d => (value,d.asInstanceOf[ReqRespData])
+
                           
   
   def testServiceAvailTrue = {
-    testDecisionReturnsDecision(b13, b12, (r,d) => r.serviceAvailable(any) returns ((ValueRes(true),d)))
+    testDecisionReturnsDecision(b13, b12, _.serviceAvailable(any) answers mkAnswer(true))
   }
 
   def testServiceAvailFalse = {
-    testDecisionReturnsData(b13, (r,d) => r.serviceAvailable(any) returns ((ValueRes(false), d))) {
+    testDecisionReturnsData(b13, _.serviceAvailable(any) answers mkAnswer(false)) {
       _.statusCode must beEqualTo(503)
     }
   }
 
   def testKnownMethodTrue = {
-    testDecisionReturnsDecision(b12, b11, (r,d) => r.knownMethods(any) returns ((ValueRes(List(GET,POST)), d)))
+    testDecisionReturnsDecision(b12, b11, _.knownMethods(any) answers mkAnswer(List(GET,POST)))
   }
   
   def testKnownMethodFalse = {
-    testDecisionReturnsData(b12, (r,d) => r.knownMethods(any) returns ((ValueRes(List(GET)),d)), data = createData(method = POST)) {
+    testDecisionReturnsData(b12, _.knownMethods(any) answers mkAnswer(List(GET)), data = createData(method = POST)) {
       _.statusCode must beEqualTo(501)
     }
   }
   
   def testURITooLongFalse = {
-    testDecisionReturnsDecision(b11, b10, (r,d) => r.uriTooLong(any) returns ((ValueRes(false),d)))
+    testDecisionReturnsDecision(b11, b10, _.uriTooLong(any) answers mkAnswer(false))
   }
   
   def testURITooLongTrue = {
-    testDecisionReturnsData(b11, (r,d) => r.uriTooLong(any) returns ((ValueRes(true),d))) {
+    testDecisionReturnsData(b11, _.uriTooLong(any) answers mkAnswer(true)) {
       _.statusCode must beEqualTo(414)
     }
   }
 
   def testAllowedMethodTrue = {
-    testDecisionReturnsDecision(b10, b9, (r,d) => r.allowedMethods(any) returns ((ValueRes(List(GET,POST)),d)))
+    testDecisionReturnsDecision(b10, b9, _.allowedMethods(any) answers mkAnswer(List(GET,POST)))
   }
 
   def testAllowedMethodFalseRespCode = {
-    testDecisionReturnsData(b10,(r,d) => r.allowedMethods(any) returns ((ValueRes(List(GET,DELETE)),d)), data = createData(method = POST)) {
+    testDecisionReturnsData(b10,_.allowedMethods(any) answers mkAnswer(List(GET,DELETE)), data = createData(method = POST)) {
       _.statusCode must beEqualTo(405)
     }
   }
 
   def testAllowedMethodFalseAllowHeader = {
-    testDecisionReturnsData(b10, (r, d) => r.allowedMethods(any) returns ((ValueRes(List(GET,POST,DELETE)),d)), data = createData(method=PUT)) {
+    testDecisionReturnsData(b10, _.allowedMethods(any) answers mkAnswer(List(GET,POST,DELETE)), data = createData(method=PUT)) {
       _.responseHeader("Allow") must beSome.like {
         case s => s must contain("GET") and contain("POST") and contain("DELETE") // this could be improved (use the actual list above)
       }
@@ -210,93 +247,93 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   }
   
   def testMalformedFalse = {
-    testDecisionReturnsDecision(b9, b8, (r,d) => r.isMalformed(any) returns ((ValueRes(false),d)))
+    testDecisionReturnsDecision(b9, b8, _.isMalformed(any) answers mkAnswer(false))
   }
 
   def testMalformedTrue = {
-    testDecisionReturnsData(b9,(r,d) => r.isMalformed(any) returns ((ValueRes(true),d))) {
+    testDecisionReturnsData(b9,_.isMalformed(any) answers mkAnswer(true)) {
       _.statusCode must beEqualTo(400)
     }
   }
 
   def testAuthTrue = {
-    testDecisionReturnsDecision(b8, b7, (r,d) => r.isAuthorized(any) returns ((ValueRes(AuthSuccess),d)))
+    testDecisionReturnsDecision(b8, b7, _.isAuthorized(any) answers mkAnswer(AuthSuccess))
   }
   
   def testAuthFalseRespCode = {
-    testDecisionReturnsData(b8,(r,d) => r.isAuthorized(any) returns ((ValueRes(AuthFailure("something")),d))) {
+    testDecisionReturnsData(b8,_.isAuthorized(any) answers mkAnswer(AuthFailure("something"))) {
       _.statusCode must beEqualTo(401)
     }
   }
 
   def testAuthFalseHaltResult = {
-    testDecisionReturnsData(b8, (r,d) => r.isAuthorized(any) returns ((HaltRes(500),d))) {
+    testDecisionReturnsData(b8, _.isAuthorized(any) answers mkResAnswer(HaltRes(500))) {
       _.responseHeader("WWW-Authenticate") must beNone
     }
   }
   
   def testAuthFalseErrorResult = {
-    testDecisionReturnsData(b8, (r,d) => r.isAuthorized(any) returns ((ErrorRes(null),d))) {
+    testDecisionReturnsData(b8, _.isAuthorized(any) answers mkResAnswer(ErrorRes(null))) {
       _.responseHeader("WWW-Authenticate") must beNone
     }
   }
   
   def testAuthFalseAuthHeader = {
     val headerValue = "somevalue"
-    testDecisionReturnsData(b8, (r,d) => r.isAuthorized(any) returns ((ValueRes(AuthFailure(headerValue)),d))) {
+    testDecisionReturnsData(b8, _.isAuthorized(any) answers mkAnswer(AuthFailure(headerValue))) {
       _.responseHeader("WWW-Authenticate") must beSome.which { _ == headerValue }
     }
   }
   
   def testForbiddenFalse = {
-    testDecisionReturnsDecision(b7,b6,(r,d) => r.isForbidden(any) returns ((ValueRes(false),d)))
+    testDecisionReturnsDecision(b7,b6,_.isForbidden(any) answers mkAnswer(false))
   }
   
   def testForbiddenTrue = {
-    testDecisionReturnsData(b7,(r,d) => r.isForbidden(any) returns ((ValueRes(true),d))) {
+    testDecisionReturnsData(b7,_.isForbidden(any) answers mkAnswer(true)) {
       _.statusCode must beEqualTo(403)
     }
   }
 
   def testValidContentHeadersTrue = {
-    testDecisionReturnsDecision(b6,b5,(r,d) => r.contentHeadersValid(any) returns ((ValueRes(true),d)))
+    testDecisionReturnsDecision(b6,b5,_.contentHeadersValid(any) answers mkAnswer(true))
   }
   
   def testValidContentHeadersFalse = {
-    testDecisionReturnsData(b6,(r,d) => r.contentHeadersValid(any) returns ((ValueRes(false),d))) {
+    testDecisionReturnsData(b6,_.contentHeadersValid(any) answers mkAnswer(false)) {
       _.statusCode must beEqualTo(501)
     }
   }
 
   def testKnownContentTypeTrue = {
-    testDecisionReturnsDecision(b5,b4,(r,d) => r.isKnownContentType(any) returns ((ValueRes(true),d)))
+    testDecisionReturnsDecision(b5,b4,_.isKnownContentType(any) answers mkAnswer(true))
   }
   
   def testKnownContentTypeFalse = {
-    testDecisionReturnsData(b5,(r,d) => r.isKnownContentType(any) returns ((ValueRes(false),d))) {
+    testDecisionReturnsData(b5,_.isKnownContentType(any) answers mkAnswer(false)) {
       _.statusCode must beEqualTo(415)
     }
   }
   
   def testIsValidEntityLengthTrue = {
-    testDecisionReturnsDecision(b4,b3,(r,d) => r.isValidEntityLength(any) returns ((ValueRes(true),d)))
+    testDecisionReturnsDecision(b4,b3,_.isValidEntityLength(any) answers mkAnswer(true))
   }
   
   def testIsValidEntityLengthFalse = {
-    testDecisionReturnsData(b4,(r,d) => r.isValidEntityLength(any) returns ((ValueRes(false),d))) {
+    testDecisionReturnsData(b4,_.isValidEntityLength(any) answers mkAnswer(false)) {
       _.statusCode must beEqualTo(413)
     }
   }
 
   def testRequestIsOptions = {
-    testDecisionReturnsData(b3,(r,d) => r.options(any) returns ((ValueRes(Map[String,String]()),d)), data = createData(method=OPTIONS)) {
+    testDecisionReturnsData(b3,_.options(any) answers mkAnswer(Map[String,String]()), data = createData(method=OPTIONS)) {
       _.statusCode must beEqualTo(200)
     }
   }
   
   def testRequestIsOptionsUsesResourceOptionsHeaders = {
     val testHeaders =  Map("X-A" -> "a", "X-B" -> "b")
-    testDecisionReturnsData(b3,(r,d) => r.options(any) returns ((ValueRes(testHeaders),d)), data = createData(method=OPTIONS)) {
+    testDecisionReturnsData(b3,_.options(any) answers mkAnswer(testHeaders), data = createData(method=OPTIONS)) {
       _.responseHeaders must containAllOf(testHeaders.toList) ^^ { 
         (d1: (String, String), d2: (String, String)) => d1._1.equalsIgnoreCase(d2._1) && d1._2.equalsIgnoreCase(d2._2)
       }
@@ -304,14 +341,14 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   }
 
   def testRequestIsNotOptions = {
-    testDecisionReturnsDecision(b3,c3, (r,d) => (), data = createData(method=POST))
+    testDecisionReturnsDecision(b3,c3, r => (), data = createData(method=POST))
   }
 
   def testMissingAcceptHeader = {
     val ctypes: ContentTypesProvided =
       (ContentType("text/html"), (d: ReqRespData) => ((ValueRes(""),d))) :: (ContentType("text/plain"), (d: ReqRespData) => ((ValueRes(""), d))) ::  Nil
 
-    testDecisionReturnsDecisionAndData(c3,d4,(r,d) => r.contentTypesProvided(any) returns ((ValueRes(ctypes),d))) {
+    testDecisionReturnsDecisionAndData(c3,d4,_.contentTypesProvided(any) answers mkAnswer(ctypes)) {
       _.metadata.contentType must beSome.like {
         case ct => ct must beEqualTo(ctypes.head._1)
       }
@@ -321,7 +358,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   def testMissingAcceptEmptyProvidedList = {
     val ctypes: ContentTypesProvided = Nil
 
-    testDecisionReturnsDecisionAndData(c3,d4,(r,d) => r.contentTypesProvided(any) returns ((ValueRes(ctypes),d))) {
+    testDecisionReturnsDecisionAndData(c3,d4,_.contentTypesProvided(any) answers mkAnswer(ctypes)) {
       _.metadata.contentType must beSome.like {
         case ct => ct must beEqualTo(ContentType("text/plain"))
       }
@@ -329,13 +366,13 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   }
 
   def testAcceptHeaderExists = {
-    testDecisionReturnsDecision(c3,c4,(r,d) => r.contentTypesProvided(any) returns ((ValueRes(Nil),d)),data = createData(headers = Map("accept" -> "text/html")))
+    testDecisionReturnsDecision(c3,c4,_.contentTypesProvided(any) answers mkAnswer(Nil),data = createData(headers = Map("accept" -> "text/html")))
   }
 
   def testMediaTypeNotProvided = {
     val ctypes: ContentTypesProvided = (ContentType("text/html"), (d: ReqRespData) => (ValueRes(""), d)) :: Nil
 
-    testDecisionReturnsData(c4,(r,d) => r.contentTypesProvided(any) returns ((ValueRes(ctypes),d)), data = createData(headers = Map("accept" -> "text/plain"))) {
+    testDecisionReturnsData(c4,_.contentTypesProvided(any) answers { d => ((ValueRes(ctypes),d.asInstanceOf[ReqRespData])) }, data = createData(headers = Map("accept" -> "text/plain"))) {
       _.statusCode must beEqualTo(406)
     }
   }
@@ -343,7 +380,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   def testMediaTypeProvided = {
     val ctypes: ContentTypesProvided = (ContentType("text/html"), (d: ReqRespData) => (ValueRes(""), d)) :: Nil
 
-    testDecisionReturnsDecisionAndData(c4,d4,(r,d) => r.contentTypesProvided(any) returns ((ValueRes(ctypes),d)), data = createData(headers = Map("accept" -> "text/html"))) {
+    testDecisionReturnsDecisionAndData(c4,d4,_.contentTypesProvided(any) answers mkAnswer(ctypes), data = createData(headers = Map("accept" -> "text/html"))) {
       _.metadata.contentType must beSome.like { 
         case ct => ct must beEqualTo(ContentType("text/html"))
       }
@@ -351,67 +388,129 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   }
 
   def testMissingAcceptLanguage = {
-    testDecisionReturnsDecision(d4,e5,(r,d) => {})
+    testDecisionReturnsDecision(d4,e5,r => {})
   }
 
   def testHasAcceptLanguage = {
-    testDecisionReturnsDecision(d4,d5,(r,d) => {},data = createData(headers = Map("accept-language" -> "en/us")))
+    testDecisionReturnsDecision(d4,d5,r => {},data = createData(headers = Map("accept-language" -> "en/us")))
   }
 
   def testIsLanguageAvailableFalse = {
-    testDecisionReturnsData(d5,(r,d) => r.isLanguageAvailable(any) returns ((ValueRes(false),d)), data = createData(headers = Map("accept-language" -> "en/us"))) {
+    testDecisionReturnsData(d5,_.isLanguageAvailable(any) answers mkAnswer(false), data = createData(headers = Map("accept-language" -> "en/us"))) {
       _.statusCode must beEqualTo(406)
     }
   }
 
   def testIsLanguageAvailableTrue = {
-    testDecisionReturnsDecision(d5,e5,(r,d) => r.isLanguageAvailable(any) returns ((ValueRes(true),d)), data = createData(headers = Map("accept-language" -> "en/us")))
+    testDecisionReturnsDecision(d5,e5,_.isLanguageAvailable(any) answers mkAnswer(true), data = createData(headers = Map("accept-language" -> "en/us")))
   }
 
   def testAcceptCharsetExists = {
-    testDecisionReturnsDecision(e5,e6,(r,d) => {}, data = createData(headers = Map("accept-charset" -> "*")))
+    testDecisionReturnsDecision(e5,e6,r => {}, data = createData(headers = Map("accept-charset" -> "*")))
   }
 
   def testAcceptMissingStarAcceptable = {
     val provided: CharsetsProvided = Some(("abc", identity[String](_)) :: Nil)
-    testDecisionReturnsDecision(e5,f6,(r,d) => r.charsetsProvided(any) returns ((ValueRes(provided),d)))
+    testDecisionReturnsDecision(e5,f6,_.charsetsProvided(any) answers mkAnswer(provided))
   }
 
   def testAcceptMissingStarOkCharsetChosen = {
     val provided: CharsetsProvided = Some(("abc", identity[String](_)) :: Nil)
-    testDecisionReturnsDecisionAndData(e5,f6,(r,d) => r.charsetsProvided(any) returns ((ValueRes(provided),d))) {
+    testDecisionReturnsDecisionAndData(e5,f6,_.charsetsProvided(any) answers mkAnswer(provided)) {
       _.metadata.chosenCharset must beSome.like { case c => c must beEqualTo("abc") }
     }
   }
 
   def testAcceptMissingCharsetNegShortCircuit = {
     val provided: CharsetsProvided = None
-    testDecisionReturnsDecision(e5,f6,(r,d) => r.charsetsProvided(any) returns ((ValueRes(provided), d)))
+    testDecisionReturnsDecision(e5,f6,_.charsetsProvided(any) answers mkAnswer(provided))
   }
 
   def testAcceptMissingStarNotAcceptable = {
     val provided: CharsetsProvided = Some(Nil)
-    testDecisionReturnsData(e5,(r,d) => r.charsetsProvided(any) returns ((ValueRes(provided),d))) {
+    testDecisionReturnsData(e5,_.charsetsProvided(any) answers mkAnswer(provided)) {
       _.statusCode must beEqualTo(406)
     }
   }
 
   def testAcceptExistsCharsetNegShortCircuit = {
     val provided: CharsetsProvided = None
-    testDecisionReturnsDecision(e6, f6, (r, d) => r.charsetsProvided(any) returns ((ValueRes(provided), d)), data = createData(headers = Map("accept-charset" -> "ISO-8859-1")))
+    testDecisionReturnsDecision(e6, f6, _.charsetsProvided(any) answers mkAnswer(provided), data = createData(headers = Map("accept-charset" -> "ISO-8859-1")))
   }
 
   def testAcceptExistsAcceptableSetInMeta = {
     val charset = "ISO-8859-1"
     val provided: CharsetsProvided = Some((charset, identity[String](_)) :: Nil)
-    testDecisionReturnsDecisionAndData(e6, f6, (r,d) => r.charsetsProvided(any) returns ((ValueRes(provided), d)), data = createData(headers = Map("accept-charset" -> charset))) {
+    testDecisionReturnsDecisionAndData(e6, f6, _.charsetsProvided(any) answers mkAnswer(provided), data = createData(headers = Map("accept-charset" -> charset))) {
       _.metadata.chosenCharset must beSome.which { _ == charset }
     }
   }
 
   def testAcceptExistsNotAcceptable = {
     val provided: CharsetsProvided = Some(Nil)
-    testDecisionReturnsData(e6, (r,d) => r.charsetsProvided(any) returns ((ValueRes(provided), d)), data = createData(headers = Map("acccept-charset" -> "ISO-8859-1"))) {
+    testDecisionReturnsData(e6, _.charsetsProvided(any) answers mkAnswer(provided), data = createData(headers = Map("acccept-charset" -> "ISO-8859-1"))) {
+      _.statusCode must beEqualTo(406)
+    }
+  }
+
+  def testF6MediaAndCharsetNotChosen = {
+    val provided: EncodingsProvided = None
+    testDecisionResultHasData(f6, _.encodingsProvided(any) answers mkAnswer(provided)) {
+      _.responseHeader("content-type") must beSome.like {
+        case value => value must beEqualTo("text/plain")
+      }
+    }
+  }
+
+  def testF6MediaChosenCharsetNot = {
+    val provided: EncodingsProvided = None
+    val contentType = ContentType("application/json", Map("a" -> "b", "c" -> "d"))
+    testDecisionResultHasData(f6, _.encodingsProvided(any) answers mkAnswer(provided), data = createData(metadata = Metadata(contentType = Some(contentType)))) {
+      _.responseHeader("content-type") must beSome.like {
+        case value => value must beEqualTo(contentType.mediaType + ";a=b,c=d").ignoreSpace.ignoreCase
+      }
+    }
+  }
+
+  def testF6CharsetChosenMediaNot = {
+    val provided: EncodingsProvided = None
+    val charset = "ISO-8859-1"
+    testDecisionResultHasData(f6, _.encodingsProvided(any) answers mkAnswer(provided), data = createData(metadata = Metadata(chosenCharset = Some(charset)))) {
+      _.responseHeader("content-type") must beSome.like {
+        case value => value must beEqualTo("text/plain;charset=" + charset).ignoreSpace.ignoreCase
+      }
+    }
+  }
+
+  def testF6MediaAndCharsetChosen = {
+    println("media & charset chosen")
+    val provided: EncodingsProvided = None
+    val contentType = ContentType("application/json", Map("a" -> "b", "c" -> "d"))
+    val charset = "ISO-8859-1"
+    testDecisionResultHasData(f6, _.encodingsProvided(any) answers mkAnswer(provided), data = createData(metadata = Metadata(contentType = Some(contentType), chosenCharset = Some(charset)))) {
+      _.responseHeader("content-type") must beSome.like {
+        case value => value must beEqualTo(contentType.mediaType + ";a=b,c=d;charset=" + charset).ignoreSpace.ignoreCase
+      }
+    }
+  }
+
+  def testAcceptEncodingExists = {
+    testDecisionReturnsDecision(f6,f7,r => {}, data = createData(headers = Map("accept-encoding" -> "*")))
+  }
+
+  def testAcceptMissingDefaultAcceptable = {
+    val encoding = "some-encoding"
+    val provided: EncodingsProvided = Some((encoding, identity[String](_)) :: Nil)
+    testDecisionReturnsDecisionAndData(f6,g7,_.encodingsProvided(any) answers mkAnswer(provided)) {
+      _.responseHeader("content-encoding") must beSome.like {
+        case enc => enc must beEqualTo(encoding)
+      }
+    }
+  }
+
+  def testAcceptMissingDefaultNotAcceptable = {
+    val provided: EncodingsProvided = Some(Nil)
+    testDecisionReturnsData(f6,_.encodingsProvided(any) answers mkAnswer(provided)) {
       _.statusCode must beEqualTo(406)
     }
   }
