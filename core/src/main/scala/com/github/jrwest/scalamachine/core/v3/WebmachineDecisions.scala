@@ -90,7 +90,7 @@ trait WebmachineDecisions {
         }
         case _ => c3.point[Res].point[FlowState]
       }
-      methodL.st flatMap { handle(_) }
+      methodL flatMap { handle(_) }
     }
   }
 
