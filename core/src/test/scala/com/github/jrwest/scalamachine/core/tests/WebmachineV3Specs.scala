@@ -164,6 +164,18 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   "H7 - If-Match Exists?"                                                           ^
     "if If-Match header exists, I7 is returned"                                     ! testH7IfMatchExists ^
     "otherwise a response with code 412 is returned"                                ! testH7IfMatchMissing ^
+                                                                                    p^
+  "H10 - If-Unmodified-Since Exists?"                                               ^
+    "if header exists, H11 is returned"                                             ! testIfModifiedSinceExists ^
+    "otherwise I12 is returned"                                                     ! testIfModifiedSinceMissing ^
+                                                                                    p^
+  "H11 - If-Unmodified-Since Valid Date?"                                           ^
+    "if date is valid, H12 is returned"                                             ! skipped ^
+    "otherwise, I12 is returned"                                                    ! skipped ^
+                                                                                    p^
+  "H12 - Resource Last Mod. Date > If-Modified-Since Date"                          ^
+    "if resource's last modified > If-Modified-Since, code 412 returned"            ! skipped ^
+    "otherwise, I12 returned"                                                       ! skipped ^
                                                                                     end
 
 
@@ -841,6 +853,14 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     testDecisionReturnsData(h7,r => {}) {
       _.statusCode must beEqualTo(412)
     }
+  }
+
+  def testIfModifiedSinceExists = {
+    testDecisionReturnsDecision(h10, h11, r => {}, data = createData(headers = Map("if-modified-since" -> "whocares")))
+  }
+
+  def testIfModifiedSinceMissing = {
+    testDecisionReturnsDecision(h10,i12,r => {})
   }
 
 }

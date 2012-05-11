@@ -284,11 +284,24 @@ trait WebmachineDecisions {
   lazy val h10: Decision = new Decision {
     def name: String = "v3h10"
 
+    protected def decide(resource: Resource): FlowState[Res[Decision]] =
+      State((d: ReqRespData) => ((d.requestHeader("if-modified-since") >| h11 | i12).point[Res], d))
+  }
+
+  lazy val h11: Decision = new Decision {
+    def name: String = "v3h11"
+
     protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }
 
   lazy val i7: Decision = new Decision {
     def name: String = "v3i7"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+  }
+
+  lazy val i12: Decision = new Decision {
+    def name: String = "v3i12"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }
