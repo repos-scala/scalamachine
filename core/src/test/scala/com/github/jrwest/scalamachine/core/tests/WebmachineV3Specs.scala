@@ -12,7 +12,7 @@ import scalaz.NonEmptyList
 import NonEmptyList.nel
 import scalaz.Digit._0
 
-class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisions { def is = ""            ^ args(sequential=true) ^
+class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisions { def is = ""            ^
   "WebMachine V3".title                                                             ^
   """
   The WebMachine Version 3 Flow
