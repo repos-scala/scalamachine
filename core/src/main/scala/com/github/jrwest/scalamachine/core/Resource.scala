@@ -40,6 +40,10 @@ trait Resource {
 
   def encodingsProvided(data: ReqRespData): (Res[CharsetsProvided],ReqRespData) = (default(Some(("identity", identity[String](_)) :: Nil)), data)
 
+  def resourceExists(data: ReqRespData): (Res[Boolean],ReqRespData) = (default(true), data)
+
+  def variances(data: ReqRespData): (Res[Seq[String]], ReqRespData) = (default(Nil), data)
+
   private def default[A](value: A): Res[A] = ValueRes(value)
 
   private val defaultResponse: ReqRespData => (Res[String], ReqRespData) = (default("hello, scalamachine"), _)

@@ -133,6 +133,21 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     "If resource specifies encoding neg. short circuiting, G7 returned"             ! testAcceptEncodingExistsShortCircuit ^
     "If charset is provided by the resource, G7 returned, chosen set in response"   ! testAcceptEncodingExistsAcceptable ^
     "If charset is not provided, response w/ code 406 returned"                     ! testAcceptEncodingExistsNotAcceptable ^
+                                                                                    p^p^
+  "G7 - Resource Exists?"                                                           ^
+    "Sets the Vary header after conneg"                                             ^
+      "vary header contains all values if all 3 headers were used in conneg"        ! testVaryAll ^
+      "vary header does not contain accept if list has size 0"                      ! testVaryContentTypesProvided0 ^
+      "vary header does not contain accept if list has size 1"                      ! testVaryContentTypesProvided1 ^
+      "vary header does not contain accept-charset if short circuited"              ! testVaryCharsetsShortCircuit ^
+      "vary header does not contain accept-charset if list has size 0"              ! testVaryCharsetsProvided0 ^
+      "vary header does not contain accept-charset if list has size 1"              ! testVaryCharsetsProvided1 ^
+      "vary header does not contain accept-encoding if short circuited"             ! testVaryEncodingsShortCircuit ^
+      "vary header does not contain accept-encoding if list has size 0"             ! testVaryEncodingsProvided0 ^
+      "vary header does not contain accept-encoding if list has size 1"             ! testVaryEncodingsProvided1 ^
+      "if resource returns non-empty list, those values are additional"             ! testVaryResourceAdditional ^p^
+    "if resource exists, returns decision G8"                                       ! testResourceExistsTrue ^
+    "otherwise H7 returned"                                                         ! testResourceExistsFalse ^
                                                                                     end
 
 
@@ -517,7 +532,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
 
   def testAcceptEncodingExistsShortCircuit = {
     val provided: EncodingsProvided = None
-    testDecisionReturnsDecision(f7,g7,_.encodingsProvided(any) answers mkAnswer(provided), data = createData(headers = Map("accept-encoding" -> "ISO-8859-1")))
+    testDecisionReturnsDecision(f7,g7,_.encodingsProvided(any) answers mkAnswer(provided), data = createData(headers = Map("accept-encoding" -> "gzip")))
   }
 
   def testAcceptEncodingExistsAcceptable = {
@@ -535,6 +550,245 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     testDecisionReturnsData(f7,_.encodingsProvided(any) answers mkAnswer(provided), data = createData(headers = Map("accept-encoding" -> "ISO-8859-1"))) {
       d => (d.responseHeader("content-coding") must beNone) and (d.statusCode must beEqualTo(406))
     }
+  }
+
+  def testVaryAll = {
+    import Res._
+    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => (result(""), d)) :: (ContentType("application/json"), (d: ReqRespData) => (result(""), d)) :: Nil
+    val charsets: CharsetsProvided = Some(("charset1", identity[String](_)) :: ("charset2", identity[String](_)) :: Nil)
+    val encodings: EncodingsProvided = Some(("identity", identity[String](_)) :: ("gzip", identity[String](_)) :: Nil)
+    testDecisionResultHasData(
+      g7,
+      resource => {
+        resource.contentTypesProvided(any) answers mkAnswer(ctypes)
+        resource.charsetsProvided(any) answers mkAnswer(charsets)
+        resource.encodingsProvided(any) answers mkAnswer(encodings)
+        resource.variances(any) answers mkAnswer(Nil)
+        resource.resourceExists(any) answers mkAnswer(true)
+      }
+    ) {
+      _.responseHeader("vary") must beSome.like {
+        case vary => vary must contain("Accept") and contain("Accept-Encoding") and contain("Accept-Charset")
+      }
+    }
+  }
+
+  def testVaryContentTypesProvided0 = {
+    import Res._
+    val ctypes: ContentTypesProvided = Nil
+    val charsets: CharsetsProvided = Some(("charset1", identity[String](_)) :: ("charset2", identity[String](_)) :: Nil)
+    val encodings: EncodingsProvided = Some(("identity", identity[String](_)) :: ("gzip", identity[String](_)) :: Nil)
+    testDecisionResultHasData(
+      g7,
+      resource => {
+        resource.contentTypesProvided(any) answers mkAnswer(ctypes)
+        resource.charsetsProvided(any) answers mkAnswer(charsets)
+        resource.encodingsProvided(any) answers mkAnswer(encodings)
+        resource.variances(any) answers mkAnswer(Nil)
+        resource.resourceExists(any) answers mkAnswer(true)
+      }
+    ) {
+      _.responseHeader("vary") must beSome.like {
+        case vary => vary must not =~("""Accept[^-]""")
+      }
+    }
+  }
+
+  def testVaryContentTypesProvided1 = {
+    import Res._
+    val ctypes: ContentTypesProvided = (ContentType("application/json"), (d: ReqRespData) => (result(""), d)) :: Nil
+    val charsets: CharsetsProvided = Some(("charset1", identity[String](_)) :: ("charset2", identity[String](_)) :: Nil)
+    val encodings: EncodingsProvided = Some(("identity", identity[String](_)) :: ("gzip", identity[String](_)) :: Nil)
+    testDecisionResultHasData(
+      g7,
+      resource => {
+        resource.contentTypesProvided(any) answers mkAnswer(ctypes)
+        resource.charsetsProvided(any) answers mkAnswer(charsets)
+        resource.encodingsProvided(any) answers mkAnswer(encodings)
+        resource.variances(any) answers mkAnswer(Nil)
+        resource.resourceExists(any) answers mkAnswer(true)
+      }
+    ) {
+      _.responseHeader("vary") must beSome.like {
+        case vary => vary must not =~("""Accept[^-]""")
+      }
+    }
+  }
+
+  def testVaryCharsetsShortCircuit = {
+    import Res._
+    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => (result(""), d)) :: (ContentType("application/json"), (d: ReqRespData) => (result(""), d)) :: Nil
+    val charsets: CharsetsProvided = None
+    val encodings: EncodingsProvided = Some(("identity", identity[String](_)) :: ("gzip", identity[String](_)) :: Nil)
+    testDecisionResultHasData(
+      g7,
+      resource => {
+        resource.contentTypesProvided(any) answers mkAnswer(ctypes)
+        resource.charsetsProvided(any) answers mkAnswer(charsets)
+        resource.encodingsProvided(any) answers mkAnswer(encodings)
+        resource.variances(any) answers mkAnswer(Nil)
+        resource.resourceExists(any) answers mkAnswer(true)
+      }
+    ) {
+      _.responseHeader("vary") must beSome.like {
+        case vary => vary must not contain("Accept-Charset")
+      }
+    }
+  }
+
+  def testVaryCharsetsProvided0 = {
+    import Res._
+    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => (result(""), d)) :: (ContentType("application/json"), (d: ReqRespData) => (result(""), d)) :: Nil
+    val charsets: CharsetsProvided = Some(Nil)
+    val encodings: EncodingsProvided = Some(("identity", identity[String](_)) :: ("gzip", identity[String](_)) :: Nil)
+    testDecisionResultHasData(
+      g7,
+      resource => {
+        resource.contentTypesProvided(any) answers mkAnswer(ctypes)
+        resource.charsetsProvided(any) answers mkAnswer(charsets)
+        resource.encodingsProvided(any) answers mkAnswer(encodings)
+        resource.variances(any) answers mkAnswer(Nil)
+        resource.resourceExists(any) answers mkAnswer(true)
+      }
+    ) {
+      _.responseHeader("vary") must beSome.like {
+        case vary => vary must not contain("Accept-Charset")
+      }
+    }
+  }
+
+  def testVaryCharsetsProvided1 = {
+    import Res._
+    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => (result(""), d)) :: (ContentType("application/json"), (d: ReqRespData) => (result(""), d)) :: Nil
+    val charsets: CharsetsProvided = Some(("charset2", identity[String](_)) :: Nil)
+    val encodings: EncodingsProvided = Some(("identity", identity[String](_)) :: ("gzip", identity[String](_)) :: Nil)
+    testDecisionResultHasData(
+      g7,
+      resource => {
+        resource.contentTypesProvided(any) answers mkAnswer(ctypes)
+        resource.charsetsProvided(any) answers mkAnswer(charsets)
+        resource.encodingsProvided(any) answers mkAnswer(encodings)
+        resource.variances(any) answers mkAnswer(Nil)
+        resource.resourceExists(any) answers mkAnswer(true)
+      }
+    ) {
+      _.responseHeader("vary") must beSome.like {
+        case vary => vary must not contain("Accept-Charset")
+      }
+    }
+  }
+
+  def testVaryEncodingsShortCircuit = {
+    import Res._
+    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => (result(""), d)) :: (ContentType("application/json"), (d: ReqRespData) => (result(""), d)) :: Nil
+    val charsets: CharsetsProvided = Some(("charset1", identity[String](_)) :: ("charset2", identity[String](_)) :: Nil)
+    val encodings: EncodingsProvided = None
+    testDecisionResultHasData(
+      g7,
+      resource => {
+        resource.contentTypesProvided(any) answers mkAnswer(ctypes)
+        resource.charsetsProvided(any) answers mkAnswer(charsets)
+        resource.encodingsProvided(any) answers mkAnswer(encodings)
+        resource.variances(any) answers mkAnswer(Nil)
+        resource.resourceExists(any) answers mkAnswer(true)
+      }
+    ) {
+      _.responseHeader("vary") must beSome.like {
+        case vary => vary must not contain("Accept-Encoding")
+      }
+    }
+
+  }
+
+  def testVaryEncodingsProvided0 = {
+    import Res._
+    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => (result(""), d)) :: (ContentType("application/json"), (d: ReqRespData) => (result(""), d)) :: Nil
+    val charsets: CharsetsProvided = Some(("charset1", identity[String](_)) :: ("charset2", identity[String](_)) :: Nil)
+    val encodings: EncodingsProvided = Some(Nil)
+    testDecisionResultHasData(
+      g7,
+      resource => {
+        resource.contentTypesProvided(any) answers mkAnswer(ctypes)
+        resource.charsetsProvided(any) answers mkAnswer(charsets)
+        resource.encodingsProvided(any) answers mkAnswer(encodings)
+        resource.variances(any) answers mkAnswer(Nil)
+        resource.resourceExists(any) answers mkAnswer(true)
+      }
+    ) {
+      _.responseHeader("vary") must beSome.like {
+        case vary => vary must not contain("Accept-Encoding")
+      }
+    }
+  }
+
+  def testVaryEncodingsProvided1 = {
+    import Res._
+    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => (result(""), d)) :: (ContentType("application/json"), (d: ReqRespData) => (result(""), d)) :: Nil
+    val charsets: CharsetsProvided = Some(("charset1", identity[String](_)) :: ("charset2", identity[String](_)) :: Nil)
+    val encodings: EncodingsProvided = Some(("gzip", identity[String](_)) :: Nil)
+    testDecisionResultHasData(
+      g7,
+      resource => {
+        resource.contentTypesProvided(any) answers mkAnswer(ctypes)
+        resource.charsetsProvided(any) answers mkAnswer(charsets)
+        resource.encodingsProvided(any) answers mkAnswer(encodings)
+        resource.variances(any) answers mkAnswer(Nil)
+        resource.resourceExists(any) answers mkAnswer(true)
+      }
+    ) {
+      _.responseHeader("vary") must beSome.like {
+        case vary => vary must not contain("Accept-Encoding")
+      }
+    }
+  }
+
+  def testVaryResourceAdditional = {
+    import Res._
+    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => (result(""), d)) :: (ContentType("application/json"), (d: ReqRespData) => (result(""), d)) :: Nil
+    val charsets: CharsetsProvided = Some(("charset1", identity[String](_)) :: ("charset2", identity[String](_)) :: Nil)
+    val encodings: EncodingsProvided = Some(("identity", identity[String](_)) :: ("gzip", identity[String](_)) :: Nil)
+    testDecisionResultHasData(
+      g7,
+      resource => {
+        resource.contentTypesProvided(any) answers mkAnswer(ctypes)
+        resource.charsetsProvided(any) answers mkAnswer(charsets)
+        resource.encodingsProvided(any) answers mkAnswer(encodings)
+        resource.variances(any) answers mkAnswer("One" :: "Two" :: Nil)
+        resource.resourceExists(any) answers mkAnswer(true)
+      }
+    ) {
+      _.responseHeader("vary") must beSome.like {
+        case vary => vary must contain("One") and contain("Two")
+      }
+    }
+  }
+
+  def testResourceExistsTrue = {
+    testDecisionReturnsDecision(
+      g7,
+      g8,
+      resource => {
+        resource.contentTypesProvided(any) answers mkAnswer(Nil)
+        resource.charsetsProvided(any) answers mkAnswer(None)
+        resource.encodingsProvided(any) answers mkAnswer(None)
+        resource.variances(any) answers mkAnswer(Nil)
+        resource.resourceExists(any) answers mkAnswer(true)
+      }
+    )
+  }
+
+  def testResourceExistsFalse = {
+    testDecisionReturnsDecision(
+      g7,
+      h7,
+      resource => {
+        resource.contentTypesProvided(any) answers mkAnswer(Nil)
+        resource.charsetsProvided(any) answers mkAnswer(None)
+        resource.encodingsProvided(any) answers mkAnswer(None)
+        resource.variances(any) answers mkAnswer(Nil)
+        resource.resourceExists(any) answers mkAnswer(false)
+      }
+    )
   }
 
 }

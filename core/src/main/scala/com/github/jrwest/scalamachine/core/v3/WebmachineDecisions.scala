@@ -216,8 +216,40 @@ trait WebmachineDecisions {
 
   }
 
+  /* Resource Exists? */
   lazy val g7: Decision = new Decision {
     def name: String = "v3g7"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = {
+      val variances: ResT[FlowState,String] = for {
+        variances <- resT[FlowState](State((d: ReqRespData) => resource.variances(d)))
+        ctypes <- resT[FlowState](State((d: ReqRespData) => resource.contentTypesProvided(d)))
+        charsets <- resT[FlowState](State((d: ReqRespData) => resource.charsetsProvided(d)))
+        encodings <- resT[FlowState](State((d: ReqRespData) => resource.encodingsProvided(d)))
+      } yield {
+        val defaults = List(
+          (ctypes.length, "Accept"),
+          (charsets.getOrElse(Nil).length, "Accept-Charset"),
+          (encodings.getOrElse(Nil).length, "Accept-Encoding"))
+        ((defaults filter { _._1 > 1}).unzip._2 ++ variances).mkString(",")
+      }
+      val act = for {
+        vary <- variances
+        _ <- resT[FlowState]((responseHeadersL += (("vary", vary))) map { _.point[Res] })
+        resourceExists <- resT[FlowState](State((d: ReqRespData) => resource.resourceExists(d)))
+      } yield if (resourceExists) g8 else h7
+      act.run
+    }
+  }
+
+  lazy val g8: Decision = new Decision {
+    def name: String = "v3g8"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+  }
+
+  lazy val h7: Decision = new Decision {
+    def name: String = "v3h7"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }
