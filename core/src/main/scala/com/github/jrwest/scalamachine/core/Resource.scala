@@ -44,6 +44,8 @@ trait Resource {
 
   def variances(data: ReqRespData): (Res[Seq[String]], ReqRespData) = (default(Nil), data)
 
+  def generateEtag(data: ReqRespData): (Res[Option[String]], ReqRespData) = (default(None), data)
+
   private def default[A](value: A): Res[A] = ValueRes(value)
 
   private val defaultResponse: ReqRespData => (Res[String], ReqRespData) = (default("hello, scalamachine"), _)

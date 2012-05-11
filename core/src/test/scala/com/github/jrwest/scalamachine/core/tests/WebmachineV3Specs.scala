@@ -148,6 +148,22 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
       "if resource returns non-empty list, those values are additional"             ! testVaryResourceAdditional ^p^
     "if resource exists, returns decision G8"                                       ! testResourceExistsTrue ^
     "otherwise H7 returned"                                                         ! testResourceExistsFalse ^
+                                                                                    p^
+  "G8 - If-Match Exists?"                                                           ^
+    "if If-Match header exists, G9 is returned"                                     ! testG8IfMatchExists ^
+    "otherwise H10 is returned"                                                     ! testG8IfMatchMissing ^
+                                                                                    p^
+  "G9 - If-Match: *?"                                                               ^
+    """if If-Match has value "*", H10 is returned"""                                ! testIfMatchStar ^
+    "otherwise G11 is returned"                                                     ! testIfMatchNotStar ^
+                                                                                    p^
+  "G11 - ETag in If-Match"                                                          ^
+    "if ETag for resource is in list of etags in If-Match, H10 is returned"         ! testIfMatchHasEtag ^
+    "otherwise a response with code 412 is returned"                                ! testIfMatchersMissingEtag ^
+                                                                                    p^
+  "H7 - If-Match Exists?"                                                           ^
+    "if If-Match header exists, I7 is returned"                                     ! testH7IfMatchExists ^
+    "otherwise a response with code 412 is returned"                                ! testH7IfMatchMissing ^
                                                                                     end
 
 
@@ -789,6 +805,42 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
         resource.resourceExists(any) answers mkAnswer(false)
       }
     )
+  }
+
+  def testG8IfMatchExists = {
+    testDecisionReturnsDecision(g8,g9, r => {}, data = createData(headers = Map("if-match" -> "*")))
+  }
+
+  def testG8IfMatchMissing = {
+    testDecisionReturnsDecision(g8,h10, r => {})
+  }
+
+  def testIfMatchStar = {
+    testDecisionReturnsDecision(g9,h10, r => {}, data = createData(headers = Map("if-match" -> "*")))
+  }
+
+  def testIfMatchNotStar = {
+    testDecisionReturnsDecision(g9,g11, r => {}, data = createData(headers = Map("if-match" -> "1")))
+  }
+
+  def testIfMatchHasEtag = {
+    testDecisionReturnsDecision(g11,h10,_.generateEtag(any) answers mkAnswer(Some("1")), data = createData(headers = Map("if-match" -> "1,2")))
+  }
+
+  def testIfMatchersMissingEtag = {
+    testDecisionReturnsData(g11,_.generateEtag(any) answers mkAnswer(None), data = createData(headers = Map("if-match" -> "1"))) {
+      _.statusCode must beEqualTo(412)
+    }
+  }
+
+  def testH7IfMatchExists = {
+    testDecisionReturnsDecision(h7,i7,r => {}, data = createData(headers = Map("if-match" -> "*")))
+  }
+
+  def testH7IfMatchMissing = {
+    testDecisionReturnsData(h7,r => {}) {
+      _.statusCode must beEqualTo(412)
+    }
   }
 
 }

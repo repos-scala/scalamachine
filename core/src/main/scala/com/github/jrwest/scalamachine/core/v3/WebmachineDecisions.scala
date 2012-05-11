@@ -242,14 +242,53 @@ trait WebmachineDecisions {
     }
   }
 
+  /* If-Match Exists? */
   lazy val g8: Decision = new Decision {
     def name: String = "v3g8"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] =
+      State((d: ReqRespData) => ((d.requestHeader("if-match") >| g9 | h10).point[Res], d))
+
+  }
+
+  /* If-Match: *? */
+  lazy val g9: Decision = new Decision {
+    def name: String = "v3g9"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = State((d: ReqRespData) => {
+      ((d.requestHeader("if-match").filterNot(_ === "*") >| g11 | h10).point[Res], d)
+    })
+  }
+
+  /* Etag in If-Match? */
+  lazy val g11: Decision =
+    Decision(
+      "v3g11",
+      (r: Resource) => r.generateEtag(_: ReqRespData),
+      (etag: Option[String], d: ReqRespData) => (for {
+        e <- etag
+        matches <- d.requestHeader("if-match")
+      } yield matches.split(",").map(_.trim).toList.contains(e)) getOrElse false,
+      h10,
+      412
+    )
+
+  /* If-Match Exists? - note: this differs from v3 diagram but follows erlang implementation */
+  lazy val h7: Decision = new Decision {
+    def name: String = "v3h7"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] =
+      State((d: ReqRespData) => (d.requestHeader("if-match") >| result(i7) | halt(412), d))
+  }
+
+  lazy val h10: Decision = new Decision {
+    def name: String = "v3h10"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }
 
-  lazy val h7: Decision = new Decision {
-    def name: String = "v3h7"
+  lazy val i7: Decision = new Decision {
+    def name: String = "v3i7"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }
