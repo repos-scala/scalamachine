@@ -9,8 +9,7 @@ import Resource._
 import flow._
 import v3.WebmachineDecisions
 import scalaz.NonEmptyList
-import NonEmptyList.nel
-import scalaz.Digit._0
+import org.apache.commons.httpclient.util.DateUtil
 
 class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisions { def is = ""            ^
   "WebMachine V3".title                                                             ^
@@ -166,16 +165,18 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     "otherwise a response with code 412 is returned"                                ! testH7IfMatchMissing ^
                                                                                     p^
   "H10 - If-Unmodified-Since Exists?"                                               ^
-    "if header exists, H11 is returned"                                             ! testIfModifiedSinceExists ^
-    "otherwise I12 is returned"                                                     ! testIfModifiedSinceMissing ^
+    "if header exists, H11 is returned"                                             ! testIfUnmodifiedSinceExists ^
+    "otherwise I12 is returned"                                                     ! testIfUnmodifiedSinceMissing ^
                                                                                     p^
   "H11 - If-Unmodified-Since Valid Date?"                                           ^
-    "if date is valid, H12 is returned"                                             ! skipped ^
-    "otherwise, I12 is returned"                                                    ! skipped ^
+    "if date is valid RFC822/1123, H12 is returned"                                 ! testIUMSRFC822Valid ^
+    "if date is valid RFC850 (1036), H12 is returned"                               ! testIUMSRFC850Valid ^
+    "if date is valid ANSI C Time, H12 is returned"                                 ! testIUMSANSICValid ^
+    "otherwise, I12 is returned"                                                    ! testIUMSInvalid ^
                                                                                     p^
-  "H12 - Resource Last Mod. Date > If-Modified-Since Date"                          ^
-    "if resource's last modified > If-Modified-Since, code 412 returned"            ! skipped ^
-    "otherwise, I12 returned"                                                       ! skipped ^
+  "H12 - Resource Last Mod. Date > If-Unmodified-Since Date"                        ^
+    "if resource's last modified > If-Unmodified-Since, code 412 returned"          ! testIUMSLessThanLastMod ^
+    "otherwise, I12 returned"                                                       ! testIUMSGreaterThanLastMod ^
                                                                                     end
 
 
@@ -855,12 +856,40 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     }
   }
 
-  def testIfModifiedSinceExists = {
-    testDecisionReturnsDecision(h10, h11, r => {}, data = createData(headers = Map("if-modified-since" -> "whocares")))
+  def testIfUnmodifiedSinceExists = {
+    testDecisionReturnsDecision(h10, h11, r => {}, data = createData(headers = Map("if-unmodified-since" -> "whocares")))
   }
 
-  def testIfModifiedSinceMissing = {
+  def testIfUnmodifiedSinceMissing = {
     testDecisionReturnsDecision(h10,i12,r => {})
+  }
+
+  def testIUMSRFC822Valid = {
+    testDecisionReturnsDecision(h11,h12,r => {}, data = createData(headers = Map("if-unmodified-since" -> "Sun, 06 Nov 1994 08:49:37 GMT")))
+  }
+
+  def testIUMSRFC850Valid = {
+    testDecisionReturnsDecision(h11,h12,r => {}, data = createData(headers = Map("if-unmodified-since" -> "Sunday, 06-Nov-94 08:49:37 GMT")))
+  }
+
+  def testIUMSANSICValid = {
+    testDecisionReturnsDecision(h11,h12,r => {}, data = createData(headers = Map("if-unmodified-since" -> "Sun Nov  6 08:49:37 1994")))
+  }
+
+  def testIUMSInvalid = {
+    testDecisionReturnsDecision(h11,i12,r => {}, data = createData(headers = Map("if-unmodified-since" -> "invalid")))
+  }
+
+  def testIUMSLessThanLastMod = {
+    val date = DateUtil.parseDate("Sat, 29 Oct 1995 19:43:31 GMT")
+    testDecisionReturnsData(h12,_.lastModified(any) answers mkAnswer(Some(date)), data = createData(headers = Map("if-unmodified-since" -> "Sat, 29 Oct 1994 19:43:31 GMT"))) {
+      _.statusCode must beEqualTo(412)
+    }
+  }
+
+  def testIUMSGreaterThanLastMod = {
+    val date = DateUtil.parseDate("Sat, 29 Oct 1993 19:43:31 GMT")
+    testDecisionReturnsDecision(h12,i12,_.lastModified(any) answers mkAnswer(Some(date)), data = createData(headers = Map("if-unmodified-since" -> "Sat, 29 Oct 1994 19:43:31 GMT")))
   }
 
 }

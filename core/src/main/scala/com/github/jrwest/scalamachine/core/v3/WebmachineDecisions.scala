@@ -7,6 +7,8 @@ import scalaz.std.string._
 import optionSyntax._
 import scalaz.syntax.pointed._
 import scalaz.syntax.order._
+import scalaz.syntax.applicative._
+import scalaz.OptionT._
 import scalaz.State
 import Decision.FlowState
 import Res._
@@ -14,7 +16,7 @@ import ResT._
 import ReqRespData._
 import Metadata._
 import Resource._
-
+import java.util.Date
 
 trait WebmachineDecisions {
 
@@ -266,9 +268,9 @@ trait WebmachineDecisions {
       "v3g11",
       (r: Resource) => r.generateEtag(_: ReqRespData),
       (etag: Option[String], d: ReqRespData) => (for {
-        e <- etag
-        matches <- d.requestHeader("if-match")
-      } yield matches.split(",").map(_.trim).toList.contains(e)) getOrElse false,
+        e <- optionT[FlowState](etag.point[FlowState])
+        matches <- optionT[FlowState]((requestHeadersL member "if-match").st)
+      } yield matches.split(",").map(_.trim).toList.contains(e)) getOrElse false eval d,
       h10,
       412
     )
@@ -277,21 +279,48 @@ trait WebmachineDecisions {
   lazy val h7: Decision = new Decision {
     def name: String = "v3h7"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] =
-      State((d: ReqRespData) => (d.requestHeader("if-match") >| result(i7) | halt(412), d))
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = for {
+      mbIfMatch <- (requestHeadersL member "if-match").st
+    } yield mbIfMatch >| result(i7) | halt(412)
   }
 
+  /* If-Unmodified-Since Exists? */
   lazy val h10: Decision = new Decision {
     def name: String = "v3h10"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] =
-      State((d: ReqRespData) => ((d.requestHeader("if-modified-since") >| h11 | i12).point[Res], d))
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = for {
+      mbIums <- (requestHeadersL member "if-unmodified-since").st
+    } yield mbIums >| result(h11) | result(i12)
   }
 
+  /* If-Unmodified-Since Valid Date? */
   lazy val h11: Decision = new Decision {
     def name: String = "v3h11"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = for {
+        // if we have reached here we have verified iums has value so we default
+        // empty string which should never be reached
+        iums <- (requestHeadersL member "if-unmodified-since").st.map { _ getOrElse "" }
+        isValid <- (Util.parseDate(iums) >| true | false).point[FlowState]
+      } yield if (isValid) result(h12) else result(i12)
+  }
+
+  lazy val h12: Decision = new Decision {
+    def name: String = "v3h12"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = {
+      def isModified(mbLastMod: Option[Date], mbIums: Option[String]) =
+        (mbLastMod |@| mbIums.map(Util.parseDate(_)).getOrElse(none)) { _.getTime > _.getTime } getOrElse false
+
+      val act = for {
+      // same deal here as h11
+        mbIums <- resT[FlowState]((requestHeadersL member "if-unmodified-since").st.map { _.point[Res] })
+        mbLastMod <- resT[FlowState](State((d: ReqRespData) => resource.lastModified(d)))
+        decision <- resT[FlowState](if (isModified(mbLastMod, mbIums)) halt[Decision](412).point[FlowState] else result(i12).point[FlowState])
+      } yield decision
+
+      act.run
+    }
   }
 
   lazy val i7: Decision = new Decision {

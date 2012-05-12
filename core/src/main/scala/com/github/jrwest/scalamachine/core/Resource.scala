@@ -1,5 +1,7 @@
 package com.github.jrwest.scalamachine.core
 
+import java.util.Date
+
 trait Resource {
   import Resource._
 
@@ -45,6 +47,8 @@ trait Resource {
   def variances(data: ReqRespData): (Res[Seq[String]], ReqRespData) = (default(Nil), data)
 
   def generateEtag(data: ReqRespData): (Res[Option[String]], ReqRespData) = (default(None), data)
+
+  def lastModified(data: ReqRespData): (Res[Option[Date]], ReqRespData) = (default(None), data)
 
   private def default[A](value: A): Res[A] = ValueRes(value)
 

@@ -20,6 +20,8 @@ object BuildSettings {
 
 object Dependencies {
   lazy val scalaz7       = "org.scalaz"              %% "scalaz-core"    % "7.0-SNAPSHOT"   % "compile" withSources()
+  // Don't want to keep this dependency long term but for now its fastest way to get date parsing for http
+  lazy val commonsHttp   = "commons-httpclient"      % "commons-httpclient"                 % "3.1" withSources()
   lazy val liftweb       = "net.liftweb"             %% "lift-webkit"    % "2.5-SNAPSHOT"   % "compile" withSources()
   lazy val logback       = "ch.qos.logback"          % "logback-classic" % "1.0.0"          % "compile" withSources()
   lazy val specs2        = "org.specs2"              %% "specs2"         % "1.9"            % "test" withSources()
@@ -42,7 +44,7 @@ object ScalamachineBuild extends Build {
     settings = standardSettings ++
       Seq(
         name := "scalamachine-core",
-        libraryDependencies ++= Seq(scalaz7,specs2,scalacheck,mockito,hamcrest,pegdown)
+        libraryDependencies ++= Seq(scalaz7,commonsHttp,specs2,scalacheck,mockito,hamcrest,pegdown)
       )
   )
   

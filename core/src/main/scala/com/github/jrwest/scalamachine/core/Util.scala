@@ -1,8 +1,14 @@
 package com.github.jrwest.scalamachine.core
 
 import util.parsing.combinator.JavaTokenParsers
+import scalaz.syntax.std.Function1V
+import org.apache.commons.httpclient.util.{DateParseException, DateUtil}
+import java.util.Date
+import scala.util.control.Exception._
 
 object Util extends AcceptHeaderParsers {
+
+  def parseDate(dateString: String): Option[Date] = catching(classOf[DateParseException]) opt DateUtil.parseDate(dateString)
 
   def chooseMediaType(provided: List[ContentType], acceptHeader: String) = {
 
