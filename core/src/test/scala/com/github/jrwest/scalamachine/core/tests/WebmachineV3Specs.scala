@@ -180,9 +180,8 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
                                                                                     p^
   "I4 - Resource Moved Permanently?"                                                ^
     "if resource returns a location where the resource has been moved"              ^
-      "response has Location header set to returned value"                          ! skipped ^
-      "response with code 301 is returned"                                          ! skipped ^p^
-    "otherwise P3 is returned"                                                      ! skipped ^
+      "response has Location header set to returned value, and status 301"          ! testResourceMovedPermanently ^p^
+    "otherwise P3 is returned"                                                      ! testResourceNotMovedPermanently ^
                                                                                     p^
   "I7 - PUT?"                                                                       ^
     "if the HTTP Method is PUT, I4 is returned"                                     ! testIsPutTrue ^
@@ -920,6 +919,19 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
 
   def testIfNoneMatchMissing = {
     testDecisionReturnsDecision(i12,l13,r => {})
+  }
+
+  def testResourceMovedPermanently = {
+    val location = "http://somewhere.com"
+    testDecisionReturnsData(i4,r => r.movedPermanently(any) answers mkAnswer(Some(location))) {
+      d => (d.statusCode must beEqualTo(301)) and (d.responseHeader("location") must beSome.like {
+        case loc => loc must beEqualTo(location)
+      })
+    }
+  }
+
+  def testResourceNotMovedPermanently = {
+    testDecisionReturnsDecision(i4,p3,r => r.movedPermanently(any) answers mkAnswer(None))
   }
 
 }

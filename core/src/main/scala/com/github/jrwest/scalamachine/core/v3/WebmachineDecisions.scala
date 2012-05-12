@@ -324,11 +324,18 @@ trait WebmachineDecisions {
     }
   }
 
-  lazy val i4: Decision = new Decision {
-    def name: String = "v3i4"
-
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
-  }
+  /* Moved Permanently? (Apply Put to Different URI?) */
+  lazy val i4: Decision =
+    Decision(
+      "v3i4",
+      (r: Resource) => r.movedPermanently(_: ReqRespData),
+      (l: Option[String], _: ReqRespData) => !l.isDefined,
+      p3,
+      (location: Option[String]) => for {
+        _ <- (statusCodeL := 301)
+        _ <- (responseHeadersL member "location") := location
+      } yield location
+    )
 
   lazy val i7: Decision = new Decision {
     def name: String = "v3i7"
@@ -360,6 +367,12 @@ trait WebmachineDecisions {
 
   lazy val l13: Decision = new Decision {
     def name: String = "v3l13"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+  }
+
+  lazy val p3: Decision = new Decision {
+    def name: String = "v3p3"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }

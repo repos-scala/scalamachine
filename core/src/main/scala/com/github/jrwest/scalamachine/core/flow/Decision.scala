@@ -44,6 +44,7 @@ object Decision {
   type HandlerF[T] = T => FlowState[T]
   type Handler[T] = Either[HandlerF[T],Decision]
 
+  // TODO: this is a possible type of helper method that can be moved to ReqRespData object
   private[this] def setStatus[T](code: Int): HandlerF[T] = v => for { _ <- statusCodeL := code } yield v
 
   def apply[T](decisionName: String, test: ResourceF[T], check: CheckF[T], onSuccess: Handler[T], onFailure: Handler[T]) = new Decision {
