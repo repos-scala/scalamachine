@@ -190,6 +190,15 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   "I12 - If-None-Match Exists?"                                                     ^
     "if header exists, I13 is returned"                                             ! testIfNoneMatchExists ^
     "otherwise, L13 is returned"                                                    ! testIfNoneMatchMissing ^
+                                                                                    p^
+  "I13 - If-None-Match: *?"                                                         ^
+    """if header has value "*", J18 is returned"""                                  ! testIfNoneMatchStar ^
+    "otherwise, K13 is returned"                                                    ! testIfNoneMatchNotStar ^
+                                                                                    p^
+  "J18 - GET or HEAD?"                                                              ^
+    "If request method is GET, response with code 304 is returned"                  ! skipped ^
+    "If request method is HEAD, response with code 304 is returned"                 ! skipped ^
+    "otherwise, response with code 412 returned"                                    ! skipped ^
                                                                                     end
 
 
@@ -932,6 +941,14 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
 
   def testResourceNotMovedPermanently = {
     testDecisionReturnsDecision(i4,p3,r => r.movedPermanently(any) answers mkAnswer(None))
+  }
+
+  def testIfNoneMatchStar = {
+    testDecisionReturnsDecision(i13,j18,r => {},data = createData(headers = Map("if-none-match" -> "*")))
+  }
+
+  def testIfNoneMatchNotStar = {
+    testDecisionReturnsDecision(i13,k13,r => {}, data = createData(headers = Map("if-none-match" -> "notstar")))
   }
 
 }

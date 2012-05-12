@@ -9,7 +9,7 @@ import scalaz.syntax.pointed._
 import scalaz.syntax.order._
 import scalaz.syntax.applicative._
 import scalaz.OptionT._
-import scalaz.State
+import scalaz.Lens._
 import Decision.FlowState
 import Res._
 import ResT._
@@ -17,6 +17,7 @@ import ReqRespData._
 import Metadata._
 import Resource._
 import java.util.Date
+import scalaz.{OptionT, State}
 
 trait WebmachineDecisions {
 
@@ -133,7 +134,7 @@ trait WebmachineDecisions {
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = {
       for {
-        acceptHeader <- ((requestHeadersL member "accept").st map { _ getOrElse "*/*" })
+        acceptHeader <- ((requestHeadersL member "accept") map { _ getOrElse "*/*" })
         providedResult <- State((d: ReqRespData) => resource.contentTypesProvided(d))
         provided <- (providedResult getOrElse Nil).unzip._1.point[FlowState]
         contentType <- Util.chooseMediaType(provided, acceptHeader).point[FlowState]
@@ -147,7 +148,7 @@ trait WebmachineDecisions {
     val name = "v3d4" 
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = {
-      (requestHeadersL member "accept-language").st.map(_ >| d5.point[Res] | e5.point[Res])
+      (requestHeadersL member "accept-language").map(_ >| d5.point[Res] | e5.point[Res])
     }
   }
 
@@ -161,7 +162,7 @@ trait WebmachineDecisions {
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = {
       val act = for {
-        mbHeader <- resT[FlowState]((requestHeadersL member "accept-charset").st map { _.point[Res] })
+        mbHeader <- resT[FlowState]((requestHeadersL member "accept-charset") map { _.point[Res] })
         decision <- mbHeader >| resT[FlowState](result(e6).point[FlowState]) | chooseCharset(resource, "*")
       } yield decision
       act.run
@@ -177,7 +178,7 @@ trait WebmachineDecisions {
       val act = for {
         // we can assume that the getOrElse case will never be run because of e5 but if it is the case
         // star will still be handled appropriately
-        header <- resT[FlowState]((requestHeadersL member "accept-charset").st map { _.getOrElse("*").point[Res] })
+        header <- resT[FlowState]((requestHeadersL member "accept-charset") map { _.getOrElse("*").point[Res] })
         decision <- chooseCharset(resource, header)
       } yield decision
 
@@ -191,10 +192,10 @@ trait WebmachineDecisions {
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] =  {
       val act = for {
-        media <- resT[FlowState]((metadataL <=< contentTypeL).st.map(_.getOrElse(ContentType("text/plain")).point[Res]))
-        charset <- resT[FlowState]((metadataL <=< chosenCharsetL).st.map(_.map(";charset=" + _).getOrElse("").point[Res]))
+        media <- resT[FlowState]((metadataL <=< contentTypeL).map(_.getOrElse(ContentType("text/plain")).point[Res]))
+        charset <- resT[FlowState]((metadataL <=< chosenCharsetL).map(_.map(";charset=" + _).getOrElse("").point[Res]))
         _ <- resT[FlowState](((responseHeadersL member "content-type") := some(media.toHeader + charset)).map(_.point[Res]))
-        mbHeader <- resT[FlowState]((requestHeadersL member "accept-encoding").st map { _.point[Res] })
+        mbHeader <- resT[FlowState]((requestHeadersL member "accept-encoding") map { _.point[Res] })
         decision <- mbHeader >| resT[FlowState](result(f7).point[FlowState]) | chooseEncoding(resource, "identity;q=1.0,*;q=0.5")
       } yield decision
 
@@ -209,7 +210,7 @@ trait WebmachineDecisions {
     protected def decide(resource: Resource): FlowState[Res[Decision]] = {
       val act = for {
         // like e6 we can assume we have already tested the default case and we won't ever run if we get here
-        header <- resT[FlowState]((requestHeadersL member "accept-encoding").st map { _.getOrElse("identity;q=1.0,*;q=0.5").point[Res] })
+        header <- resT[FlowState]((requestHeadersL member "accept-encoding") map { _.getOrElse("identity;q=1.0,*;q=0.5").point[Res] })
         decision <- chooseEncoding(resource, header)
       } yield decision
 
@@ -249,7 +250,7 @@ trait WebmachineDecisions {
     def name: String = "v3g8"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] =
-      State((d: ReqRespData) => ((d.requestHeader("if-match") >| g9 | h10).point[Res], d))
+      headerExists("if-match", result(g9), result(h10))
 
   }
 
@@ -257,9 +258,10 @@ trait WebmachineDecisions {
   lazy val g9: Decision = new Decision {
     def name: String = "v3g9"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = State((d: ReqRespData) => {
-      ((d.requestHeader("if-match").filterNot(_ === "*") >| g11 | h10).point[Res], d)
-    })
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = for {
+      mbHeader <- (requestHeadersL member "if-match") map { _ filterNot { _ === "*"} }
+    } yield mbHeader >| result(g11) | result(h10)
+
   }
 
   /* Etag in If-Match? */
@@ -269,7 +271,7 @@ trait WebmachineDecisions {
       (r: Resource) => r.generateEtag(_: ReqRespData),
       (etag: Option[String], d: ReqRespData) => (for {
         e <- optionT[FlowState](etag.point[FlowState])
-        matches <- optionT[FlowState]((requestHeadersL member "if-match").st)
+        matches <- optionT[FlowState]((requestHeadersL member "if-match"))
       } yield matches.split(",").map(_.trim).toList.contains(e)) getOrElse false eval d,
       h10,
       412
@@ -279,9 +281,8 @@ trait WebmachineDecisions {
   lazy val h7: Decision = new Decision {
     def name: String = "v3h7"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = for {
-      mbIfMatch <- (requestHeadersL member "if-match").st
-    } yield mbIfMatch >| result(i7) | halt(412)
+    protected def decide(resource: Resource): FlowState[Res[Decision]] =
+      headerExists("if-match", result(i7), halt(412))
   }
 
   /* If-Unmodified-Since Exists? */
@@ -289,7 +290,7 @@ trait WebmachineDecisions {
     def name: String = "v3h10"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = for {
-      mbIums <- (requestHeadersL member "if-unmodified-since").st
+      mbIums <- (requestHeadersL member "if-unmodified-since")
     } yield mbIums >| result(h11) | result(i12)
   }
 
@@ -300,7 +301,7 @@ trait WebmachineDecisions {
     protected def decide(resource: Resource): FlowState[Res[Decision]] = for {
         // if we have reached here we have verified iums has value so we default
         // empty string which should never be reached
-        iums <- (requestHeadersL member "if-unmodified-since").st.map { _ getOrElse "" }
+        iums <- (requestHeadersL member "if-unmodified-since").map { _ getOrElse "" }
         isValid <- (Util.parseDate(iums) >| true | false).point[FlowState]
       } yield if (isValid) result(h12) else result(i12)
   }
@@ -315,7 +316,7 @@ trait WebmachineDecisions {
 
       val act = for {
         // same deal here as h11
-        mbIums <- resT[FlowState]((requestHeadersL member "if-unmodified-since").st.map { _.point[Res] })
+        mbIums <- resT[FlowState]((requestHeadersL member "if-unmodified-since") map { _.point[Res] })
         mbLastMod <- resT[FlowState](State((d: ReqRespData) => resource.lastModified(d)))
         decision <- resT[FlowState](if (isModified(mbLastMod, mbIums)) halt[Decision](412).point[FlowState] else result(i12).point[FlowState])
       } yield decision
@@ -337,30 +338,46 @@ trait WebmachineDecisions {
       } yield location
     )
 
+  /* PUT? (after finding resource doesn't exist) */
   lazy val i7: Decision = new Decision {
     def name: String = "v3i7"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = for {
-      method <- methodL.st
+      method <- methodL
     } yield if (method === PUT) result(i4) else result(k7)
   }
 
+  /* If-None-Match Exists? */
   lazy val i12: Decision = new Decision {
     def name: String = "v3i12"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = for {
-      mbIfNoneMatch <- (requestHeadersL member "if-none-match").st
-    } yield mbIfNoneMatch >| result(i13) | result(l13)
+    protected def decide(resource: Resource): FlowState[Res[Decision]] =
+      headerExists("if-none-match", result(i13), result(l13))
   }
 
+  /* If-None-Match: *? */
   lazy val i13: Decision = new Decision {
     def name: String = "v3i13"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = for {
+      mbHeader <- (requestHeadersL member "if-none-match") map { _ filterNot { _ === "*"} }
+    } yield mbHeader >| result(k13) | result(j18)
+  }
+
+  lazy val j18: Decision = new Decision {
+    def name: String = "v3j18"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }
 
   lazy val k7: Decision = new Decision {
     def name: String = "v3k7"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+  }
+
+  lazy val k13: Decision = new Decision {
+    def name: String = "v3k13"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }
@@ -418,5 +435,10 @@ trait WebmachineDecisions {
       _ <- resT[FlowState](setEncodingHeader(chosen).map { _.point[Res] })
     } yield decision
   }
+
+  def headerExists(header: String, exists: Res[Decision], dne: Res[Decision]) = for {
+    mbIfMatch <- (requestHeadersL member header)
+  } yield mbIfMatch >| exists | dne
+
 
 }
