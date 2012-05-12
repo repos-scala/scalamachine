@@ -179,9 +179,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     "otherwise, I12 returned"                                                       ! testIUMSGreaterThanLastMod ^
                                                                                     p^
   "I4 - Resource Moved Permanently?"                                                ^
-    "if resource returns a location where the resource has been moved"              ^
-      "response has Location header set to returned value, and status 301"          ! testResourceMovedPermanently ^p^
-    "otherwise P3 is returned"                                                      ! testResourceNotMovedPermanently ^
+    "checks resource not moved permanently returning P3 if its not"                 ^ testIsResourceMovedPermanently(i4,p3) ^
                                                                                     p^
   "I7 - PUT?"                                                                       ^
     "if the HTTP Method is PUT, I4 is returned"                                     ! testIsPutTrue ^
@@ -196,9 +194,16 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     "otherwise, K13 is returned"                                                    ! testIfNoneMatchNotStar ^
                                                                                     p^
   "J18 - GET or HEAD?"                                                              ^
-    "If request method is GET, response with code 304 is returned"                  ! skipped ^
-    "If request method is HEAD, response with code 304 is returned"                 ! skipped ^
-    "otherwise, response with code 412 returned"                                    ! skipped ^
+    "If request method is GET, response with code 304 is returned"                  ! testJ18IsGet ^
+    "If request method is HEAD, response with code 304 is returned"                 ! testJ18IsHead ^
+    "otherwise, response with code 412 returned"                                    ! testJ18Neither ^
+                                                                                    p^
+  "K5 - Resource Moved Peramently?"                                                 ^
+    "checks resource not moved permanently returning L5 if its not"                 ^ testIsResourceMovedPermanently(k5,l5) ^
+                                                                                    p^
+  "K7 - Resource Previously Existed"                                                ^
+    "if resource returns true, K5 is returned"                                      ! testResourceExistedPrevTrue ^
+    "if resource returns false, L7 is returned"                                     ! testResourceExistedPrevFalse ^
                                                                                     end
 
 
@@ -930,17 +935,23 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     testDecisionReturnsDecision(i12,l13,r => {})
   }
 
-  def testResourceMovedPermanently = {
+  def testIsResourceMovedPermanently(toTest: Decision, proceed: Decision) =
+    "if resource returns a location where the resource has been moved"            ^
+      "response has Location header set to returned value, and status 301"        ! testResourceMovedPermanently(toTest) ^p^
+    "otherwise the decision to proceed with is returned"                          ! testResourceNotMovedPermanently(toTest,proceed)
+
+
+  def testResourceMovedPermanently(toTest: Decision) = {
     val location = "http://somewhere.com"
-    testDecisionReturnsData(i4,r => r.movedPermanently(any) answers mkAnswer(Some(location))) {
+    testDecisionReturnsData(toTest,r => r.movedPermanently(any) answers mkAnswer(Some(location))) {
       d => (d.statusCode must beEqualTo(301)) and (d.responseHeader("location") must beSome.like {
         case loc => loc must beEqualTo(location)
       })
     }
   }
 
-  def testResourceNotMovedPermanently = {
-    testDecisionReturnsDecision(i4,p3,r => r.movedPermanently(any) answers mkAnswer(None))
+  def testResourceNotMovedPermanently(toTest: Decision, proceed: Decision) = {
+    testDecisionReturnsDecision(toTest,proceed,r => r.movedPermanently(any) answers mkAnswer(None))
   }
 
   def testIfNoneMatchStar = {
@@ -949,6 +960,32 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
 
   def testIfNoneMatchNotStar = {
     testDecisionReturnsDecision(i13,k13,r => {}, data = createData(headers = Map("if-none-match" -> "notstar")))
+  }
+
+  def testJ18IsGet = {
+    testDecisionReturnsData(j18,r => {}, data = createData(method = GET)) {
+      _.statusCode must beEqualTo(304)
+    }
+  }
+
+  def testJ18IsHead = {
+    testDecisionReturnsData(j18,r => {}, data = createData(method = HEAD)) {
+      _.statusCode must beEqualTo(304)
+    }
+  }
+
+  def testJ18Neither = {
+    testDecisionReturnsData(j18, r => {}, data = createData(method = POST)) {
+      _.statusCode must beEqualTo(412)
+    }
+  }
+
+  def testResourceExistedPrevTrue = {
+    testDecisionReturnsDecision(k7,k5, _.previouslyExisted(any) answers mkAnswer(true))
+  }
+
+  def testResourceExistedPrevFalse = {
+    testDecisionReturnsDecision(k7,l7, _.previouslyExisted(any) answers mkAnswer(false))
   }
 
 }

@@ -367,17 +367,40 @@ trait WebmachineDecisions {
   lazy val j18: Decision = new Decision {
     def name: String = "v3j18"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = for {
+      method <- methodL
+    } yield if (List(GET,HEAD).contains(method)) halt(304) else halt(412)
   }
 
-  lazy val k7: Decision = new Decision {
-    def name: String = "v3k7"
+  /* Resource Moved Permanently? (not PUT request) */
+  lazy val k5: Decision = Decision(
+    "v3k5",
+    (r: Resource) => r.movedPermanently(_: ReqRespData),
+    (l: Option[String], _: ReqRespData) => !l.isDefined,
+    l5,
+    (location: Option[String]) => for {
+      _ <- (statusCodeL := 301)
+      _ <- (responseHeadersL member "location") := location
+    } yield location
+  )
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
-  }
+  /* Resourece Existed Previously ? */
+  lazy val k7: Decision = Decision("v3k7", true, (r: Resource) => r.previouslyExisted(_: ReqRespData), k5, l7)
 
   lazy val k13: Decision = new Decision {
     def name: String = "v3k13"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+  }
+
+  lazy val l5: Decision = new Decision {
+    def name: String = "v3l5"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+  }
+
+  lazy val l7: Decision = new Decision {
+    def name: String = "v3l7"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }

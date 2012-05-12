@@ -80,6 +80,12 @@ object Decision {
                expected: T,
                test: ResourceF[T],
                onSuccess: Decision,
+               onFailure: Decision): Decision = apply(decisionName, expected, test, Right(onSuccess), Right(onFailure))
+
+  def apply[T](decisionName: String,
+               expected: T,
+               test: ResourceF[T],
+               onSuccess: Decision,
                onFailure: HandlerF[T]): Decision = apply(decisionName, expected, test, Right(onSuccess), Left(onFailure))
 
   def apply[T](decisionName: String,
