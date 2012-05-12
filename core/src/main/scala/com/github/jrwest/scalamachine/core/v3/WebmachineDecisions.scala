@@ -305,6 +305,7 @@ trait WebmachineDecisions {
       } yield if (isValid) result(h12) else result(i12)
   }
 
+  /* Last-Modified > If-UnmodifiedSince? */
   lazy val h12: Decision = new Decision {
     def name: String = "v3h12"
 
@@ -313,7 +314,7 @@ trait WebmachineDecisions {
         (mbLastMod |@| mbIums.map(Util.parseDate(_)).getOrElse(none)) { _.getTime > _.getTime } getOrElse false
 
       val act = for {
-      // same deal here as h11
+        // same deal here as h11
         mbIums <- resT[FlowState]((requestHeadersL member "if-unmodified-since").st.map { _.point[Res] })
         mbLastMod <- resT[FlowState](State((d: ReqRespData) => resource.lastModified(d)))
         decision <- resT[FlowState](if (isModified(mbLastMod, mbIums)) halt[Decision](412).point[FlowState] else result(i12).point[FlowState])
@@ -323,14 +324,42 @@ trait WebmachineDecisions {
     }
   }
 
-  lazy val i7: Decision = new Decision {
-    def name: String = "v3i7"
+  lazy val i4: Decision = new Decision {
+    def name: String = "v3i4"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }
 
+  lazy val i7: Decision = new Decision {
+    def name: String = "v3i7"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = for {
+      method <- methodL.st
+    } yield if (method === PUT) result(i4) else result(k7)
+  }
+
   lazy val i12: Decision = new Decision {
     def name: String = "v3i12"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = for {
+      mbIfNoneMatch <- (requestHeadersL member "if-none-match").st
+    } yield mbIfNoneMatch >| result(i13) | result(l13)
+  }
+
+  lazy val i13: Decision = new Decision {
+    def name: String = "v3i13"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+  }
+
+  lazy val k7: Decision = new Decision {
+    def name: String = "v3k7"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+  }
+
+  lazy val l13: Decision = new Decision {
+    def name: String = "v3l13"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }

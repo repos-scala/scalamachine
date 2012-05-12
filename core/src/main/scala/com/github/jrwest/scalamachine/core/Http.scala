@@ -53,4 +53,9 @@ object HTTPMethod {
     case "POST" => POST
     case _ => GET
   }
+
+  import scalaz.Equal
+  import scalaz.Equal._
+
+  implicit val httpMethodEqual: Equal[HTTPMethod] = equalA
 }

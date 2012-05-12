@@ -177,6 +177,20 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   "H12 - Resource Last Mod. Date > If-Unmodified-Since Date"                        ^
     "if resource's last modified > If-Unmodified-Since, code 412 returned"          ! testIUMSLessThanLastMod ^
     "otherwise, I12 returned"                                                       ! testIUMSGreaterThanLastMod ^
+                                                                                    p^
+  "I4 - Resource Moved Permanently?"                                                ^
+    "if resource returns a location where the resource has been moved"              ^
+      "response has Location header set to returned value"                          ! skipped ^
+      "response with code 301 is returned"                                          ! skipped ^p^
+    "otherwise P3 is returned"                                                      ! skipped ^
+                                                                                    p^
+  "I7 - PUT?"                                                                       ^
+    "if the HTTP Method is PUT, I4 is returned"                                     ! testIsPutTrue ^
+    "otherwise K7 is returned"                                                      ! testIsPutFalse ^
+                                                                                    p^
+  "I12 - If-None-Match Exists?"                                                     ^
+    "if header exists, I13 is returned"                                             ! testIfNoneMatchExists ^
+    "otherwise, L13 is returned"                                                    ! testIfNoneMatchMissing ^
                                                                                     end
 
 
@@ -890,6 +904,22 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   def testIUMSGreaterThanLastMod = {
     val date = DateUtil.parseDate("Sat, 29 Oct 1993 19:43:31 GMT")
     testDecisionReturnsDecision(h12,i12,_.lastModified(any) answers mkAnswer(Some(date)), data = createData(headers = Map("if-unmodified-since" -> "Sat, 29 Oct 1994 19:43:31 GMT")))
+  }
+
+  def testIsPutTrue = {
+    testDecisionReturnsDecision(i7,i4, r => {}, data = createData(method = PUT))
+  }
+
+  def testIsPutFalse = {
+    testDecisionReturnsDecision(i7,k7, r => {})
+  }
+
+  def testIfNoneMatchExists = {
+    testDecisionReturnsDecision(i12,i13,r => {},data = createData(headers = Map("if-none-match" -> "*")))
+  }
+
+  def testIfNoneMatchMissing = {
+    testDecisionReturnsDecision(i12,l13,r => {})
   }
 
 }
