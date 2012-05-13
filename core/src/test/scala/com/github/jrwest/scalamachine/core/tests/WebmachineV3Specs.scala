@@ -220,6 +220,18 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   "L13 - If-Modified-Since Exists?"                                                 ^
     "If header exists, L14 is returned"                                             ! testIMSExists ^
     "otherwise, M16 is returned"                                                    ! testIMSMissing ^
+                                                                                    p^
+  "L14 - If-Modified-Since Valid Date?"                                             ^
+    "if date is valid, L15 is returned"                                             ! testIMSValid ^
+    "if date is not valid, M15 is returned"                                         ! testIMSInvalid ^
+                                                                                    p^
+  "L15 - If-Modified-Since > Now?"                                                  ^
+    "if date is in the future, M16 is returned"                                     ! testIMSInFuture ^
+    "if the date is not in the future, L17 is returned"                             ! testIMSNotInFuture ^
+                                                                                    p^
+  "L17 - If-Modified-Since > Last-Modified"                                         ^
+    "if resource has not been modified since the given time, code 304 is returned"  ! testLastModLessThanIMS ^
+    "if resource has been modified since given time, M16 is returned"               ! testLastModGreaterThanIMS ^
                                                                                     end
 
   // TODO: tests around halt result, error result, empty result, since that logic is no longer in flow runner where test used to be
@@ -1041,5 +1053,43 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   def testIMSExists = {
     testDecisionReturnsDecision(l13,l14,r => {}, data = createData(headers = Map("if-modified-since" -> "*")))
   }
+
+  def testIMSValid = {
+    testDecisionReturnsDecision(l14,l15,r => {}, data = createData(headers = Map("if-modified-since" -> "Sun, 06 Nov 1994 08:49:37 GMT")))
+  }
+
+  def testIMSInvalid = {
+    testDecisionReturnsDecision(l14,m16,r => {}, data = createData(headers = Map("if-modified-since" -> "invalid")))
+  }
+
+  def testIMSInFuture = {
+    // hack
+    testDecisionReturnsDecision(l15,m16,r => {}, data = createData(headers = Map("if-modified-since" -> "Sun, 06 Nov 2050 08:49:37 GMT")))
+  }
+
+  def testIMSNotInFuture = {
+    // hack
+    testDecisionReturnsDecision(l15,l17,r => {}, data = createData(headers = Map("if-modified-since" -> "Sun, 06 Nov 1994 08:49:37 GMT")))
+  }
+
+  def testLastModGreaterThanIMS = {
+    testDecisionReturnsDecision(
+      l17,
+      m16,
+      _.lastModified(any) answers mkAnswer(Util.parseDate("Sun, 06 Nov 1995 08:49:37 GMT")),
+      data = createData(headers = Map("if-modified-since" -> "Sun, 06 Nov 1994 08:49:37 GMT"))
+    )
+  }
+
+  def testLastModLessThanIMS = {
+    testDecisionReturnsData(
+     l17,
+      _.lastModified(any) answers mkAnswer(Util.parseDate("Sun, 06 Nov 1993 08:49:37 GMT")),
+      data = createData(headers = Map("if-modified-since" -> "Sun, 06 Nov 1994 08:49:37 GMT"))
+    ) {
+      _.statusCode must beEqualTo(304)
+    }
+  }
+
 
 }

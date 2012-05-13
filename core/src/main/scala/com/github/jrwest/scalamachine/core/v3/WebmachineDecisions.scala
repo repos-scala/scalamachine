@@ -298,31 +298,16 @@ trait WebmachineDecisions {
   lazy val h11: Decision = new Decision {
     def name: String = "v3h11"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = for {
-        // if we have reached here we have verified iums has value so we default
-        // empty string which should never be reached
-        iums <- (requestHeadersL member "if-unmodified-since").map { _ getOrElse "" }
-        isValid <- (Util.parseDate(iums) >| true | false).point[FlowState]
-      } yield if (isValid) result(h12) else result(i12)
+    protected def decide(resource: Resource): FlowState[Res[Decision]] =
+      validateDate("if-unmodified-since", result(h12), result(i12))
   }
 
   /* Last-Modified > If-UnmodifiedSince? */
   lazy val h12: Decision = new Decision {
     def name: String = "v3h12"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = {
-      def isModified(mbLastMod: Option[Date], mbIums: Option[String]) =
-        (mbLastMod |@| mbIums.map(Util.parseDate(_)).getOrElse(none)) { _.getTime > _.getTime } getOrElse false
-
-      val act = for {
-        // same deal here as h11
-        mbIums <- resT[FlowState]((requestHeadersL member "if-unmodified-since") map { _.point[Res] })
-        mbLastMod <- resT[FlowState](State((d: ReqRespData) => resource.lastModified(d)))
-        decision <- resT[FlowState](if (isModified(mbLastMod, mbIums)) halt[Decision](412).point[FlowState] else result(i12).point[FlowState])
-      } yield decision
-
-      act.run
-    }
+    protected def decide(resource: Resource): FlowState[Res[Decision]] =
+      testDate(resource, "if-unmodified-since", halt(412), result(i12)) { _ > _ }
   }
 
   /* Moved Permanently? (Apply Put to Different URI?) */
@@ -382,7 +367,7 @@ trait WebmachineDecisions {
     } yield location
   )
 
-  /* Resourece Existed Previously ? */
+  /* Resource Existed Previously ? */
   lazy val k7: Decision = Decision("v3k7", true, (r: Resource) => r.previouslyExisted(_: ReqRespData), k5, l7)
 
   lazy val k13: Decision =
@@ -425,10 +410,30 @@ trait WebmachineDecisions {
       headerExists("if-modified-since", result(l14), result(m16))
   }
 
+  /* If-Modified-Since Valid Date? */
   lazy val l14: Decision = new Decision {
     def name: String = "v3l14"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+    protected def decide(resource: Resource): FlowState[Res[Decision]] =
+      validateDate("if-modified-since", result(l15), result(m16))
+  }
+
+  lazy val l15: Decision = new Decision {
+    def name: String = "v3l15"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = for {
+      // since we have already validated the date, in the off chance something gets messed
+      // up we handle an invalid date here and proceed accordingly
+      headerDate <- (requestHeadersL member "if-modified-since") map { _ getOrElse "" }
+      inFuture <- Util.parseDate(headerDate).map(_.getTime > System.currentTimeMillis).getOrElse(true).point[FlowState]
+    } yield if (inFuture) result(m16) else result(l17)
+  }
+
+  lazy val l17: Decision = new Decision {
+    def name: String = "v3l17"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] =
+      testDate(resource, "if-modified-since", result(m16), halt(304)){ _ > _ }
   }
 
   lazy val m5: Decision = new Decision {
@@ -510,4 +515,25 @@ trait WebmachineDecisions {
       method <- methodL
     } yield if (expected.contains(method)) isExpected else notExpected
 
+  private def validateDate(headerName: String, valid: Res[Decision], invalid: Res[Decision]): FlowState[Res[Decision]] =
+    for {
+      // if we have reached here we have verified the header has value already so we default
+      // empty string which should never be reached
+      iums <- (requestHeadersL member headerName).map { _ getOrElse "" }
+      isValid <- (Util.parseDate(iums) >| true | false).point[FlowState]
+    } yield if (isValid) valid else invalid
+
+  private def testDate(resource: Resource, headerName: String, modified: Res[Decision], notModified: Res[Decision])(test: (Long,Long) => Boolean): FlowState[Res[Decision]] = {
+    def isModified(mbLastMod: Option[Date], mbHeaderDate: Option[String]) =
+      (mbLastMod |@| mbHeaderDate.map(Util.parseDate(_)).getOrElse(none)) { (t1,t2) => test(t1.getTime,t2.getTime) } getOrElse false
+
+    val act = for {
+    // same deal here as h11
+      mbIums <- resT[FlowState]((requestHeadersL member headerName) map { _.point[Res] })
+      mbLastMod <- resT[FlowState](State((d: ReqRespData) => resource.lastModified(d)))
+      decision <- resT[FlowState](if (isModified(mbLastMod, mbIums)) modified.point[FlowState] else notModified.point[FlowState])
+    } yield decision
+
+    act.run
+  }
 }
