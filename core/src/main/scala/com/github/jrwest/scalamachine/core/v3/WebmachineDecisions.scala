@@ -399,11 +399,16 @@ trait WebmachineDecisions {
       l13
     )
 
-  lazy val l5: Decision = new Decision {
-    def name: String = "v3l5"
-
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
-  }
+  lazy val l5: Decision = Decision(
+    "v3l5",
+    (r: Resource) => r.movedTemporarily(_: ReqRespData),
+    (l: Option[String], _: ReqRespData) => !l.isDefined,
+    m5,
+    (location: Option[String]) => for {
+      _ <- (statusCodeL := 307)
+      _ <- (responseHeadersL member "location") := location
+    } yield location
+  )
 
   lazy val l7: Decision = new Decision {
     def name: String = "v3l7"
@@ -413,6 +418,12 @@ trait WebmachineDecisions {
 
   lazy val l13: Decision = new Decision {
     def name: String = "v3l13"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+  }
+
+  lazy val m5: Decision = new Decision {
+    def name: String = "v3m5"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }

@@ -54,6 +54,8 @@ trait Resource {
 
   def previouslyExisted(data: ReqRespData): (Res[Boolean], ReqRespData) = (default(false), data)
 
+  def movedTemporarily(data: ReqRespData): (Res[Option[String]], ReqRespData) = (default(None), data)
+
   private def default[A](value: A): Res[A] = ValueRes(value)
 
   private val defaultResponse: ReqRespData => (Res[String], ReqRespData) = (default("hello, scalamachine"), _)

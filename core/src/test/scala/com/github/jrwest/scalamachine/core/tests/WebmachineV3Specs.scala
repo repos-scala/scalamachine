@@ -208,6 +208,10 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   "K13 - ETag in If-None-Match?"                                                    ^
     "if resource's etag is in list of etags, J18 is returned"                       ! testIfNoneMatchHasEtag ^
     "otherwise, L13 is returned"                                                    ! testIfNoneMatchMissingEtag ^
+                                                                                    p^
+  "L5 - Resource Moved Temporarily?"                                                ^
+    "if temp. location returned, loc set in header, code 307 returned"              ! testResourceMovedTemporarily ^
+    "otherwise, M5 returned"                                                        ! testResourceNotMovedTemporarily ^
                                                                                     end
 
   // TODO: tests around halt result, error result, empty result, since that logic is no longer in flow runner where test used to be
@@ -997,6 +1001,19 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
 
   def testIfNoneMatchMissingEtag = {
     testDecisionReturnsDecision(k13,l13,_.generateEtag(any) answers mkAnswer(None), data = createData(headers = Map("if-none-match" -> "1,2")))
+  }
+
+  def testResourceMovedTemporarily = {
+    val location = "http://abc.com"
+    testDecisionReturnsData(l5,_.movedTemporarily(any) answers mkAnswer(Some(location))) {
+      d => (d.statusCode must beEqualTo(307)) and (d.responseHeader("location") must beSome.like {
+        case loc => loc must beEqualTo(location)
+      })
+    }
+  }
+
+  def testResourceNotMovedTemporarily = {
+    testDecisionReturnsDecision(l5,m5,_.movedTemporarily(any) answers mkAnswer(None))
   }
 
 }
