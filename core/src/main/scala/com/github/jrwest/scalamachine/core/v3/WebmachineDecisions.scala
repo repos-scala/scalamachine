@@ -342,9 +342,8 @@ trait WebmachineDecisions {
   lazy val i7: Decision = new Decision {
     def name: String = "v3i7"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = for {
-      method <- methodL
-    } yield if (method === PUT) result(i4) else result(k7)
+    protected def decide(resource: Resource): FlowState[Res[Decision]] =
+      testMethod(PUT, result(i4), result(k7))
   }
 
   /* If-None-Match Exists? */
@@ -367,9 +366,8 @@ trait WebmachineDecisions {
   lazy val j18: Decision = new Decision {
     def name: String = "v3j18"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = for {
-      method <- methodL
-    } yield if (List(GET,HEAD).contains(method)) halt(304) else halt(412)
+    protected def decide(resource: Resource): FlowState[Res[Decision]] =
+      testMethod(List(GET,HEAD), halt(304), halt(412))
   }
 
   /* Resource Moved Permanently? (not PUT request) */
@@ -399,6 +397,7 @@ trait WebmachineDecisions {
       l13
     )
 
+  /* Moved Temporarily? */
   lazy val l5: Decision = Decision(
     "v3l5",
     (r: Resource) => r.movedTemporarily(_: ReqRespData),
@@ -410,20 +409,42 @@ trait WebmachineDecisions {
     } yield location
   )
 
+  /* POST? (after determining resource d.n.e) */
   lazy val l7: Decision = new Decision {
     def name: String = "v3l7"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+    protected def decide(resource: Resource): FlowState[Res[Decision]] =
+      testMethod(POST, result(m7), halt(404))
   }
 
+  /* If-Modified-Since Exists? */
   lazy val l13: Decision = new Decision {
     def name: String = "v3l13"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] =
+      headerExists("if-modified-since", result(l14), result(m16))
+  }
+
+  lazy val l14: Decision = new Decision {
+    def name: String = "v3l14"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }
 
   lazy val m5: Decision = new Decision {
     def name: String = "v3m5"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+  }
+
+  lazy val m7: Decision = new Decision {
+    def name: String = "v3m7"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+  }
+
+  lazy val m16: Decision = new Decision {
+    def name: String = "v3m16"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }
@@ -476,9 +497,17 @@ trait WebmachineDecisions {
     } yield decision
   }
 
-  def headerExists(header: String, exists: Res[Decision], dne: Res[Decision]) = for {
+  private def headerExists(header: String, exists: Res[Decision], dne: Res[Decision]) = for {
     mbIfMatch <- (requestHeadersL member header)
   } yield mbIfMatch >| exists | dne
 
+
+  private def testMethod(expected: HTTPMethod, isExpected: Res[Decision], notExpected: Res[Decision]): FlowState[Res[Decision]] =
+    testMethod(expected :: Nil, isExpected, notExpected)
+
+  private def testMethod(expected: List[HTTPMethod], isExpected: Res[Decision], notExpected: Res[Decision]): FlowState[Res[Decision]] =
+    for {
+      method <- methodL
+    } yield if (expected.contains(method)) isExpected else notExpected
 
 }

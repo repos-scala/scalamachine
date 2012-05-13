@@ -212,6 +212,14 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   "L5 - Resource Moved Temporarily?"                                                ^
     "if temp. location returned, loc set in header, code 307 returned"              ! testResourceMovedTemporarily ^
     "otherwise, M5 returned"                                                        ! testResourceNotMovedTemporarily ^
+                                                                                    p^
+  "L7 - POST?"                                                                      ^
+    "if request method is POST, M7 is returned"                                     ! testL7RequestIsPost ^
+    "if request method is not POST, response w/ code 404 returned"                  ! testL7RequestNotPost ^
+                                                                                    p^
+  "L13 - If-Modified-Since Exists?"                                                 ^
+    "If header exists, L14 is returned"                                             ! testIMSExists ^
+    "otherwise, M16 is returned"                                                    ! testIMSMissing ^
                                                                                     end
 
   // TODO: tests around halt result, error result, empty result, since that logic is no longer in flow runner where test used to be
@@ -1014,6 +1022,24 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
 
   def testResourceNotMovedTemporarily = {
     testDecisionReturnsDecision(l5,m5,_.movedTemporarily(any) answers mkAnswer(None))
+  }
+
+  def testL7RequestIsPost = {
+    testDecisionReturnsDecision(l7,m7,r => {},data = createData(method = POST))
+  }
+
+  def testL7RequestNotPost = {
+    testDecisionReturnsData(l7,r => {},data = createData(method = GET)) {
+      _.statusCode must beEqualTo(404)
+    }
+  }
+
+  def testIMSMissing = {
+    testDecisionReturnsDecision(l13,m16,r => {})
+  }
+
+  def testIMSExists = {
+    testDecisionReturnsDecision(l13,l14,r => {}, data = createData(headers = Map("if-modified-since" -> "*")))
   }
 
 }
