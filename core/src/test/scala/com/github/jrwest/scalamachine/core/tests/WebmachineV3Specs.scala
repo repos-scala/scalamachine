@@ -132,7 +132,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     "If resource specifies encoding neg. short circuiting, G7 returned"             ! testAcceptEncodingExistsShortCircuit ^
     "If charset is provided by the resource, G7 returned, chosen set in response"   ! testAcceptEncodingExistsAcceptable ^
     "If charset is not provided, response w/ code 406 returned"                     ! testAcceptEncodingExistsNotAcceptable ^
-                                                                                    p^p^
+                                                                                    p^
   "G7 - Resource Exists?"                                                           ^
     "Sets the Vary header after conneg"                                             ^
       "vary header contains all values if all 3 headers were used in conneg"        ! testVaryAll ^
@@ -158,7 +158,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
                                                                                     p^
   "G11 - ETag in If-Match"                                                          ^
     "if ETag for resource is in list of etags in If-Match, H10 is returned"         ! testIfMatchHasEtag ^
-    "otherwise a response with code 412 is returned"                                ! testIfMatchersMissingEtag ^
+    "otherwise a response with code 412 is returned"                                ! testIfMatchMissingEtag ^
                                                                                     p^
   "H7 - If-Match Exists?"                                                           ^
     "if If-Match header exists, I7 is returned"                                     ! testH7IfMatchExists ^
@@ -180,7 +180,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
                                                                                     p^
   "I4 - Resource Moved Permanently?"                                                ^
     "checks resource not moved permanently returning P3 if its not"                 ^ testIsResourceMovedPermanently(i4,p3) ^
-                                                                                    p^
+                                                                                    p^p^
   "I7 - PUT?"                                                                       ^
     "if the HTTP Method is PUT, I4 is returned"                                     ! testIsPutTrue ^
     "otherwise K7 is returned"                                                      ! testIsPutFalse ^
@@ -200,12 +200,15 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
                                                                                     p^
   "K5 - Resource Moved Peramently?"                                                 ^
     "checks resource not moved permanently returning L5 if its not"                 ^ testIsResourceMovedPermanently(k5,l5) ^
-                                                                                    p^
+                                                                                    p^p^
   "K7 - Resource Previously Existed"                                                ^
     "if resource returns true, K5 is returned"                                      ! testResourceExistedPrevTrue ^
     "if resource returns false, L7 is returned"                                     ! testResourceExistedPrevFalse ^
+                                                                                    p^
+  "K13 - ETag in If-None-Match?"                                                    ^
+    "if resource's etag is in list of etags, J18 is returned"                       ! testIfNoneMatchHasEtag ^
+    "otherwise, L13 is returned"                                                    ! testIfNoneMatchMissingEtag ^
                                                                                     end
-
 
   // TODO: tests around halt result, error result, empty result, since that logic is no longer in flow runner where test used to be
   // TODO: change D5 to do real language negotiation like ruby webmachine implementation
@@ -867,7 +870,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     testDecisionReturnsDecision(g11,h10,_.generateEtag(any) answers mkAnswer(Some("1")), data = createData(headers = Map("if-match" -> "1,2")))
   }
 
-  def testIfMatchersMissingEtag = {
+  def testIfMatchMissingEtag = {
     testDecisionReturnsData(g11,_.generateEtag(any) answers mkAnswer(None), data = createData(headers = Map("if-match" -> "1"))) {
       _.statusCode must beEqualTo(412)
     }
@@ -986,6 +989,14 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
 
   def testResourceExistedPrevFalse = {
     testDecisionReturnsDecision(k7,l7, _.previouslyExisted(any) answers mkAnswer(false))
+  }
+
+  def testIfNoneMatchHasEtag = {
+    testDecisionReturnsDecision(k13,j18,_.generateEtag(any) answers mkAnswer(Some("1")), data = createData(headers = Map("if-none-match" -> "1,2")))
+  }
+
+  def testIfNoneMatchMissingEtag = {
+    testDecisionReturnsDecision(k13,l13,_.generateEtag(any) answers mkAnswer(None), data = createData(headers = Map("if-none-match" -> "1,2")))
   }
 
 }

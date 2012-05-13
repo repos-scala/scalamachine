@@ -387,11 +387,17 @@ trait WebmachineDecisions {
   /* Resourece Existed Previously ? */
   lazy val k7: Decision = Decision("v3k7", true, (r: Resource) => r.previouslyExisted(_: ReqRespData), k5, l7)
 
-  lazy val k13: Decision = new Decision {
-    def name: String = "v3k13"
-
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
-  }
+  lazy val k13: Decision =
+    Decision(
+      "v3k13",
+      (r: Resource) => r.generateEtag(_: ReqRespData),
+      (etag: Option[String], d: ReqRespData) => (for {
+        e <- optionT[FlowState](etag.point[FlowState])
+        matches <- optionT[FlowState]((requestHeadersL member "if-none-match"))
+      } yield matches.split(",").map(_.trim).toList.contains(e)) getOrElse false eval d,
+      j18,
+      l13
+    )
 
   lazy val l5: Decision = new Decision {
     def name: String = "v3l5"

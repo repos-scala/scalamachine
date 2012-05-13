@@ -105,6 +105,12 @@ object Decision {
                test: ResourceF[T],
                check: CheckF[T],
                onSuccess: Decision,
+               onFailure: Decision): Decision = apply(decisionName, test, check, Right(onSuccess), Right(onFailure))
+
+  def apply[T](decisionName: String,
+               test: ResourceF[T],
+               check: CheckF[T],
+               onSuccess: Decision,
                onFailure: HandlerF[T]): Decision = apply(decisionName, test, check, Right(onSuccess), Left(onFailure))
 
 }
