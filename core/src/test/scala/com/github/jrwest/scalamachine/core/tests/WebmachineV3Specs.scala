@@ -213,9 +213,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     "if temp. location returned, loc set in header, code 307 returned"              ! testResourceMovedTemporarily ^
     "otherwise, M5 returned"                                                        ! testResourceNotMovedTemporarily ^
                                                                                     p^
-  "L7 - POST?"                                                                      ^
-    "if request method is POST, M7 is returned"                                     ! testL7RequestIsPost ^
-    "if request method is not POST, response w/ code 404 returned"                  ! testL7RequestNotPost ^
+  "L7 - POST?"                                                                      ^ testIsPost(l7,m7,404) ^
                                                                                     p^
   "L13 - If-Modified-Since Exists?"                                                 ^
     "If header exists, L14 is returned"                                             ! testIMSExists ^
@@ -232,6 +230,16 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   "L17 - If-Modified-Since > Last-Modified"                                         ^
     "if resource has not been modified since the given time, code 304 is returned"  ! testLastModLessThanIMS ^
     "if resource has been modified since given time, M16 is returned"               ! testLastModGreaterThanIMS ^
+                                                                                    p^
+  "M5 - POST?"                                                                      ^ testIsPost(m5,n5,410) ^
+                                                                                    p^
+  "M7 - Can POST to missing resource?"                                              ^
+    "if resource returns true, N11 is returned"                                     ! testDecisionReturnsDecision(m7,n11,_.allowMissingPost(any) answers mkAnswer(true)) ^
+    "otherwise, response with code 404 is returned"                                 ! testDecisionReturnsData(m7,_.allowMissingPost(any) answers mkAnswer(false)) { _.statusCode must_== 404 } ^
+                                                                                    p^
+  "M16 - DELETE?"                                                                   ^
+    "if request method is DELETE, M20 returned"                                     ! testDecisionReturnsDecision(m16,m20,r => {}, data = createData(method = DELETE)) ^
+    "otherwise, N16 returned"                                                       ! testDecisionReturnsDecision(m16,n16,r => {}, data = createData(method = GET)) ^
                                                                                     end
 
   // TODO: tests around halt result, error result, empty result, since that logic is no longer in flow runner where test used to be
@@ -1036,13 +1044,18 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     testDecisionReturnsDecision(l5,m5,_.movedTemporarily(any) answers mkAnswer(None))
   }
 
-  def testL7RequestIsPost = {
-    testDecisionReturnsDecision(l7,m7,r => {},data = createData(method = POST))
+  def testIsPost(toTest: Decision,whenPost:Decision,whenNot:Int) =
+    "if request method is POST, " + whenPost.name + "  is returned"                   ! testRequestIsPost(toTest,whenPost) ^
+    "if request method is not POST, response w/ code " + whenNot + " returned"      ! testRequestNotPost(toTest,whenNot)
+
+
+  def testRequestIsPost(toTest: Decision, expected: Decision) = {
+    testDecisionReturnsDecision(toTest,expected,r => {},data = createData(method = POST))
   }
 
-  def testL7RequestNotPost = {
-    testDecisionReturnsData(l7,r => {},data = createData(method = GET)) {
-      _.statusCode must beEqualTo(404)
+  def testRequestNotPost(toTest: Decision, responseCode: Int) = {
+    testDecisionReturnsData(toTest,r => {},data = createData(method = GET)) {
+      _.statusCode must beEqualTo(responseCode)
     }
   }
 
@@ -1090,6 +1103,5 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
       _.statusCode must beEqualTo(304)
     }
   }
-
 
 }

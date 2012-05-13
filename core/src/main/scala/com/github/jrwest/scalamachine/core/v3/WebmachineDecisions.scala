@@ -439,17 +439,46 @@ trait WebmachineDecisions {
   lazy val m5: Decision = new Decision {
     def name: String = "v3m5"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+    protected def decide(resource: Resource): FlowState[Res[Decision]] =
+      testMethod(POST, result(n5), halt(410))
   }
 
-  lazy val m7: Decision = new Decision {
-    def name: String = "v3m7"
-
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
-  }
+  lazy val m7: Decision =
+    Decision(
+      "v3m7",
+      true,
+      (r: Resource) => r.allowMissingPost(_: ReqRespData),
+      n11,
+      404
+    )
 
   lazy val m16: Decision = new Decision {
     def name: String = "v3m16"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] =
+      testMethod(DELETE, result(m20), result(n16))
+  }
+
+  lazy val m20: Decision = new Decision {
+    def name: String = "v3m20"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+  }
+
+  lazy val n5: Decision = new Decision {
+    def name: String = "v3n5"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+  }
+
+  lazy val n11: Decision = new Decision {
+    def name: String = "v3n11"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+  }
+
+  lazy val n16: Decision = new Decision {
+    def name: String = "v3n16"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }
