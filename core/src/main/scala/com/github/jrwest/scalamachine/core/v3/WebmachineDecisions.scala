@@ -418,6 +418,7 @@ trait WebmachineDecisions {
       validateDate("if-modified-since", result(l15), result(m16))
   }
 
+  /* If-Modified-Since in Future? */
   lazy val l15: Decision = new Decision {
     def name: String = "v3l15"
 
@@ -429,6 +430,7 @@ trait WebmachineDecisions {
     } yield if (inFuture) result(m16) else result(l17)
   }
 
+  /* Last Modified > If-Modified-Since */
   lazy val l17: Decision = new Decision {
     def name: String = "v3l17"
 
@@ -436,6 +438,7 @@ trait WebmachineDecisions {
       testDate(resource, "if-modified-since", result(m16), halt(304)){ _ > _ }
   }
 
+  /* POST? */
   lazy val m5: Decision = new Decision {
     def name: String = "v3m5"
 
@@ -443,6 +446,7 @@ trait WebmachineDecisions {
       testMethod(POST, result(n5), halt(410))
   }
 
+  /* Allow Missing Post? */
   lazy val m7: Decision =
     Decision(
       "v3m7",
@@ -452,6 +456,7 @@ trait WebmachineDecisions {
       404
     )
 
+  /* DELETE? */
   lazy val m16: Decision = new Decision {
     def name: String = "v3m16"
 
@@ -459,17 +464,32 @@ trait WebmachineDecisions {
       testMethod(DELETE, result(m20), result(n16))
   }
 
-  lazy val m20: Decision = new Decision {
-    def name: String = "v3m20"
+  lazy val m20: Decision =
+    Decision(
+      "v3m20",
+      true,
+      (r: Resource) => r.deleteResource(_: ReqRespData),
+      m20b,
+      500
+    )
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
-  }
+  lazy val m20b: Decision =
+    Decision(
+      "v3m20b",
+      true,
+      (r: Resource) => r.deleteCompleted(_: ReqRespData),
+      o20,
+      202
+    )
 
-  lazy val n5: Decision = new Decision {
-    def name: String = "v3n5"
-
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
-  }
+  lazy val n5: Decision =
+    Decision(
+      "v3n5",
+      true,
+      (r: Resource) => r.allowMissingPost(_: ReqRespData),
+      n11,
+      410
+    )
 
   lazy val n11: Decision = new Decision {
     def name: String = "v3n11"
@@ -479,6 +499,12 @@ trait WebmachineDecisions {
 
   lazy val n16: Decision = new Decision {
     def name: String = "v3n16"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+  }
+
+  lazy val o20: Decision = new Decision {
+    def name: String = "v3o20"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }

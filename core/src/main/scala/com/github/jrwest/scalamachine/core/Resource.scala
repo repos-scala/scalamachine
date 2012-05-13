@@ -58,6 +58,10 @@ trait Resource {
 
   def allowMissingPost(data: ReqRespData): (Res[Boolean], ReqRespData) = (default(false), data)
 
+  def deleteResource(data: ReqRespData): (Res[Boolean], ReqRespData) = (default(false), data)
+
+  def deleteCompleted(data: ReqRespData): (Res[Boolean], ReqRespData) = (default(true), data)
+
   private def default[A](value: A): Res[A] = ValueRes(value)
 
   private val defaultResponse: ReqRespData => (Res[String], ReqRespData) = (default("hello, scalamachine"), _)

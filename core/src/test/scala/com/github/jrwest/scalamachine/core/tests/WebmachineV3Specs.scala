@@ -240,6 +240,18 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   "M16 - DELETE?"                                                                   ^
     "if request method is DELETE, M20 returned"                                     ! testDecisionReturnsDecision(m16,m20,r => {}, data = createData(method = DELETE)) ^
     "otherwise, N16 returned"                                                       ! testDecisionReturnsDecision(m16,n16,r => {}, data = createData(method = GET)) ^
+                                                                                    p^
+  "M20 - Call Resource.deleteResource"                                              ^
+    "if true is returned, M20b is returned"                                         ! testDecisionReturnsDecision(m20,m20b,_.deleteResource(any) answers mkAnswer(true)) ^
+    "if false is returned, response with code 500 is returned"                      ! testDecisionReturnsData(m20,_.deleteResource(any) answers mkAnswer(false)) { _.statusCode must_== 500 } ^
+                                                                                    p^
+  "M20b - Delete Enacted? (Resource.deleteCompleted)"                               ^
+    "if true, O20 is returned"                                                      ! testDecisionReturnsDecision(m20b,o20,_.deleteCompleted(any) answers mkAnswer(true)) ^
+    "if false, response with code 202 is returned"                                  ! testDecisionReturnsData(m20b,_.deleteCompleted(any) answers mkAnswer(false)) { _.statusCode must_== 202 } ^
+                                                                                    p^
+  "N5 - Can POST to missing resource?"                                              ^
+    "if true, N11 returned"                                                         ! testDecisionReturnsDecision(n5,n11,_.allowMissingPost(any) answers mkAnswer(true)) ^
+    "otherwise, response with code 410 returned"                                    ! testDecisionReturnsData(n5,_.allowMissingPost(any) answers mkAnswer(false)) { _.statusCode must_== 410 } ^
                                                                                     end
 
   // TODO: tests around halt result, error result, empty result, since that logic is no longer in flow runner where test used to be
