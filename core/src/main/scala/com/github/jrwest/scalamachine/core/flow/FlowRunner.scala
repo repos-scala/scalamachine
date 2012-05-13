@@ -18,6 +18,7 @@ trait FlowRunnerBase {
 
 class FlowRunner extends FlowRunnerBase {
 
+  // TODO: "finish the response" https://github.com/basho/webmachine/blob/master/src/webmachine_decision_core.erl#L65-99
   def run(decision: Decision, resource: Resource, data: ReqRespData): ReqRespData = {
     // loop is here so stacked traits can tie into run using it as a entry and exit point for
     // the entire flow

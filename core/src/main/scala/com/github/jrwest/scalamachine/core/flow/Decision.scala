@@ -15,6 +15,7 @@ trait Decision {
       res <- decide(resource)
       _ <- res match {
         case HaltRes(code) => statusCodeL := code
+        // TODO: set response body to error
         case ErrorRes(_) => statusCodeL := 500
         case _ => statusCodeL.st
       }
