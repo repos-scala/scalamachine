@@ -465,7 +465,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
 
   def testMissingAcceptHeader = {
     val ctypes: ContentTypesProvided =
-      (ContentType("text/html"), (d: ReqRespData) => ((ValueRes(""),d))) :: (ContentType("text/plain"), (d: ReqRespData) => ((ValueRes(""), d))) ::  Nil
+      (ContentType("text/html"), (d: ReqRespData) => ((ValueRes("".getBytes),d))) :: (ContentType("text/plain"), (d: ReqRespData) => ((ValueRes("".getBytes), d))) ::  Nil
 
     testDecisionReturnsDecisionAndData(c3,d4,_.contentTypesProvided(any) answers mkAnswer(ctypes)) {
       _.metadata.contentType must beSome.like {
@@ -489,7 +489,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   }
 
   def testMediaTypeNotProvided = {
-    val ctypes: ContentTypesProvided = (ContentType("text/html"), (d: ReqRespData) => (ValueRes(""), d)) :: Nil
+    val ctypes: ContentTypesProvided = (ContentType("text/html"), (d: ReqRespData) => (ValueRes("".getBytes), d)) :: Nil
 
     testDecisionReturnsData(c4,_.contentTypesProvided(any) answers { d => ((ValueRes(ctypes),d.asInstanceOf[ReqRespData])) }, data = createData(headers = Map("accept" -> "text/plain"))) {
       _.statusCode must beEqualTo(406)
@@ -497,7 +497,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   }
 
   def testMediaTypeProvided = {
-    val ctypes: ContentTypesProvided = (ContentType("text/html"), (d: ReqRespData) => (ValueRes(""), d)) :: Nil
+    val ctypes: ContentTypesProvided = (ContentType("text/html"), (d: ReqRespData) => (ValueRes("".getBytes), d)) :: Nil
 
     testDecisionReturnsDecisionAndData(c4,d4,_.contentTypesProvided(any) answers mkAnswer(ctypes), data = createData(headers = Map("accept" -> "text/html"))) {
       _.metadata.contentType must beSome.like { 
@@ -529,12 +529,12 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   }
 
   def testAcceptMissingStarAcceptable = {
-    val provided: CharsetsProvided = Some(("abc", identity[String](_)) :: Nil)
+    val provided: CharsetsProvided = Some(("abc", identity[Array[Byte]](_)) :: Nil)
     testDecisionReturnsDecision(e5,f6,_.charsetsProvided(any) answers mkAnswer(provided))
   }
 
   def testAcceptMissingStarOkCharsetChosen = {
-    val provided: CharsetsProvided = Some(("abc", identity[String](_)) :: Nil)
+    val provided: CharsetsProvided = Some(("abc", identity[Array[Byte]](_)) :: Nil)
     testDecisionReturnsDecisionAndData(e5,f6,_.charsetsProvided(any) answers mkAnswer(provided)) {
       _.metadata.chosenCharset must beSome.like { case c => c must beEqualTo("abc") }
     }
@@ -559,7 +559,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
 
   def testAcceptExistsAcceptableSetInMeta = {
     val charset = "ISO-8859-1"
-    val provided: CharsetsProvided = Some((charset, identity[String](_)) :: Nil)
+    val provided: CharsetsProvided = Some((charset, identity[Array[Byte]](_)) :: Nil)
     testDecisionReturnsDecisionAndData(e6, f6, _.charsetsProvided(any) answers mkAnswer(provided), data = createData(headers = Map("accept-charset" -> charset))) {
       _.metadata.chosenCharset must beSome.which { _ == charset }
     }
@@ -618,7 +618,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
 
   def testAcceptEncodingMissingDefaultAcceptable = {
     val encoding = "some-encoding"
-    val provided: EncodingsProvided = Some((encoding, identity[String](_)) :: Nil)
+    val provided: EncodingsProvided = Some((encoding, identity[Array[Byte]](_)) :: Nil)
     testDecisionReturnsDecisionAndData(f6,g7,_.encodingsProvided(any) answers mkAnswer(provided)) {
       _.responseHeader("content-encoding") must beSome.like {
         case enc => enc must beEqualTo(encoding)
@@ -640,7 +640,7 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
 
   def testAcceptEncodingExistsAcceptable = {
     val encoding = "gzip"
-    val provided: EncodingsProvided = Some((encoding, identity[String](_)) :: Nil)
+    val provided: EncodingsProvided = Some((encoding, identity[Array[Byte]](_)) :: Nil)
     testDecisionReturnsDecisionAndData(f7,g7,_.encodingsProvided(any) answers mkAnswer(provided), data = createData(headers = Map("accept-encoding" -> encoding))) {
       _.responseHeader("content-encoding") must beSome.like {
         case enc => enc must beEqualTo(encoding)
@@ -657,9 +657,13 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
 
   def testVaryAll = {
     import Res._
-    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => (result(""), d)) :: (ContentType("application/json"), (d: ReqRespData) => (result(""), d)) :: Nil
-    val charsets: CharsetsProvided = Some(("charset1", identity[String](_)) :: ("charset2", identity[String](_)) :: Nil)
-    val encodings: EncodingsProvided = Some(("identity", identity[String](_)) :: ("gzip", identity[String](_)) :: Nil)
+    val ctypes: ContentTypesProvided =
+      (ContentType("text/plain"), (d: ReqRespData) => (result("".getBytes), d)) ::
+      (ContentType("application/json"), (d: ReqRespData) => (result("".getBytes), d)) ::
+        Nil
+
+    val charsets: CharsetsProvided = Some(("charset1", identity[Array[Byte]](_)) :: ("charset2", identity[Array[Byte]](_)) :: Nil)
+    val encodings: EncodingsProvided = Some(("identity", identity[Array[Byte]](_)) :: ("gzip", identity[Array[Byte]](_)) :: Nil)
     testDecisionResultHasData(
       g7,
       resource => {
@@ -679,8 +683,8 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   def testVaryContentTypesProvided0 = {
     import Res._
     val ctypes: ContentTypesProvided = Nil
-    val charsets: CharsetsProvided = Some(("charset1", identity[String](_)) :: ("charset2", identity[String](_)) :: Nil)
-    val encodings: EncodingsProvided = Some(("identity", identity[String](_)) :: ("gzip", identity[String](_)) :: Nil)
+    val charsets: CharsetsProvided = Some(("charset1", identity[Array[Byte]](_)) :: ("charset2", identity[Array[Byte]](_)) :: Nil)
+    val encodings: EncodingsProvided = Some(("identity", identity[Array[Byte]](_)) :: ("gzip", identity[Array[Byte]](_)) :: Nil)
     testDecisionResultHasData(
       g7,
       resource => {
@@ -699,9 +703,9 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
 
   def testVaryContentTypesProvided1 = {
     import Res._
-    val ctypes: ContentTypesProvided = (ContentType("application/json"), (d: ReqRespData) => (result(""), d)) :: Nil
-    val charsets: CharsetsProvided = Some(("charset1", identity[String](_)) :: ("charset2", identity[String](_)) :: Nil)
-    val encodings: EncodingsProvided = Some(("identity", identity[String](_)) :: ("gzip", identity[String](_)) :: Nil)
+    val ctypes: ContentTypesProvided = (ContentType("application/json"), (d: ReqRespData) => (result("".getBytes), d)) :: Nil
+    val charsets: CharsetsProvided = Some(("charset1", identity[Array[Byte]](_)) :: ("charset2", identity[Array[Byte]](_)) :: Nil)
+    val encodings: EncodingsProvided = Some(("identity", identity[Array[Byte]](_)) :: ("gzip", identity[Array[Byte]](_)) :: Nil)
     testDecisionResultHasData(
       g7,
       resource => {
@@ -720,9 +724,13 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
 
   def testVaryCharsetsShortCircuit = {
     import Res._
-    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => (result(""), d)) :: (ContentType("application/json"), (d: ReqRespData) => (result(""), d)) :: Nil
+    val ctypes: ContentTypesProvided =
+      (ContentType("text/plain"), (d: ReqRespData) => (result("".getBytes), d)) ::
+        (ContentType("application/json"), (d: ReqRespData) => (result("".getBytes), d)) ::
+        Nil
+
     val charsets: CharsetsProvided = None
-    val encodings: EncodingsProvided = Some(("identity", identity[String](_)) :: ("gzip", identity[String](_)) :: Nil)
+    val encodings: EncodingsProvided = Some(("identity", identity[Array[Byte]](_)) :: ("gzip", identity[Array[Byte]](_)) :: Nil)
     testDecisionResultHasData(
       g7,
       resource => {
@@ -741,9 +749,13 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
 
   def testVaryCharsetsProvided0 = {
     import Res._
-    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => (result(""), d)) :: (ContentType("application/json"), (d: ReqRespData) => (result(""), d)) :: Nil
+    val ctypes: ContentTypesProvided =
+      (ContentType("text/plain"), (d: ReqRespData) => (result("".getBytes), d)) ::
+        (ContentType("application/json"), (d: ReqRespData) => (result("".getBytes), d)) ::
+        Nil
+
     val charsets: CharsetsProvided = Some(Nil)
-    val encodings: EncodingsProvided = Some(("identity", identity[String](_)) :: ("gzip", identity[String](_)) :: Nil)
+    val encodings: EncodingsProvided = Some(("identity", identity[Array[Byte]](_)) :: ("gzip", identity[Array[Byte]](_)) :: Nil)
     testDecisionResultHasData(
       g7,
       resource => {
@@ -762,9 +774,13 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
 
   def testVaryCharsetsProvided1 = {
     import Res._
-    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => (result(""), d)) :: (ContentType("application/json"), (d: ReqRespData) => (result(""), d)) :: Nil
-    val charsets: CharsetsProvided = Some(("charset2", identity[String](_)) :: Nil)
-    val encodings: EncodingsProvided = Some(("identity", identity[String](_)) :: ("gzip", identity[String](_)) :: Nil)
+    val ctypes: ContentTypesProvided =
+      (ContentType("text/plain"), (d: ReqRespData) => (result("".getBytes), d)) ::
+        (ContentType("application/json"), (d: ReqRespData) => (result("".getBytes), d)) ::
+        Nil
+
+    val charsets: CharsetsProvided = Some(("charset2", identity[Array[Byte]](_)) :: Nil)
+    val encodings: EncodingsProvided = Some(("identity", identity[Array[Byte]](_)) :: ("gzip", identity[Array[Byte]](_)) :: Nil)
     testDecisionResultHasData(
       g7,
       resource => {
@@ -783,8 +799,12 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
 
   def testVaryEncodingsShortCircuit = {
     import Res._
-    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => (result(""), d)) :: (ContentType("application/json"), (d: ReqRespData) => (result(""), d)) :: Nil
-    val charsets: CharsetsProvided = Some(("charset1", identity[String](_)) :: ("charset2", identity[String](_)) :: Nil)
+    val ctypes: ContentTypesProvided =
+      (ContentType("text/plain"), (d: ReqRespData) => (result("".getBytes), d)) ::
+        (ContentType("application/json"), (d: ReqRespData) => (result("".getBytes), d)) ::
+        Nil
+
+    val charsets: CharsetsProvided = Some(("charset1", identity[Array[Byte]](_)) :: ("charset2", identity[Array[Byte]](_)) :: Nil)
     val encodings: EncodingsProvided = None
     testDecisionResultHasData(
       g7,
@@ -805,8 +825,12 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
 
   def testVaryEncodingsProvided0 = {
     import Res._
-    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => (result(""), d)) :: (ContentType("application/json"), (d: ReqRespData) => (result(""), d)) :: Nil
-    val charsets: CharsetsProvided = Some(("charset1", identity[String](_)) :: ("charset2", identity[String](_)) :: Nil)
+    val ctypes: ContentTypesProvided =
+      (ContentType("text/plain"), (d: ReqRespData) => (result("".getBytes), d)) ::
+        (ContentType("application/json"), (d: ReqRespData) => (result("".getBytes), d)) ::
+        Nil
+
+    val charsets: CharsetsProvided = Some(("charset1", identity[Array[Byte]](_)) :: ("charset2", identity[Array[Byte]](_)) :: Nil)
     val encodings: EncodingsProvided = Some(Nil)
     testDecisionResultHasData(
       g7,
@@ -826,9 +850,13 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
 
   def testVaryEncodingsProvided1 = {
     import Res._
-    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => (result(""), d)) :: (ContentType("application/json"), (d: ReqRespData) => (result(""), d)) :: Nil
-    val charsets: CharsetsProvided = Some(("charset1", identity[String](_)) :: ("charset2", identity[String](_)) :: Nil)
-    val encodings: EncodingsProvided = Some(("gzip", identity[String](_)) :: Nil)
+    val ctypes: ContentTypesProvided =
+      (ContentType("text/plain"), (d: ReqRespData) => (result("".getBytes), d)) ::
+        (ContentType("application/json"), (d: ReqRespData) => (result("".getBytes), d)) ::
+        Nil
+
+    val charsets: CharsetsProvided = Some(("charset1", identity[Array[Byte]](_)) :: ("charset2", identity[Array[Byte]](_)) :: Nil)
+    val encodings: EncodingsProvided = Some(("gzip", identity[Array[Byte]](_)) :: Nil)
     testDecisionResultHasData(
       g7,
       resource => {
@@ -847,9 +875,13 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
 
   def testVaryResourceAdditional = {
     import Res._
-    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => (result(""), d)) :: (ContentType("application/json"), (d: ReqRespData) => (result(""), d)) :: Nil
-    val charsets: CharsetsProvided = Some(("charset1", identity[String](_)) :: ("charset2", identity[String](_)) :: Nil)
-    val encodings: EncodingsProvided = Some(("identity", identity[String](_)) :: ("gzip", identity[String](_)) :: Nil)
+    val ctypes: ContentTypesProvided =
+      (ContentType("text/plain"), (d: ReqRespData) => (result("".getBytes), d)) ::
+        (ContentType("application/json"), (d: ReqRespData) => (result("".getBytes), d)) ::
+        Nil
+
+    val charsets: CharsetsProvided = Some(("charset1", identity[Array[Byte]](_)) :: ("charset2", identity[Array[Byte]](_)) :: Nil)
+    val encodings: EncodingsProvided = Some(("identity", identity[Array[Byte]](_)) :: ("gzip", identity[Array[Byte]](_)) :: Nil)
     testDecisionResultHasData(
       g7,
       resource => {

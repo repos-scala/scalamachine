@@ -40,7 +40,7 @@ trait Resource {
 
   def charsetsProvided(data: ReqRespData): (Res[CharsetsProvided],ReqRespData) = (default(None), data)
 
-  def encodingsProvided(data: ReqRespData): (Res[CharsetsProvided],ReqRespData) = (default(Some(("identity", identity[String](_)) :: Nil)), data)
+  def encodingsProvided(data: ReqRespData): (Res[CharsetsProvided],ReqRespData) = (default(Some(("identity", identity[Array[Byte]](_)) :: Nil)), data)
 
   def resourceExists(data: ReqRespData): (Res[Boolean],ReqRespData) = (default(true), data)
 
@@ -64,14 +64,14 @@ trait Resource {
 
   private def default[A](value: A): Res[A] = ValueRes(value)
 
-  private val defaultResponse: ReqRespData => (Res[String], ReqRespData) = (default("hello, scalamachine"), _)
+  private val defaultResponse: ReqRespData => (Res[Array[Byte]], ReqRespData) = (default("hello, scalamachine".getBytes), _)
 
 }
 
 object Resource {
-  type ContentTypesProvided = List[(ContentType, ReqRespData => (Res[String],ReqRespData))]
+  type ContentTypesProvided = List[(ContentType, ReqRespData => (Res[Array[Byte]],ReqRespData))]
   // TODO: the encoding functions may not be strings, it depends on the final type of the response body once chosen
-  type CharsetsProvided = Option[List[(String,String => String)]] // None value specifies charset negotiation short-circuiting
-  type EncodingsProvided = Option[List[(String,String => String)]] // None values specifies encoding negotiation short-circuiting
+  type CharsetsProvided = Option[List[(String,Array[Byte] => Array[Byte])]] // None value specifies charset negotiation short-circuiting
+  type EncodingsProvided = Option[List[(String,Array[Byte] => Array[Byte])]] // None values specifies encoding negotiation short-circuiting
 }
 
