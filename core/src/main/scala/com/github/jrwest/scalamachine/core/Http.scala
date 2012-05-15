@@ -43,7 +43,7 @@ object HTTPMethod {
   // this is under assumption that wherever scalamachine is embedded
   // handles unknown HTTP methods properly, thinking about changing to an unapply
   // and letting implementations decide on how to handle the option (throw/fold/fail/etc)
-  def fromString(methodStr: String): HTTPMethod = methodStr.toLowerCase match {
+  def fromString(methodStr: String): HTTPMethod = methodStr.toUpperCase match {
     case "OPTIONS" => OPTIONS
     case "HEAD" => HEAD
     case "TRACE" => TRACE
