@@ -70,6 +70,8 @@ trait Resource {
 
   def contentTypesAccepted(data: ReqRespData): (Res[ContentTypesAccepted], ReqRespData) = (default(Nil), data)
 
+  def isConflict(data: ReqRespData): (Res[Boolean], ReqRespData) = (default(false), data)
+
   private def default[A](value: A): Res[A] = ValueRes(value)
 
   private val defaultResponse: ReqRespData => (Res[Array[Byte]], ReqRespData) = (default("hello, scalamachine".getBytes), _)

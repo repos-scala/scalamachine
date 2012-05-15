@@ -274,14 +274,20 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     "Determine Redirect"                                                            ^
       "If ReqRespData.doRedirect returns true"                                      ^
         "if Location header is set, response with code 303 returned"                ! testDoRedirect ^
-      "If ReqRespData.doRedurect returns false, P11 returned"                       ! testNoRedirect ^
+      "If ReqRespData.doRedirect returns false, P11 returned"                       ! testNoRedirect ^
                                                                                     p^p^
   "N16 - POST?"                                                                     ^
     "if request is POST, N11 returned"                                              ! testDecisionReturnsDecision(n16,n11,r => {}, data = createData(method = POST)) ^
     "otherwise, O16 returned"                                                       ! testDecisionReturnsDecision(n16,o16,r => {}, data = createData(method = GET)) ^
                                                                                     p^
   "O14 - Conflict?"                                                                 ^
-                                                                                    p^
+    "if Resource.isConflict returns true, response w/ code 409 returned"            ! testDecisionReturnsData(o14,_.isConflict(any).answers(mkAnswer(true))) { _.statusCode must beEqualTo(409) } ^
+    "otherwise"                                                                     ^
+      "if request's ctype is accepted and corresponding func. returns true"         ^
+        "if body is set it is charsetted and encoded, P11 returned"                 ! testO14ContentTypeAcceptedReturnsTrue ^p^
+      "if request's ctype is accepted but func. returns false, 500 returned"        ! testO14ContentTypeAcceptedReturnsFalse ^
+      "if reques's ctype not accepted 415 returned"                                 ! testO14ContentTypeNotAccepted ^
+                                                                                    p^p^
   "O16 - PUT?"                                                                      ^
     "if request is PUT, O14 returned"                                               ! testDecisionReturnsDecision(o16,o14,r => {}, data = createData(method = PUT)) ^
     "otherwise, O18 returned"                                                       ! testDecisionReturnsDecision(o16,o18,r => {}, data = createData(method = GET)) ^
@@ -1420,6 +1426,60 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
         r.processPost(any) answers mkAnswer(false)
       }
     ) { _.statusCode must beEqualTo(500) }
+  }
+
+  def testO14ContentTypeAcceptedReturnsTrue = {
+    val setBody = "body1"
+    val encodingBody = "body2"
+    val charsetBody = "body3"
+    val encodings: EncodingsProvided = Some(("enc1", (s: Array[Byte]) => s ++ encodingBody.getBytes) :: ("enc2", identity[Array[Byte]](_)) :: Nil)
+    val charsets: EncodingsProvided = Some(("ch1", (s: Array[Byte]) => s ++ charsetBody.getBytes) :: ("ch2", identity[Array[Byte]](_)) :: Nil)
+    val contentTypesAccepted: ContentTypesAccepted =
+      (ContentType("text/plain"), (d: ReqRespData) => (ValueRes(true), d.copy(responseBody = setBody.getBytes))) ::
+        (ContentType("text/html"), (d: ReqRespData) => (ValueRes(false), d)) ::
+        Nil
+
+    testDecisionReturnsDecisionAndData(
+      o14,
+      p11,
+      r => {
+        r.isConflict(any) answers mkAnswer(false)
+        r.contentTypesAccepted(any) answers mkAnswer(contentTypesAccepted)
+        r.encodingsProvided(any) answers mkAnswer(encodings)
+        r.charsetsProvided(any) answers mkAnswer(charsets)
+      },
+      data = createData(metadata = Metadata(chosenCharset = Some("ch1"), chosenEncoding = Some("enc1")), headers = Map("content-type" -> "text/plain"))
+    ) {
+      _.responseBody.fold(notEmpty = new String(_), empty = "") must beEqualTo(setBody + charsetBody + encodingBody)
+    }
+  }
+
+  def testO14ContentTypeAcceptedReturnsFalse = {
+    val contentTypesAccepted: ContentTypesAccepted =
+      (ContentType("text/html"), (d: ReqRespData) => (ValueRes(false), d)) ::
+        Nil
+
+    testDecisionReturnsData(
+      o14,
+      r => {
+        r.isConflict(any) answers mkAnswer(false)
+        r.contentTypesAccepted(any) answers mkAnswer(contentTypesAccepted)
+      },
+      data = createData(headers = Map("content-type" -> "text/html"))
+    ) { _.statusCode must beEqualTo(500) }
+
+  }
+
+  def testO14ContentTypeNotAccepted = {
+    testDecisionReturnsData(
+      o14,
+      r => {
+        r.isConflict(any) answers mkAnswer(false)
+        r.contentTypesAccepted(any) answers mkAnswer(Nil)
+      },
+      data = createData(headers = Map("content-type" -> "text/html"))
+    ) { _.statusCode must beEqualTo(415) }
+
   }
 
 }

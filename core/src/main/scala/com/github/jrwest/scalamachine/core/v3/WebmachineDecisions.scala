@@ -497,34 +497,11 @@ trait WebmachineDecisions {
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = {
 
-      def encodeBody(body: Array[Byte]): FlowState[HTTPBody] = for {
-        mbCharset <- metadataL <=< chosenCharsetL
-        mbProvidedCh <- State((d: ReqRespData) => resource.charsetsProvided(d)).map(_.getOrElse(None))
-        mbEncoding <- metadataL <=< chosenEncodingL
-        mbProvidedEnc <- State((d: ReqRespData) => resource.encodingsProvided(d)).map(_.getOrElse(None))
-        charsetter <- (((mbProvidedCh |@| mbCharset) {
-          (p,c)  => p.find(_._1 === c)
-        }).join.fold(some = _._2, none = identity[Array[Byte]](_))).point[FlowState]
-        encoder <- (((mbProvidedEnc |@| mbEncoding) {
-          (p,e) => p.find(_._1 === e)
-        }).join.fold(some = _._2, none = identity[Array[Byte]](_))).point[FlowState]
-      } yield encoder(charsetter(body))
-
-      val encodeBodyIfSet: FlowState[Unit] = for {
-        body <- respBodyL
-        newBody <- body.fold(notEmpty = encodeBody(_), empty = body.point[FlowState])
-        _ <- respBodyL := newBody
-      } yield ()
-
       val processPost: ResT[FlowState,Unit] = for {
         processedOk <- resT[FlowState](State((d: ReqRespData) => resource.processPost(d)))
-        _ <- if (processedOk) resT[FlowState](encodeBodyIfSet.map(_.point[Res]))
+        _ <- if (processedOk) resT[FlowState](encodeBodyIfSet(resource).map(_.point[Res]))
              else resT[FlowState](error[Decision]("failed to process post").point[FlowState])
       } yield ()
-
-      val reqCType: FlowState[ContentType] = for {
-        mbContentType <- requestHeadersL member "content-type"
-      } yield mbContentType.map(Util.acceptToMediaTypes(_).headOption.map(_.mediaRange)).join | ContentType("application/octet-stream")
 
       val createPath = for {
         mbCreatePath <- resT[FlowState](State((d: ReqRespData) => resource.createPath(d)))
@@ -542,18 +519,8 @@ trait WebmachineDecisions {
             | ((responseHeadersL member "location") := Some(baseUri + createPath)).map(_.point[Res])
         )
 
-        // get request content type
-        contentType <- resT[FlowState](reqCType.map(_.point[Res]))
+        _ <- acceptContent(resource)
 
-        // lookup content types accepted and find body prod function
-        acceptedList <- resT[FlowState](State((d: ReqRespData) => resource.contentTypesAccepted(d)))
-        mbAcceptableF <- resT[FlowState](acceptedList.find(_._1 == contentType).map(_._2).point[Res].point[FlowState])
-
-        // if found, run it, call encodeBodyIfSet
-        // if not found, return halt 415
-        didSucceed <- resT[FlowState](State((d: ReqRespData) => mbAcceptableF.map(_(d)).getOrElse((halt(415),d))))
-        // todo: need a real error message here
-        _ <- if (didSucceed) resT[FlowState](encodeBodyIfSet.map(_.point[Res])) else resT[FlowState](halt[Unit](500).point[FlowState])
       } yield ()
 
       val act = for {
@@ -581,7 +548,16 @@ trait WebmachineDecisions {
   lazy val o14: Decision = new Decision {
     def name: String = "v3o14"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = {
+      val act = for {
+        isConflict <- resT[FlowState](State((d: ReqRespData) => resource.isConflict(d)))
+        _ <-
+          if (isConflict) resT[FlowState](halt[Boolean](409).point[FlowState])
+          else acceptContent(resource)
+      } yield p11
+
+      act.run
+    }
   }
 
   lazy val o16: Decision = new Decision {
@@ -692,4 +668,45 @@ trait WebmachineDecisions {
 
     act.run
   }
+
+  def acceptContent(resource: Resource): ResT[FlowState,Boolean] = {
+    val reqCType: FlowState[ContentType] = for {
+      mbContentType <- requestHeadersL member "content-type"
+    } yield mbContentType.map(Util.acceptToMediaTypes(_).headOption.map(_.mediaRange)).join | ContentType("application/octet-stream")
+
+    for {
+      // get request content type
+      contentType <- resT[FlowState](reqCType.map(_.point[Res]))
+
+      // lookup content types accepted and find body prod function
+      acceptedList <- resT[FlowState](State((d: ReqRespData) => resource.contentTypesAccepted(d)))
+      mbAcceptableF <- resT[FlowState](acceptedList.find(_._1 == contentType).map(_._2).point[Res].point[FlowState])
+
+      // if found, run it, call encodeBodyIfSet if it succeeds, 500 otherwise
+      // if not found, return halt 415
+      didSucceed <- resT[FlowState](State((d: ReqRespData) => mbAcceptableF.map(_(d)).getOrElse((halt(415),d))))
+      _ <-
+        if (didSucceed) resT[FlowState](encodeBodyIfSet(resource).map(_.point[Res]))
+        else resT[FlowState](halt[HTTPBody](500).point[FlowState]) // TODO: real error message
+    } yield didSucceed
+  }
+
+  def encodeBody(resource: Resource, body: Array[Byte]): FlowState[HTTPBody] = for {
+    mbCharset <- metadataL <=< chosenCharsetL
+    mbProvidedCh <- State((d: ReqRespData) => resource.charsetsProvided(d)).map(_.getOrElse(None))
+    mbEncoding <- metadataL <=< chosenEncodingL
+    mbProvidedEnc <- State((d: ReqRespData) => resource.encodingsProvided(d)).map(_.getOrElse(None))
+    charsetter <- (((mbProvidedCh |@| mbCharset) {
+      (p,c)  => p.find(_._1 === c)
+    }).join.fold(some = _._2, none = identity[Array[Byte]](_))).point[FlowState]
+    encoder <- (((mbProvidedEnc |@| mbEncoding) {
+      (p,e) => p.find(_._1 === e)
+    }).join.fold(some = _._2, none = identity[Array[Byte]](_))).point[FlowState]
+  } yield encoder(charsetter(body))
+
+  def encodeBodyIfSet(resource: Resource): FlowState[Unit] = for {
+    body <- respBodyL
+    newBody <- body.fold(notEmpty = encodeBody(resource, _), empty = body.point[FlowState])
+    _ <- respBodyL := newBody
+  } yield ()
 }
