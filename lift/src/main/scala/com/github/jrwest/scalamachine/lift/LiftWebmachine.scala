@@ -12,13 +12,19 @@ trait LiftWebmachine {
 
   def path(req: Req): List[String] = req.path.partPath
 
-  def wrap(res: => Box[LiftResponse]): () => Box[LiftResponse] = () => res  
+  def wrap(res: => Box[LiftResponse]): () => Box[LiftResponse] = () => res
 
-  def toData(req: Req) = ReqRespData(method = parseMethod(req.request.method), pathParts = path(req)) // TODO: complete conversion once ReqRespData is filled out
+  // TODO: complete conversion once ReqRespData is filled out
+  def toData(req: Req) = {
+    ReqRespData(
+      method = parseMethod(req.request.method),
+      pathParts = path(req),
+      requestHdrs = req.headers.toMap)
+  } // TODO: correctly handle duplicate headers once core does
 
   def fromData(data: ReqRespData): Box[LiftResponse] = Full(InMemoryResponse(
-    data = Array(), // FIXME
-    headers = Nil, // FIXME
+    data = data.responseBody.fold(notEmpty = identity(_), empty = Array()),
+    headers = data.responseHeaders.toList, // TODO: correctly handle duplicate headers once core does
     cookies = Nil,
     code = data.statusCode
   ))

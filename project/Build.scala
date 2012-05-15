@@ -11,6 +11,7 @@ object BuildSettings {
     organization := org,
     version := vsn,
     scalaVersion := scalaVsn,
+    resolvers += ("twitter repository" at "http://maven.twttr.com"),
     shellPrompt <<= ShellPrompt.prompt,
     scalacOptions ++= Seq("-deprecation", "-unchecked"),
     testOptions in Test += Tests.Argument("html console")
@@ -19,16 +20,18 @@ object BuildSettings {
 }
 
 object Dependencies {
-  lazy val scalaz7       = "org.scalaz"              %% "scalaz-core"    % "7.0-SNAPSHOT"   % "compile" withSources()
+  lazy val scalaz7       = "org.scalaz"              %% "scalaz-core"       % "7.0-SNAPSHOT"   % "compile" withSources()
+  lazy val slf4j         = "org.slf4j"               % "slf4j-api"          % "1.6.4"          % "compile"
   // Don't want to keep this dependency long term but for now its fastest way to get date parsing for http
-  lazy val commonsHttp   = "commons-httpclient"      % "commons-httpclient"                 % "3.1" withSources()
-  lazy val liftweb       = "net.liftweb"             %% "lift-webkit"    % "2.5-SNAPSHOT"   % "compile" withSources()
-  lazy val logback       = "ch.qos.logback"          % "logback-classic" % "1.0.0"          % "compile" withSources()
-  lazy val specs2        = "org.specs2"              %% "specs2"         % "1.9"            % "test" withSources()
-  lazy val scalacheck    = "org.scala-tools.testing" %% "scalacheck"     % "1.9"            % "test" withSources()
-  lazy val mockito       = "org.mockito"             % "mockito-all"     % "1.9.0"          % "test" withSources()
-  lazy val hamcrest      = "org.hamcrest"            % "hamcrest-all"    % "1.1"            % "test" withSources()
-  lazy val pegdown       = "org.pegdown"             % "pegdown"         % "1.0.2"          % "test"
+  lazy val commonsHttp   = "commons-httpclient"      % "commons-httpclient" % "3.1"                        withSources()
+  lazy val liftweb       = "net.liftweb"             %% "lift-webkit"       % "2.5-SNAPSHOT"   % "compile" withSources()
+  lazy val finagle       = "com.twitter"             %% "finagle-http"      % "1.9.12"         % "compile" withSources()
+  lazy val logback       = "ch.qos.logback"          % "logback-classic"    % "1.0.0"          % "compile" withSources()
+  lazy val specs2        = "org.specs2"              %% "specs2"            % "1.9"            % "test" withSources()
+  lazy val scalacheck    = "org.scala-tools.testing" %% "scalacheck"        % "1.9"            % "test" withSources()
+  lazy val mockito       = "org.mockito"             % "mockito-all"        % "1.9.0"          % "test" withSources()
+  lazy val hamcrest      = "org.hamcrest"            % "hamcrest-all"       % "1.1"            % "test" withSources()
+  lazy val pegdown       = "org.pegdown"             % "pegdown"            % "1.0.2"          % "test"
 }
 
 object ScalamachineBuild extends Build {
@@ -44,7 +47,7 @@ object ScalamachineBuild extends Build {
     settings = standardSettings ++
       Seq(
         name := "scalamachine-core",
-        libraryDependencies ++= Seq(scalaz7,commonsHttp,specs2,scalacheck,mockito,hamcrest,pegdown)
+        libraryDependencies ++= Seq(scalaz7,slf4j,commonsHttp,specs2,scalacheck,mockito,hamcrest,pegdown)
       )
   )
   
@@ -56,12 +59,30 @@ object ScalamachineBuild extends Build {
         libraryDependencies ++= Seq(liftweb)
       )
   )
+
+  lazy val netty = Project("scalamachine-netty", file("netty"),
+    dependencies = Seq(core),
+    settings = standardSettings ++
+      Seq(
+        name := "scalamachine-netty",
+        libraryDependencies ++= Seq(finagle)
+      )
+  )
   
   lazy val liftExample = Project("scalamachine-lift-example", file("examples/lift"),
     dependencies = Seq(lift),
     settings = standardSettings ++ 
       Seq(
         name := "scalamachine-lift-example",
+        libraryDependencies ++= Seq(logback)
+      )
+  )
+
+  lazy val finagleExample = Project("scalamachine-finagle-example", file("examples/finagle"),
+    dependencies = Seq(netty),
+    settings = standardSettings ++
+      Seq(
+        name := "scalamachine-finagle-example",
         libraryDependencies ++= Seq(logback)
       )
   )
