@@ -18,6 +18,7 @@ trait FinagleWebmachine {
     if (path.startsWith("/")) parts drop 1 else parts
   }
 
+  // TODO: fill in base URI and other fields
   def toData(req: HttpRequest): ReqRespData =
     ReqRespData(
       method = HTTPMethod.fromString(req.getMethod.getName),
