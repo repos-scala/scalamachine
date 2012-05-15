@@ -465,6 +465,7 @@ trait WebmachineDecisions {
       testMethod(DELETE, result(m20), result(n16))
   }
 
+  /* Delete Enacted? */
   lazy val m20: Decision =
     Decision(
       "v3m20",
@@ -474,6 +475,7 @@ trait WebmachineDecisions {
       500
     )
 
+  /* Delete Enacted? */
   lazy val m20b: Decision =
     Decision(
       "v3m20b",
@@ -483,6 +485,7 @@ trait WebmachineDecisions {
       202
     )
 
+  /* Resource allows POST to missing resource */
   lazy val n5: Decision =
     Decision(
       "v3n5",
@@ -492,6 +495,7 @@ trait WebmachineDecisions {
       410
     )
 
+  /* Redirect? (also handle POST requests here) */
   lazy val n11: Decision = new Decision {
     def name: String = "v3n11"
 
@@ -538,6 +542,7 @@ trait WebmachineDecisions {
     }
   }
 
+  /* POST? */
   lazy val n16: Decision = new Decision {
     def name: String = "v3n16"
 
@@ -545,6 +550,7 @@ trait WebmachineDecisions {
       testMethod(POST,result(n11),result(o16))
   }
 
+  /* Is Conflict? (PUT requests are also handled here) */
   lazy val o14: Decision = new Decision {
     def name: String = "v3o14"
 
@@ -560,6 +566,7 @@ trait WebmachineDecisions {
     }
   }
 
+  /* PUT? */
   lazy val o16: Decision = new Decision {
     def name: String = "v3o16"
 
@@ -567,6 +574,7 @@ trait WebmachineDecisions {
       testMethod(PUT,result(o14),result(o18))
   }
 
+  /* Multiple Representations?  also do GET/HEAD body rendering here */
   lazy val o18: Decision = new Decision {
     def name: String = "v3o18"
 
@@ -607,6 +615,7 @@ trait WebmachineDecisions {
     }
   }
 
+  /* Does Response Have Entity? (response body empty? */
   lazy val o20: Decision = new Decision {
     def name: String = "v3o20"
 
@@ -615,16 +624,30 @@ trait WebmachineDecisions {
     } yield body.fold(notEmpty = _ => result(o18), empty = halt(204))
   }
 
+  /* Is Conflict? (identical impl to o14) */
   lazy val p3: Decision = new Decision {
     def name: String = "v3p3"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = {
+      val act = for {
+        isConflict <- resT[FlowState](State((d: ReqRespData) => resource.isConflict(d)))
+        _ <-
+        if (isConflict) resT[FlowState](halt[Boolean](409).point[FlowState])
+        else acceptContent(resource)
+      } yield p11
+
+      act.run
+    }
   }
 
+  /* New Resource? (basically, is location header set?) */
   lazy val p11: Decision = new Decision {
     def name: String = "v3p11"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = for {
+      mbLoc <- responseHeadersL member "location"
+      decision <- mbLoc >| halt[Decision](201).point[FlowState] | result(o20).point[FlowState]
+    } yield decision
   }
 
   /** Helper Functions **/

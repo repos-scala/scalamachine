@@ -165,6 +165,10 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
   "O20 - Response includes an entity?"                                              ^
     "if EmptyBody, response with code 204 returned"                                 ! testDecisionReturnsData(o20,r => {}) { _.statusCode must beEqualTo(204) } ^
     "otherwise, O18 returned"                                                       ! testDecisionReturnsDecision(o20,o18,r =>{},data=createData(respBody="1".getBytes)) ^
+                                                                                    p^
+  "P11 - New Resource?"                                                             ^
+    "if location header is set, response with code 201 returned"                    ! testDecisionReturnsData(p11,r=>{},data=createData(respHdrs=Map("location" -> "a"))) { _.statusCode must_== 201 } ^
+    "otherwise, O20 returned"                                                       ! testDecisionReturnsDecision(p11,o20,r => {})
                                                                                     end
 
   // TODO: tests around halt result, error result, empty result, since that logic is no longer in flow runner where test used to be
