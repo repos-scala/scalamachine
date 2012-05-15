@@ -10,6 +10,8 @@ object Util extends AcceptHeaderParsers {
 
   def parseDate(dateString: String): Option[Date] = catching(classOf[DateParseException]) opt DateUtil.parseDate(dateString)
 
+  def formatDate(date: Date): String = DateUtil.formatDate(date)
+
   def chooseMediaType(provided: List[ContentType], acceptHeader: String) = {
 
     def isMatch(provided: ContentType, acceptable: ContentType): Boolean = {

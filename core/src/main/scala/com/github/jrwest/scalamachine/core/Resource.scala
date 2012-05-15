@@ -72,6 +72,10 @@ trait Resource {
 
   def isConflict(data: ReqRespData): (Res[Boolean], ReqRespData) = (default(false), data)
 
+  def expires(data: ReqRespData): (Res[Option[Date]], ReqRespData) = (default(None), data)
+
+  def multipleChoices(data: ReqRespData): (Res[Boolean], ReqRespData) = (default(false), data)
+
   private def default[A](value: A): Res[A] = ValueRes(value)
 
   private val defaultResponse: ReqRespData => (Res[Array[Byte]], ReqRespData) = (default("hello, scalamachine".getBytes), _)

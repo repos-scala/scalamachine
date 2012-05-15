@@ -1,15 +1,15 @@
 package com.github.jrwest.scalamachine.core.tests
 
 import org.specs2._
-import matcher.MatchResult
 import mock._
 import org.mockito.{Matchers => MM}
 import com.github.jrwest.scalamachine.core._
 import Resource._
 import flow._
 import v3.WebmachineDecisions
-import scalaz.NonEmptyList
+import Res._
 import org.apache.commons.httpclient.util.DateUtil
+import java.util.Date
 
 class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with WebmachineDecisions { def is = ""            ^
   "WebMachine V3".title                                                             ^
@@ -152,6 +152,15 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
     "otherwise, O18 returned"                                                       ! testDecisionReturnsDecision(o16,o18,r => {}, data = createData(method = GET)) ^
                                                                                     p^
   "O18 - Multiple Representations?"                                                 ^
+    "If request is a GET or HEAD request"                                           ^
+      "if Resource.generateEtag is some, Etag header is set to value"               ! testO18EtagGenerated ^
+      "if Resource.lastModified returns date, string value set in Last-Modified"    ! testO18LastModExists ^
+      "if Resource.expires returns a datae, string value set in Expires"            ! testO18ExpiresExists ^
+      "otherwise Last-Modified, Expires & Etag not set"                             ! testO18NotGenerated  ^
+      "chosen content type function is run"                                         ^
+        "result is set in body after being charsetted then encoded"                 ! testO18BodyProductionTest ^p^p^
+    "If Resource.multipleChoices returns true, response with code 300 returned"     ! testMultipleChoicesTrue ^
+    "otherwise response with code 200 returned"                                     ! testMultipleChoicesFalse ^
                                                                                     p^
   "O20 - Response includes an entity?"                                              ^
     "if EmptyBody, response with code 204 returned"                                 ! testDecisionReturnsData(o20,r => {}) { _.statusCode must beEqualTo(204) } ^
@@ -159,6 +168,184 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
                                                                                     end
 
   // TODO: tests around halt result, error result, empty result, since that logic is no longer in flow runner where test used to be
+
+  def testMultipleChoicesFalse = {
+    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => ((result("".getBytes), d))) :: Nil
+    testDecisionReturnsData(
+      o18,
+      r => {
+        r.generateEtag(any) answers mkAnswer(None)
+        r.lastModified(any) answers mkAnswer(None)
+        r.expires(any) answers mkAnswer(None)
+        r.contentTypesProvided(any) answers mkAnswer(ctypes)
+        r.charsetsProvided(any) answers mkAnswer(None)
+        r.encodingsProvided(any) answers mkAnswer(None)
+        r.multipleChoices(any) answers mkAnswer(false)
+      },
+      data = createData(
+        method = GET,
+        metadata = Metadata(
+          contentType = Some(ContentType("text/plain")),
+          chosenEncoding = Some("enc1"),
+          chosenCharset = Some("ch1")
+        )
+      )
+    ) { _.statusCode must beEqualTo(200) }
+  }
+
+  def testMultipleChoicesTrue = {
+    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => ((result("".getBytes), d))) :: Nil
+    testDecisionReturnsData(
+      o18,
+      r => {
+        r.generateEtag(any) answers mkAnswer(None)
+        r.lastModified(any) answers mkAnswer(None)
+        r.expires(any) answers mkAnswer(None)
+        r.contentTypesProvided(any) answers mkAnswer(ctypes)
+        r.charsetsProvided(any) answers mkAnswer(None)
+        r.encodingsProvided(any) answers mkAnswer(None)
+        r.multipleChoices(any) answers mkAnswer(true)
+      },
+      data = createData(
+        method = GET,
+        metadata = Metadata(
+          contentType = Some(ContentType("text/plain")),
+          chosenEncoding = Some("enc1"),
+          chosenCharset = Some("ch1")
+        )
+      )
+    ) { _.statusCode must beEqualTo(300) }
+  }
+
+  def testO18BodyProductionTest = {
+    val setBody: String = "body1"
+    val charsetBody: String = "charsetBody"
+    val encBody: String = "encbody"
+    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => ((result(setBody.getBytes), d))) :: Nil
+    val charsets: CharsetsProvided = Some(("ch1", ((_: Array[Byte]) ++ charsetBody.getBytes)) :: Nil)
+    val encodings: EncodingsProvided = Some(("enc1", ((_: Array[Byte]) ++ encBody.getBytes)) :: Nil)
+    testDecisionResultHasData(
+      o18,
+      r => {
+        r.generateEtag(any) answers mkAnswer(None)
+        r.lastModified(any) answers mkAnswer(None)
+        r.expires(any) answers mkAnswer(None)
+        r.contentTypesProvided(any) answers mkAnswer(ctypes)
+        r.charsetsProvided(any) answers mkAnswer(charsets)
+        r.encodingsProvided(any) answers mkAnswer(encodings)
+        r.multipleChoices(any) answers mkAnswer(false)
+      },
+      data = createData(
+        metadata = Metadata(
+          contentType = Some(ContentType("text/plain")),
+          chosenEncoding = Some("enc1"),
+          chosenCharset = Some("ch1")
+        )
+      )
+    ) {
+      _.responseBody.fold(notEmpty = new String(_), empty = "") must beEqualTo(setBody + charsetBody + encBody)
+    }
+  }
+
+  def testO18ExpiresExists = {
+    val expires = new Date(System.currentTimeMillis)
+    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => ((result("".getBytes), d))) :: Nil
+    testDecisionResultHasData(
+      o18,
+      r => {
+        r.generateEtag(any) answers mkAnswer(None)
+        r.lastModified(any) answers mkAnswer(None)
+        r.expires(any) answers mkAnswer(Some(expires))
+        r.contentTypesProvided(any) answers mkAnswer(ctypes)
+        r.charsetsProvided(any) answers mkAnswer(None)
+        r.encodingsProvided(any) answers mkAnswer(None)
+        r.multipleChoices(any) answers mkAnswer(false)
+      },
+      data = createData(
+        metadata = Metadata(
+          contentType = Some(ContentType("text/plain")),
+          chosenEncoding = Some("enc1"),
+          chosenCharset = Some("ch1")
+        )
+      )
+    ) {
+      _.responseHeader("expires") must beSome.like {
+        case date => date must beEqualTo(Util.formatDate(expires))
+      }
+    }
+  }
+
+  def testO18LastModExists = {
+    val lastMod = new Date(System.currentTimeMillis)
+    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => ((result("".getBytes), d))) :: Nil
+    testDecisionResultHasData(
+      o18,
+      r => {
+        r.generateEtag(any) answers mkAnswer(None)
+        r.lastModified(any) answers mkAnswer(Some(lastMod))
+        r.expires(any) answers mkAnswer(None)
+        r.contentTypesProvided(any) answers mkAnswer(ctypes)
+        r.charsetsProvided(any) answers mkAnswer(None)
+        r.encodingsProvided(any) answers mkAnswer(None)
+        r.multipleChoices(any) answers mkAnswer(false)
+      },
+      data = createData(
+        metadata = Metadata(
+          contentType = Some(ContentType("text/plain")),
+          chosenEncoding = Some("enc1"),
+          chosenCharset = Some("ch1")
+        )
+      )
+    ) {
+      _.responseHeader("last-modified") must beSome.like {
+        case date => date must beEqualTo(Util.formatDate(lastMod))
+      }
+    }
+  }
+
+  def testO18EtagGenerated = {
+    val etag = "etag"
+    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => ((result("".getBytes), d))) :: Nil
+    testDecisionResultHasData(
+      o18,
+      r => {
+        r.generateEtag(any) answers mkAnswer(Some(etag))
+        r.lastModified(any) answers mkAnswer(None)
+        r.expires(any) answers mkAnswer(None)
+        r.contentTypesProvided(any) answers mkAnswer(ctypes)
+        r.charsetsProvided(any) answers mkAnswer(None)
+        r.encodingsProvided(any) answers mkAnswer(None)
+        r.multipleChoices(any) answers mkAnswer(false)
+      },
+      data = createData(method = GET)
+    ) {
+      _.responseHeader("etag") must beSome.like {
+        case e => e must_== etag
+      }
+    }
+  }
+
+  def testO18NotGenerated = {
+    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => ((result("".getBytes), d))) :: Nil
+    testDecisionResultHasData(
+      o18,
+      r => {
+        r.generateEtag(any) answers mkAnswer(None)
+        r.lastModified(any) answers mkAnswer(None)
+        r.expires(any) answers mkAnswer(None)
+        r.contentTypesProvided(any) answers mkAnswer(ctypes)
+        r.charsetsProvided(any) answers mkAnswer(None)
+        r.encodingsProvided(any) answers mkAnswer(None)
+        r.multipleChoices(any) answers mkAnswer(false)
+      },
+      data = createData(method = HEAD)
+    ) {
+      d =>
+        (d.responseHeader("etag") must beNone) and
+          (d.responseHeader("last-modified") must beNone) and
+          (d.responseHeader("expires") must beNone)
+    }
+  }
 
   def testH7IfMatchExists = {
     testDecisionReturnsDecision(h7,i7,r => {}, data = createData(headers = Map("if-match" -> "*")))

@@ -570,7 +570,41 @@ trait WebmachineDecisions {
   lazy val o18: Decision = new Decision {
     def name: String = "v3o18"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = {
+      def ifGetOrHead[A](isTrue: Boolean, f: ReqRespData => (Res[A], ReqRespData), default: => A): ResT[FlowState, A] =
+        if (isTrue) resT[FlowState](State(f))
+        else resT[FlowState](result(default).point[FlowState])
+
+      val act = for {
+        doBody <- resT[FlowState](methodL.map(m => result(m === GET || m === HEAD)))
+        // set Etag, last mod, and expires if GET or HEAD and they are provided by resource
+        mbEtag <- ifGetOrHead(doBody, resource.generateEtag(_), none[String])
+        mbLastMod <- ifGetOrHead(doBody, resource.lastModified(_), none[Date])
+        mbExpires <- ifGetOrHead(doBody, resource.expires(_), none[Date])
+        _ <- resT[FlowState](((responseHeadersL member "etag") := mbEtag).map(_.point[Res]))
+        _ <- resT[FlowState](((responseHeadersL member "last-modified") := mbLastMod.map(Util.formatDate(_))).map(_.point[Res]))
+        _ <- resT[FlowState](((responseHeadersL member "expires") := mbExpires.map(Util.formatDate(_))).map(_.point[Res]))
+
+        // find content providing function given chosen content type and produce body, setting it in the response
+        mbChosenCType <- resT[FlowState]((metadataL <=< contentTypeL).map(_.point[Res]))
+        chosenCType <- resT[FlowState](mbChosenCType.fold(
+          some = result(_),
+          none = error("internal flow error, missing chosen ctype in o18")
+        ).point[FlowState])
+        mbProvidedF <- resT[FlowState](State((d: ReqRespData) => resource.contentTypesProvided(d))).map(_.find(_._1 == chosenCType).map(_._2))
+        producedBody <- resT[FlowState](State((d: ReqRespData) => mbProvidedF.map(_(d)) | ((result(Array[Byte]()),d))))
+        body <- resT[FlowState](encodeBody(resource, producedBody).map(_.point[Res]))
+        _ <- resT[FlowState]((respBodyL := body).map(_.point[Res]))
+
+        // determine if response has multiple choices
+        mc <- resT[FlowState](State((d: ReqRespData) => resource.multipleChoices(d)))
+        decision <-
+          if (mc) resT[FlowState](halt[Decision](300).point[FlowState])
+          else resT[FlowState](halt[Decision](200).point[FlowState])
+      } yield decision // we will never actually get to this yield
+
+      act.run
+    }
   }
 
   lazy val o20: Decision = new Decision {
