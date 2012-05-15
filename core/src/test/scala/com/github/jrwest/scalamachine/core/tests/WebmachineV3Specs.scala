@@ -252,13 +252,42 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   "N5 - Can POST to missing resource?"                                              ^
     "if true, N11 returned"                                                         ! testDecisionReturnsDecision(n5,n11,_.allowMissingPost(any) answers mkAnswer(true)) ^
     "otherwise, response with code 410 returned"                                    ! testDecisionReturnsData(n5,_.allowMissingPost(any) answers mkAnswer(false)) { _.statusCode must_== 410 } ^
+                                                                                    p^
+  "N11 - Process Post, Determine Redirect"                                          ^
+    "Process Post"                                                                  ^
+      "if Resource.postIsCreate returns true"                                       ^
+        "Resource.createPath is called"                                             ^
+          "if None returned, response with code 500 returned"                       ! testCreatePathNone ^
+          "if Some(path) is returned"                                               ^
+            "The returned path is set as the dispPath in the ReqRespData"           ! testCreatePathSomeSetsDispPath ^
+            "if the location header is not set, the full uri is set as its value"   ! testCreatePathSomeLocationNotSet ^
+            "if the location header is set, it is not modified"                     ! testCreatePathSomeLocationAlreadySet ^
+            "if request's content-type is not one of those accepted, 415 returned"  ! testN11ContentTypeNotAccepted ^
+            "if request's ctype is accepted and corresponding function returns true"^
+              "if body is set, it is charsetted then encoded"                       ! testN11ContentTypeAcceptedReturnsTrue ^p^
+            "if function corresponing to ctype returns false code 500 returned"     ! testN11ContentTypeAcceptedReturnsFalse ^p^p^
+      "if Resource.postIsCreate returns false"                                      ^
+        "Resource.processPost is called"                                            ^
+          "if true, the body is charsetted then encoded if set"                     ! testProcessPostTrue ^
+          "if true and body not set, charsetter and encoder not used"               ! testProcessPostTrueBodyNotSet ^
+          "if false, response with code 500 is returned"                            ! testProcessPostFalse ^p^p^p^
+    "Determine Redirect"                                                            ^
+      "If ReqRespData.doRedirect returns true"                                      ^
+        "if Location header is set, response with code 303 returned"                ! testDoRedirect ^
+      "If ReqRespData.doRedurect returns false, P11 returned"                       ! testNoRedirect ^
                                                                                     end
 
   // TODO: tests around halt result, error result, empty result, since that logic is no longer in flow runner where test used to be
   // TODO: change D5 to do real language negotiation like ruby webmachine implementation
 
   def createResource = mock[Resource]
-  def createData(method: HTTPMethod = GET, headers: Map[String,String] = Map(), metadata: Metadata = Metadata()) = ReqRespData(method = method, requestHdrs = headers, metadata = metadata)
+  def createData(method: HTTPMethod = GET,
+                 headers: Map[String,String] = Map(),
+                 metadata: Metadata = Metadata(),
+                 baseUri: String = "",
+                 respHdrs: Map[String,String] = Map(),
+                 doRedirect: Boolean = false) =
+    ReqRespData(baseUri = baseUri, method = method, requestHdrs = headers, responseHdrs = respHdrs, metadata = metadata, doRedirect = doRedirect)
 
   def testDecision(decision: Decision,
                    stubF: Resource => Unit,
@@ -1146,6 +1175,233 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     ) {
       _.statusCode must beEqualTo(304)
     }
+  }
+
+  def testDoRedirect = {
+    val setBody = "body1"
+    val encodingBody = "body2"
+    val charsetBody = "body3"
+    val encodings: EncodingsProvided = Some(("enc1", (s: Array[Byte]) => s ++ encodingBody.getBytes) :: ("enc2", identity[Array[Byte]](_)) :: Nil)
+    val charsets: EncodingsProvided = Some(("ch1", (s: Array[Byte]) => s ++ charsetBody.getBytes) :: ("ch2", identity[Array[Byte]](_)) :: Nil)
+    val contentTypesAccepted: ContentTypesAccepted =
+      (ContentType("text/plain"), (d: ReqRespData) => (ValueRes(true), d.copy(responseBody = setBody.getBytes))) ::
+        (ContentType("text/html"), (d: ReqRespData) => (ValueRes(false), d)) ::
+        Nil
+
+    testDecisionReturnsData(
+      n11,
+      r => {
+        r.postIsCreate(any) answers mkAnswer(true)
+        r.createPath(any) answers mkAnswer(Some("a/b"))
+        r.contentTypesAccepted(any) answers mkAnswer(contentTypesAccepted)
+        r.encodingsProvided(any) answers mkAnswer(encodings)
+        r.charsetsProvided(any) answers mkAnswer(charsets)
+      },
+      data = createData(
+        metadata = Metadata(chosenCharset = Some("ch1"), chosenEncoding = Some("enc1")),
+        headers = Map("content-type" -> "text/plain"),
+        respHdrs = Map("location" -> "someloc"),
+        doRedirect = true
+      )
+    ) { _.statusCode must beEqualTo(303) }
+  }
+
+  def testNoRedirect = {
+    val setBody = "body1"
+    val encodingBody = "body2"
+    val charsetBody = "body3"
+    val encodings: EncodingsProvided = Some(("enc1", (s: Array[Byte]) => s ++ encodingBody.getBytes) :: ("enc2", identity[Array[Byte]](_)) :: Nil)
+    val charsets: EncodingsProvided = Some(("ch1", (s: Array[Byte]) => s ++ charsetBody.getBytes) :: ("ch2", identity[Array[Byte]](_)) :: Nil)
+    val contentTypesAccepted: ContentTypesAccepted =
+      (ContentType("text/plain"), (d: ReqRespData) => (ValueRes(true), d.copy(responseBody = setBody.getBytes))) ::
+        (ContentType("text/html"), (d: ReqRespData) => (ValueRes(false), d)) ::
+        Nil
+
+    testDecisionReturnsDecision(
+      n11,
+      p11,
+      r => {
+        r.postIsCreate(any) answers mkAnswer(true)
+        r.createPath(any) answers mkAnswer(Some("a/b"))
+        r.contentTypesAccepted(any) answers mkAnswer(contentTypesAccepted)
+        r.encodingsProvided(any) answers mkAnswer(encodings)
+        r.charsetsProvided(any) answers mkAnswer(charsets)
+      },
+      data = createData(metadata = Metadata(chosenCharset = Some("ch1"), chosenEncoding = Some("enc1")), headers = Map("content-type" -> "text/plain"))
+    )
+  }
+
+  def testN11ContentTypeNotAccepted = {
+    val contentTypesAccepted: ContentTypesAccepted =
+      (ContentType("text/html"), (d: ReqRespData) => (ValueRes(false), d)) ::
+        Nil
+
+    testDecisionResultHasData(
+      n11,
+      r => {
+        r.postIsCreate(any) answers mkAnswer(true)
+        r.createPath(any) answers mkAnswer(Some("a/b"))
+        r.contentTypesAccepted(any) answers mkAnswer(contentTypesAccepted)
+      },
+      data = createData(headers = Map("content-type" -> "text/html2"))
+    ) { _.statusCode must beEqualTo(415) }
+
+  }
+
+  def testN11ContentTypeAcceptedReturnsFalse = {
+    val contentTypesAccepted: ContentTypesAccepted =
+      (ContentType("text/html"), (d: ReqRespData) => (ValueRes(false), d)) ::
+        Nil
+
+    testDecisionResultHasData(
+      n11,
+      r => {
+        r.postIsCreate(any) answers mkAnswer(true)
+        r.createPath(any) answers mkAnswer(Some("a/b"))
+        r.contentTypesAccepted(any) answers mkAnswer(contentTypesAccepted)
+      },
+      data = createData(headers = Map("content-type" -> "text/html"))
+    ) { _.statusCode must beEqualTo(500) }
+
+  }
+
+  def testN11ContentTypeAcceptedReturnsTrue = {
+    val setBody = "body1"
+    val encodingBody = "body2"
+    val charsetBody = "body3"
+    val encodings: EncodingsProvided = Some(("enc1", (s: Array[Byte]) => s ++ encodingBody.getBytes) :: ("enc2", identity[Array[Byte]](_)) :: Nil)
+    val charsets: EncodingsProvided = Some(("ch1", (s: Array[Byte]) => s ++ charsetBody.getBytes) :: ("ch2", identity[Array[Byte]](_)) :: Nil)
+    val contentTypesAccepted: ContentTypesAccepted =
+      (ContentType("text/plain"), (d: ReqRespData) => (ValueRes(true), d.copy(responseBody = setBody.getBytes))) ::
+        (ContentType("text/html"), (d: ReqRespData) => (ValueRes(false), d)) ::
+        Nil
+
+    testDecisionResultHasData(
+      n11,
+      r => {
+        r.postIsCreate(any) answers mkAnswer(true)
+        r.createPath(any) answers mkAnswer(Some("a/b"))
+        r.contentTypesAccepted(any) answers mkAnswer(contentTypesAccepted)
+        r.encodingsProvided(any) answers mkAnswer(encodings)
+        r.charsetsProvided(any) answers mkAnswer(charsets)
+      },
+      data = createData(metadata = Metadata(chosenCharset = Some("ch1"), chosenEncoding = Some("enc1")), headers = Map("content-type" -> "text/plain"))
+    ) {
+      _.responseBody.fold(notEmpty = new String(_), empty = "") must beEqualTo(setBody + charsetBody + encodingBody)
+    }
+  }
+
+  def testCreatePathSomeLocationAlreadySet = {
+    val existing = "somelocation"
+    testDecisionResultHasData(
+      n11,
+      r => {
+        r.postIsCreate(any) answers mkAnswer(true)
+        r.createPath(any) answers mkAnswer(Some("a/b"))
+        r.contentTypesAccepted(any) answers mkAnswer(Nil)
+      },
+      data = createData(respHdrs = Map("location" -> existing))
+    ) {
+      _.responseHeader("location") must beSome.like {
+        case loc => loc must beEqualTo(existing)
+      }
+    }
+  }
+
+  def testCreatePathSomeLocationNotSet = {
+    val baseUri = "http://example.com/"
+    val createPath = "a/v"
+    testDecisionResultHasData(
+      n11,
+      r => {
+        r.postIsCreate(any) answers mkAnswer(true)
+        r.createPath(any) answers mkAnswer(Some(createPath))
+        r.contentTypesAccepted(any) answers mkAnswer(Nil)
+      },
+      data = createData(baseUri = baseUri)
+    ) {
+      _.responseHeader("location") must beSome.like {
+        case loc => loc must beEqualTo("http://example.com/a/v")
+      }
+    }
+  }
+
+  def testCreatePathNone = {
+    testDecisionReturnsData(
+      n11,
+      r => {
+        r.postIsCreate(any) answers mkAnswer(true)
+        r.createPath(any) answers mkAnswer(None)
+      }
+    ) { _.statusCode must beEqualTo(500) }
+  }
+
+  def testCreatePathSomeSetsDispPath = {
+    val createPath = "a/b"
+    testDecisionResultHasData(
+      n11,
+      r => {
+        r.postIsCreate(any) answers mkAnswer(true)
+        r.createPath(any) answers mkAnswer(Some(createPath))
+        r.contentTypesAccepted(any) answers mkAnswer(Nil)
+      }
+    ) { _.dispPath must beEqualTo(createPath) }
+  }
+
+  def testProcessPostTrue = {
+    val processPostBody = "body1"
+    val encodingBody = "body2"
+    val charsetBody = "body3"
+    val encodings: EncodingsProvided = Some(("enc1", (s: Array[Byte]) => s ++ encodingBody.getBytes) :: ("enc2", identity[Array[Byte]](_)) :: Nil)
+    val charsets: EncodingsProvided = Some(("ch1", (s: Array[Byte]) => s ++ charsetBody.getBytes) :: ("ch2", identity[Array[Byte]](_)) :: Nil)
+    testDecisionResultHasData(
+      n11,
+      r => {
+        r.postIsCreate(any) answers mkAnswer(false)
+        r.processPost(any) answers {
+          (d: Any) => {
+            val data: ReqRespData = d.asInstanceOf[ReqRespData]
+            (ValueRes(true), data.copy(responseBody = processPostBody.getBytes))
+          }
+        }
+        r.encodingsProvided(any) answers mkAnswer(encodings)
+        r.charsetsProvided(any) answers mkAnswer(charsets)
+      },
+      data = createData(metadata = Metadata(chosenCharset = Some("ch1"), chosenEncoding = Some("enc1")))
+    ) { newData =>
+      newData.responseBody.fold(notEmpty = new String(_), empty = "") must beEqualTo(processPostBody + charsetBody + encodingBody)
+    }
+  }
+
+  def testProcessPostTrueBodyNotSet = {
+    val encodingBody = "body2"
+    val charsetBody = "body3"
+    val encodings: EncodingsProvided = Some(("enc1", (s: Array[Byte]) => s ++ encodingBody.getBytes) :: ("enc2", identity[Array[Byte]](_)) :: Nil)
+    val charsets: EncodingsProvided = Some(("ch1", (s: Array[Byte]) => s ++ charsetBody.getBytes) :: ("ch2", identity[Array[Byte]](_)) :: Nil)
+    testDecisionResultHasData(
+      n11,
+      r => {
+        r.postIsCreate(any) answers mkAnswer(false)
+        r.processPost(any) answers mkAnswer(true)
+        r.encodingsProvided(any) answers mkAnswer(encodings)
+        r.charsetsProvided(any) answers mkAnswer(charsets)
+      },
+      data = createData(metadata = Metadata(chosenCharset = Some("ch1"), chosenEncoding = Some("enc1")))
+    ) { _.responseBody must beEqualTo(EmptyBody) }
+  }
+
+  def testProcessPostFalse = {
+    val encodingBody = "body2"
+    val charsetBody = "body3"
+    val encodings: EncodingsProvided = Some(("enc1", (s: Array[Byte]) => s ++ encodingBody.getBytes) :: ("enc2", identity[Array[Byte]](_)) :: Nil)
+    val charsets: EncodingsProvided = Some(("ch1", (s: Array[Byte]) => s ++ charsetBody.getBytes) :: ("ch2", identity[Array[Byte]](_)) :: Nil)
+    testDecisionResultHasData(
+      n11,
+      r => {
+        r.postIsCreate(any) answers mkAnswer(false)
+        r.processPost(any) answers mkAnswer(false)
+      }
+    ) { _.statusCode must beEqualTo(500) }
   }
 
 }

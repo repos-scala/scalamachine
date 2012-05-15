@@ -8,6 +8,7 @@ import optionSyntax._
 import scalaz.syntax.pointed._
 import scalaz.syntax.order._
 import scalaz.syntax.applicative._
+import scalaz.syntax.monad._
 import scalaz.OptionT._
 import scalaz.Lens._
 import Decision.FlowState
@@ -494,7 +495,80 @@ trait WebmachineDecisions {
   lazy val n11: Decision = new Decision {
     def name: String = "v3n11"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = {
+
+      def encodeBody(body: Array[Byte]): FlowState[HTTPBody] = for {
+        mbCharset <- metadataL <=< chosenCharsetL
+        mbProvidedCh <- State((d: ReqRespData) => resource.charsetsProvided(d)).map(_.getOrElse(None))
+        mbEncoding <- metadataL <=< chosenEncodingL
+        mbProvidedEnc <- State((d: ReqRespData) => resource.encodingsProvided(d)).map(_.getOrElse(None))
+        charsetter <- (((mbProvidedCh |@| mbCharset) {
+          (p,c)  => p.find(_._1 === c)
+        }).join.fold(some = _._2, none = identity[Array[Byte]](_))).point[FlowState]
+        encoder <- (((mbProvidedEnc |@| mbEncoding) {
+          (p,e) => p.find(_._1 === e)
+        }).join.fold(some = _._2, none = identity[Array[Byte]](_))).point[FlowState]
+      } yield encoder(charsetter(body))
+
+      val encodeBodyIfSet: FlowState[Unit] = for {
+        body <- respBodyL
+        newBody <- body.fold(notEmpty = encodeBody(_), empty = body.point[FlowState])
+        _ <- respBodyL := newBody
+      } yield ()
+
+      val processPost: ResT[FlowState,Unit] = for {
+        processedOk <- resT[FlowState](State((d: ReqRespData) => resource.processPost(d)))
+        _ <- if (processedOk) resT[FlowState](encodeBodyIfSet.map(_.point[Res]))
+             else resT[FlowState](error[Decision]("failed to process post").point[FlowState])
+      } yield ()
+
+      val reqCType: FlowState[ContentType] = for {
+        mbContentType <- requestHeadersL member "content-type"
+      } yield mbContentType.map(Util.acceptToMediaTypes(_).headOption.map(_.mediaRange)).join | ContentType("application/octet-stream")
+
+      val createPath = for {
+        mbCreatePath <- resT[FlowState](State((d: ReqRespData) => resource.createPath(d)))
+        createPath <- resT[FlowState](mbCreatePath.fold(some = result(_), none = error("create path returned none")).point[FlowState])
+
+        // set dispatch path to new path
+        _ <- resT[FlowState]((dispPathL := createPath) map { _.point[Res] })
+
+        // set location header if its not already set
+        mbExistingLoc <- resT[FlowState]((responseHeadersL member "location").map(_.point[Res]))
+        baseUri <- resT[FlowState](baseUriL.map(_.point[Res]))
+        _ <- resT[FlowState](
+          mbExistingLoc
+            >|(responseHeadersL member "location").map(_.point[Res])
+            | ((responseHeadersL member "location") := Some(baseUri + createPath)).map(_.point[Res])
+        )
+
+        // get request content type
+        contentType <- resT[FlowState](reqCType.map(_.point[Res]))
+
+        // lookup content types accepted and find body prod function
+        acceptedList <- resT[FlowState](State((d: ReqRespData) => resource.contentTypesAccepted(d)))
+        mbAcceptableF <- resT[FlowState](acceptedList.find(_._1 == contentType).map(_._2).point[Res].point[FlowState])
+
+        // if found, run it, call encodeBodyIfSet
+        // if not found, return halt 415
+        didSucceed <- resT[FlowState](State((d: ReqRespData) => mbAcceptableF.map(_(d)).getOrElse((halt(415),d))))
+        // todo: need a real error message here
+        _ <- if (didSucceed) resT[FlowState](encodeBodyIfSet.map(_.point[Res])) else resT[FlowState](halt[Unit](500).point[FlowState])
+      } yield ()
+
+      val act = for {
+        postIsCreate <- resT[FlowState](State((d: ReqRespData) => resource.postIsCreate(d)))
+        _ <- if (postIsCreate) createPath else processPost
+        doRedirect <- resT[FlowState](doRedirectL.map(_.point[Res]))
+        mbLoc <- resT[FlowState]((responseHeadersL member "location").map(_.point[Res]))
+        decision <-
+          if (doRedirect)
+            mbLoc >| resT[FlowState](halt[Decision](303).point[FlowState]) | resT[FlowState](error[Decision]("redirect with no location").point[FlowState])
+          else resT[FlowState](result(p11).point[FlowState])
+      } yield decision
+
+      act.run
+    }
   }
 
   lazy val n16: Decision = new Decision {
@@ -511,6 +585,12 @@ trait WebmachineDecisions {
 
   lazy val p3: Decision = new Decision {
     def name: String = "v3p3"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+  }
+
+  lazy val p11: Decision = new Decision {
+    def name: String = "v3p11"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }

@@ -59,3 +59,24 @@ object HTTPMethod {
 
   implicit val httpMethodEqual: Equal[HTTPMethod] = equalA
 }
+
+trait HTTPBody {
+  def isEmpty: Boolean
+
+  def fold[A](notEmpty: Array[Byte] => A, empty: => A): A = this match {
+    case EmptyBody => empty
+    case NonEmptyBody(bytes) => notEmpty(bytes)
+  }
+
+}
+case object EmptyBody extends HTTPBody {
+  val isEmpty = true
+}
+case class NonEmptyBody(bytes: Array[Byte]) extends HTTPBody {
+  val isEmpty = false
+}
+
+object HTTPBody {
+  implicit def arrayByteToHTTPBody(a: Array[Byte]): HTTPBody =
+    if (a.length > 0 ) NonEmptyBody(a) else EmptyBody
+}

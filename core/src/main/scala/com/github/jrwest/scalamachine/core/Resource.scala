@@ -62,6 +62,14 @@ trait Resource {
 
   def deleteCompleted(data: ReqRespData): (Res[Boolean], ReqRespData) = (default(true), data)
 
+  def postIsCreate(data: ReqRespData): (Res[Boolean], ReqRespData) = (default(false), data)
+
+  def processPost(data: ReqRespData): (Res[Boolean], ReqRespData) = (default(false), data)
+
+  def createPath(data: ReqRespData): (Res[Option[String]], ReqRespData) = (default(None), data)
+
+  def contentTypesAccepted(data: ReqRespData): (Res[ContentTypesAccepted], ReqRespData) = (default(Nil), data)
+
   private def default[A](value: A): Res[A] = ValueRes(value)
 
   private val defaultResponse: ReqRespData => (Res[Array[Byte]], ReqRespData) = (default("hello, scalamachine".getBytes), _)
@@ -70,7 +78,7 @@ trait Resource {
 
 object Resource {
   type ContentTypesProvided = List[(ContentType, ReqRespData => (Res[Array[Byte]],ReqRespData))]
-  // TODO: the encoding functions may not be strings, it depends on the final type of the response body once chosen
+  type ContentTypesAccepted = List[(ContentType, ReqRespData => (Res[Boolean], ReqRespData))]
   type CharsetsProvided = Option[List[(String,Array[Byte] => Array[Byte])]] // None value specifies charset negotiation short-circuiting
   type EncodingsProvided = Option[List[(String,Array[Byte] => Array[Byte])]] // None values specifies encoding negotiation short-circuiting
 }
