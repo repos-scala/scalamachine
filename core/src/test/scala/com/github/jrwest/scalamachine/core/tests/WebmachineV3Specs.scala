@@ -275,6 +275,20 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
       "If ReqRespData.doRedirect returns true"                                      ^
         "if Location header is set, response with code 303 returned"                ! testDoRedirect ^
       "If ReqRespData.doRedurect returns false, P11 returned"                       ! testNoRedirect ^
+                                                                                    p^p^
+  "N16 - POST?"                                                                     ^
+    "if request is POST, N11 returned"                                              ! testDecisionReturnsDecision(n16,n11,r => {}, data = createData(method = POST)) ^
+    "otherwise, O16 returned"                                                       ! testDecisionReturnsDecision(n16,o16,r => {}, data = createData(method = GET)) ^
+                                                                                    p^
+  "O14 - Conflict?"                                                                 ^
+                                                                                    p^
+  "O16 - PUT?"                                                                      ^
+    "if request is PUT, O14 returned"                                               ! testDecisionReturnsDecision(o16,o14,r => {}, data = createData(method = PUT)) ^
+    "otherwise, O18 returned"                                                       ! testDecisionReturnsDecision(o16,o18,r => {}, data = createData(method = GET)) ^
+                                                                                    p^
+  "O18 - Multiple Representations?"                                                 ^
+                                                                                    p^
+  "O20 - Response includes an entity?"                                              ^
                                                                                     end
 
   // TODO: tests around halt result, error result, empty result, since that logic is no longer in flow runner where test used to be

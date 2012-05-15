@@ -574,6 +574,26 @@ trait WebmachineDecisions {
   lazy val n16: Decision = new Decision {
     def name: String = "v3n16"
 
+    protected def decide(resource: Resource): FlowState[Res[Decision]] =
+      testMethod(POST,result(n11),result(o16))
+  }
+
+  lazy val o14: Decision = new Decision {
+    def name: String = "v3o14"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+  }
+
+  lazy val o16: Decision = new Decision {
+    def name: String = "v3o16"
+
+    protected def decide(resource: Resource): FlowState[Res[Decision]] =
+      testMethod(PUT,result(o14),result(o18))
+  }
+
+  lazy val o18: Decision = new Decision {
+    def name: String = "v3o18"
+
     protected def decide(resource: Resource): FlowState[Res[Decision]] = null
   }
 
