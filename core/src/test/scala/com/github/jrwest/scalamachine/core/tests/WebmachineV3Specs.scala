@@ -125,12 +125,12 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     "if the accept-encoding header exists, decision F7 is returned"                 ! testAcceptEncodingExists ^
     "if the accept-encoding header is missing"                                      ^
       """if "identity;q=1.0,*;q=0.5" is acceptable"""                               ^
-        "chosen is set as the value of Content-Encoding header, G7 returned"        ! testAcceptEncodingMissingDefaultAcceptable ^p^
+        "chosen is set as the value of Content-Encoding header,in meta, G7 returned"! testAcceptEncodingMissingDefaultAcceptable ^p^
       "otherwise, a response with code 406 is returned"                             ! testAcceptEncodingMissingDefaultNotAcceptable ^
                                                                                     p^p^
   "F7 - Accept Encoding Available?"                                                 ^
     "If resource specifies encoding neg. short circuiting, G7 returned"             ! testAcceptEncodingExistsShortCircuit ^
-    "If charset is provided by the resource, G7 returned, chosen set in response"   ! testAcceptEncodingExistsAcceptable ^
+    "If charset is provided by the resource, G7 returned, chosen set in resp./meta" ! testAcceptEncodingExistsAcceptable ^
     "If charset is not provided, response w/ code 406 returned"                     ! testAcceptEncodingExistsNotAcceptable ^
                                                                                     p^
   "G7 - Resource Exists?"                                                           ^
@@ -649,9 +649,11 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     val encoding = "some-encoding"
     val provided: EncodingsProvided = Some((encoding, identity[Array[Byte]](_)) :: Nil)
     testDecisionReturnsDecisionAndData(f6,g7,_.encodingsProvided(any) answers mkAnswer(provided)) {
-      _.responseHeader("content-encoding") must beSome.like {
+      d => (d.responseHeader("content-encoding") must beSome.like {
         case enc => enc must beEqualTo(encoding)
-      }
+      }) and (d.metadata.chosenEncoding must beSome.like {
+        case enc => enc must beEqualTo(encoding)
+      })
     }
   }
 
@@ -671,9 +673,11 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
     val encoding = "gzip"
     val provided: EncodingsProvided = Some((encoding, identity[Array[Byte]](_)) :: Nil)
     testDecisionReturnsDecisionAndData(f7,g7,_.encodingsProvided(any) answers mkAnswer(provided), data = createData(headers = Map("accept-encoding" -> encoding))) {
-      _.responseHeader("content-encoding") must beSome.like {
+      d => (d.responseHeader("content-encoding") must beSome.like {
         case enc => enc must beEqualTo(encoding)
-      }
+      }) and (d.metadata.chosenEncoding must beSome.like {
+        case enc => enc must beEqualTo(encoding)
+      })
     }
   }
 

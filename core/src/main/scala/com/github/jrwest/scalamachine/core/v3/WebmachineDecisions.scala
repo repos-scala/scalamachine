@@ -633,6 +633,7 @@ trait WebmachineDecisions {
     for {
       p <- encodingsProvided
       (decision, chosen) <- resT[FlowState](doChoose(p).point[FlowState])
+      _ <- resT[FlowState](((metadataL <=< chosenEncodingL) := chosen).map(_.point[Res]))
       _ <- resT[FlowState](setEncodingHeader(chosen).map { _.point[Res] })
     } yield decision
   }
