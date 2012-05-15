@@ -295,6 +295,8 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
   "O18 - Multiple Representations?"                                                 ^
                                                                                     p^
   "O20 - Response includes an entity?"                                              ^
+    "if EmptyBody, response with code 204 returned"                                 ! testDecisionReturnsData(o20,r => {}) { _.statusCode must beEqualTo(204) } ^
+    "otherwise, O18 returned"                                                       ! testDecisionReturnsDecision(o20,o18,r =>{},data=createData(respBody="1".getBytes)) ^
                                                                                     end
 
   // TODO: tests around halt result, error result, empty result, since that logic is no longer in flow runner where test used to be
@@ -306,8 +308,16 @@ class WebmachineV3Specs extends Specification with Mockito with WebmachineDecisi
                  metadata: Metadata = Metadata(),
                  baseUri: String = "",
                  respHdrs: Map[String,String] = Map(),
+                 respBody: HTTPBody = EmptyBody,
                  doRedirect: Boolean = false) =
-    ReqRespData(baseUri = baseUri, method = method, requestHdrs = headers, responseHdrs = respHdrs, metadata = metadata, doRedirect = doRedirect)
+    ReqRespData(
+      baseUri = baseUri,
+      method = method,
+      requestHdrs = headers,
+      responseHdrs = respHdrs,
+      responseBody = respBody,
+      metadata = metadata,
+      doRedirect = doRedirect)
 
   def testDecision(decision: Decision,
                    stubF: Resource => Unit,

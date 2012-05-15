@@ -576,7 +576,9 @@ trait WebmachineDecisions {
   lazy val o20: Decision = new Decision {
     def name: String = "v3o20"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = null
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = for {
+      body <- respBodyL
+    } yield body.fold(notEmpty = _ => result(o18), empty = halt(204))
   }
 
   lazy val p3: Decision = new Decision {
