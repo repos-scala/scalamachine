@@ -1,7 +1,7 @@
 package com.github.jrwest.scalamachine.core
 package flow
 
-import scalaz.State
+import com.github.jrwest.scalamachine.internal.scalaz.State
 
 
 trait Decision {
@@ -38,7 +38,7 @@ object Decision {
   import Res._
   import ResT._
 
-  import scalaz.syntax.pointed._
+  import com.github.jrwest.scalamachine.internal.scalaz.syntax.pointed._
   type FlowState[T] = State[ReqRespData, T]
   type ResourceF[T] = Resource => ReqRespData => (Res[T], ReqRespData)
   type CheckF[T] = (T, ReqRespData) => Boolean

@@ -54,8 +54,8 @@ object HTTPMethod {
     case _ => GET
   }
 
-  import scalaz.Equal
-  import scalaz.Equal._
+  import com.github.jrwest.scalamachine.internal.scalaz.Equal
+  import com.github.jrwest.scalamachine.internal.scalaz.Equal._
 
   implicit val httpMethodEqual: Equal[HTTPMethod] = equalA
 }

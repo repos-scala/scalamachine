@@ -2,15 +2,15 @@ package com.github.jrwest.scalamachine.core
 package v3
 
 import flow._
-import scalaz.std.option._
-import scalaz.std.string._
+import com.github.jrwest.scalamachine.internal.scalaz.std.option._
+import com.github.jrwest.scalamachine.internal.scalaz.std.string._
 import optionSyntax._
-import scalaz.syntax.pointed._
-import scalaz.syntax.order._
-import scalaz.syntax.applicative._
-import scalaz.syntax.monad._
-import scalaz.OptionT._
-import scalaz.Lens._
+import com.github.jrwest.scalamachine.internal.scalaz.syntax.pointed._
+import com.github.jrwest.scalamachine.internal.scalaz.syntax.order._
+import com.github.jrwest.scalamachine.internal.scalaz.syntax.applicative._
+import com.github.jrwest.scalamachine.internal.scalaz.syntax.monad._
+import com.github.jrwest.scalamachine.internal.scalaz.OptionT._
+import com.github.jrwest.scalamachine.internal.scalaz.Lens._
 import Decision.FlowState
 import Res._
 import ResT._
@@ -18,7 +18,7 @@ import ReqRespData._
 import Metadata._
 import Resource._
 import java.util.Date
-import scalaz.{OptionT, State}
+import com.github.jrwest.scalamachine.internal.scalaz.{OptionT, State}
 import HTTPHeaders._
 
 trait WebmachineDecisions {
@@ -103,7 +103,7 @@ trait WebmachineDecisions {
 
   /* Accept Exists? */
   lazy val c3: Decision = new Decision {
-    import scalaz.syntax.std.allV.ToListVFromList
+    import com.github.jrwest.scalamachine.internal.scalaz.syntax.std.allV.ToListVFromList
 
     // TODO: move somewhere more global it will probably be used elsewhere
     val defaultContentType = ContentType("text/plain")

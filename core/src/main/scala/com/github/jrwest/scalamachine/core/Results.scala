@@ -1,6 +1,6 @@
 package com.github.jrwest.scalamachine.core
 
-import scalaz.{Functor, Monad}
+import com.github.jrwest.scalamachine.internal.scalaz.{Functor, Monad}
 
 sealed trait Res[+A]
 // change to traits with apply, and equal/show instances?
@@ -73,7 +73,7 @@ trait ResFunctions {
 }
 
 trait ResInstances {
-  import scalaz.{Monad, Traverse, Applicative}
+  import com.github.jrwest.scalamachine.internal.scalaz.{Monad, Traverse, Applicative}
   implicit val resScalazInstances = new Traverse[Res] with Monad[Res] {
     def point[A](a: => A): Res[A] = ValueRes(a)
     def traverseImpl[G[_],A,B](fa: Res[A])(f: A => G[B])(implicit G: Applicative[G]): G[Res[B]] =
@@ -88,7 +88,7 @@ trait ResInstances {
 }
 
 object ValueRes {
-  import scalaz.Monad
+  import com.github.jrwest.scalamachine.internal.scalaz.Monad
   // Shouldn't be necessary but it is in order to assuage type inferencer in some cases
   // and sometimes useful when you only want to work withing ValueRes structure
   implicit val valueResScalazInstances = new Monad[ValueRes] {
@@ -122,7 +122,7 @@ case class ResT[M[_],A](run: M[Res[A]]) {
 object ResT extends ResTFunctions
 
 trait ResTFunctions {
-  import scalaz.~>
+  import com.github.jrwest.scalamachine.internal.scalaz.~>
   def resT[M[_]] = new (({type λ[α] = M[Res[α]]})#λ ~> ({type λ[α] = ResT[M, α]})#λ) {
     def apply[A](a: M[Res[A]]) = new ResT[M, A](a)
   }

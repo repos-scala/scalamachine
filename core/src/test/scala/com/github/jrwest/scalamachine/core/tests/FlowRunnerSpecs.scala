@@ -33,8 +33,8 @@ class FlowRunnerSpecs extends Specification with Mockito { def is =
 
   def newFlow = new FlowRunner with TestFlowTracking
 
-  import scalaz.StateT
-  import scalaz.State
+  import com.github.jrwest.scalamachine.internal.scalaz.StateT
+  import com.github.jrwest.scalamachine.internal.scalaz.State
   def decisionReturning(next: Option[Decision], data: ReqRespData): Decision = {
     val decision = mock[Decision]
     decision.apply(any) returns (State((d: ReqRespData) => (next, data)))

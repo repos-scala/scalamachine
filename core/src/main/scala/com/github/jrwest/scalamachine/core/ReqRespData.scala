@@ -1,6 +1,6 @@
 package com.github.jrwest.scalamachine.core
 
-import scalaz.Lens._
+import com.github.jrwest.scalamachine.internal.scalaz.Lens._
 
 // TODO: make headers type alias
 // TODO: use scalaz CaseInsensitive for header key?

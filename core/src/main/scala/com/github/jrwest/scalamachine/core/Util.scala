@@ -1,7 +1,7 @@
 package com.github.jrwest.scalamachine.core
 
 import util.parsing.combinator.JavaTokenParsers
-import scalaz.syntax.std.Function1V
+import com.github.jrwest.scalamachine.internal.scalaz.syntax.std.Function1V
 import org.apache.commons.httpclient.util.{DateParseException, DateUtil}
 import java.util.Date
 import scala.util.control.Exception._
