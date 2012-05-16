@@ -1,10 +1,16 @@
 # Scalamachine
 
-Scalamachine is a port of [Basho's Webmachine](http://github.com/basho/webmachine) to Scala. It is pluggable into different web frameworks (support for [Finagle](http://github/twitter/finagle) and [Lift](http://liftweb.net) are in progress). 
+Scalamachine is a port of [Basho's Webmachine](http://github.com/basho/webmachine) to Scala. It is pluggable into different server frameworks (support for [Finagle](http://github/twitter/finagle) and [Lift](http://liftweb.net) are in progress). 
 
 ## Getting Started 
 
 To use Scalamachine select a host framework you want to run on -- don't fret it is easy to just switch out the dependency later if you change your mind. Add the dependency for that host framework to your project. 
+
+Scalamachine is not yet published to any public repo so you will need to build and publish it locally:
+
+```
+sbt update publish-local
+```	     
 
 Finagle: 
 
@@ -21,7 +27,7 @@ Lift:
 
 ### Resources
 
-At the core, Scalamachine (and webmachine) work by running a `Resource`, which describes your API resource, through a [decision flow](http://wiki.basho.com/images/http-headers-status-v3.png). At each decision in the flow, the resource or the request/response data is queried to determine how to proceed, resulting in either another decision or the termination of the flow -- and therefore a response to the request. The functions called on your `Resource`s are all of the signature `ReqRespData => (Res[T],ReqRespData)`. 
+At the core, Scalamachine works by running a `Resource`, which describes your API resource, through a [decision flow](http://wiki.basho.com/images/http-headers-status-v3.png). At each decision in the flow, the resource or the request/response data is queried to determine how to proceed, resulting in either another decision or the termination of the flow -- and therefore a response to the request. The functions called on your `Resource`s are all of the signature `ReqRespData => (Res[T],ReqRespData)`. ReqRespData is the class Scalamachine uses to represent both request and response data. 
 
 The simplest resource you can create is:
 
@@ -74,7 +80,7 @@ object MyDispatchTable extends FinagleWebmachineV3 {
 }
 ```
 
-Routes are added to the dispatch table using `addRoute` and either `routeMatching` or `routeStartingWith`. When created by `routeMatching`, request's with url path matching the route exactly are the only ones dispatched to the resource. With `routeStartingWith` requests whose path match exactly or whose prefix matches exactly will be routed to the resource. Each route is comrpised of parts that are determined if the route matches. A `StringPart` matches the corresponding path part (where parts are the list of strings resulting from splitting the path on the "/" character) if the string is exactly equal to the part, ignoring case. A DataPart always matches its corresponding path part. For example, the first route above would match "/resources/1" but not "/resources/1/sub_resources" or "/resources". The second route would match "/other_resources/1" and "/other_resources/2/something" and "/other_resources".
+Routes are added to the dispatch table using `addRoute` and either `routeMatching` or `routeStartingWith`. When created by `routeMatching`, request's with a url path matching the route exactly are the only ones dispatched to the resource. With `routeStartingWith` requests whose path match exactly or whose prefix matches exactly will be routed to the resource. Each route is comrpised of parts that are used to determine if the route matches. A `StringPart` matches the corresponding path part (where parts are the list of strings resulting from splitting the path on the "/" character) if the string is exactly equal to the part, ignoring case. A DataPart always matches its corresponding path part. For example, the first route above would match "/resources/1" but not "/resources/1/sub_resources" or "/resources". The second route would match "/other_resources/1" and "/other_resources/2/something" and "/other_resources".
 
 ### Getting Things Running
 
