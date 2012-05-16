@@ -10,46 +10,38 @@ case class ReqRespData(
                         pathData: PathData = PathData(),
                         method: HTTPMethod = GET,
                         statusCode: Int = 200,
-                        private val requestHdrs: Map[String, String] = Map(),
-                        private val responseHdrs: Map[String, String] = Map(),
+                        requestHeaders: Map[HTTPHeader, String] = Map(),
+                        responseHeaders: Map[HTTPHeader, String] = Map(),
                         responseBody: HTTPBody = EmptyBody,
                         metadata: Metadata = Metadata(),
                         doRedirect: Boolean = false
                         ) {
   
-  
-  // TODO: make private?
-  def setPathData(newPathData: PathData) = copy(pathData = newPathData)
+
+  private[scalamachine] def setPathData(newPathData: PathData) = copy(pathData = newPathData)
 
   val path = pathParts.mkString("/")
   val pathTokens = pathData.tokens
   val dispPath = pathData.dispPath
   val pathInfo = pathData.info
-  val requestHeaders: Map[String, String] = normalizeHeaders(requestHdrs)
-  val responseHeaders: Map[String,String] = normalizeHeaders(responseHdrs)
-  
+
   def setStatusCode(code: Int) = copy(statusCode = code)
 
-  def requestHeader(name: String) = header(name, requestHeaders)
+  def requestHeader(header: HTTPHeader) = requestHeaders.get(header)
 
-  def responseHeader(name: String) = header(name, responseHeaders)
+  def responseHeader(header: HTTPHeader) = responseHeaders.get(header)
 
-  def setResponseHeader(name: String, value: String) = copy(responseHdrs = responseHeaders + (name.toLowerCase -> value))
+  def setResponseHeader(header: HTTPHeader, value: String) = copy(responseHeaders = responseHeaders + (header -> value))
 
-  def mergeResponseHeaders(newHeaders: Map[String, String]) = copy(responseHdrs = responseHeaders ++ newHeaders)
-
-  private def header(name: String, headers: Map[String, String]) = headers.get(name.toLowerCase)
-
-  // TODO: make lazy?
-  private def normalizeHeaders(headers: Map[String, String]): Map[String, String] = for { (k,v) <- headers } yield (k.toLowerCase,v)
+  def mergeResponseHeaders(newHeaders: Map[HTTPHeader, String]) = copy(responseHeaders = responseHeaders ++ newHeaders)
 
 }
 
 object ReqRespData {
   val baseUriL: ReqRespData @-@ String = lensG(_.baseUri, d => u => d copy (baseUri = u))
   val statusCodeL: ReqRespData @-@ Int = lensG(_.statusCode, d => c => d copy (statusCode = c))
-  val responseHeadersL: ReqRespData @-@ Map[String, String] = lensG(_.responseHeaders, d => hdrs => d copy (responseHdrs = hdrs))
-  val requestHeadersL: ReqRespData @-@ Map[String, String] = lensG(_.requestHeaders, d => hdrs => d copy (requestHdrs = hdrs))
+  val responseHeadersL: ReqRespData @-@ Map[HTTPHeader, String] = lensG(_.responseHeaders, d => hdrs => d copy (responseHeaders = hdrs))
+  val requestHeadersL: ReqRespData @-@ Map[HTTPHeader, String] = lensG(_.requestHeaders, d => hdrs => d copy (requestHeaders = hdrs))
   val metadataL: ReqRespData @-@ Metadata = lensG(_.metadata, d => meta => d copy (metadata = meta))
   val methodL: ReqRespData @-@ HTTPMethod = lensG(_.method, d => m => d copy (method = m))
   val respBodyL: ReqRespData @-@ HTTPBody = lensG(_.responseBody, d => b => d copy (responseBody = b))

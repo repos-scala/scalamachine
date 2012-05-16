@@ -12,17 +12,17 @@ trait SpecsHelper {
 
   def createResource = mock[Resource]
   def createData(method: HTTPMethod = GET,
-                 headers: Map[String,String] = Map(),
+                 headers: Map[HTTPHeader,String] = Map(),
                  metadata: Metadata = Metadata(),
                  baseUri: String = "",
-                 respHdrs: Map[String,String] = Map(),
+                 respHdrs: Map[HTTPHeader,String] = Map(),
                  respBody: HTTPBody = EmptyBody,
                  doRedirect: Boolean = false) =
     ReqRespData(
       baseUri = baseUri,
       method = method,
-      requestHdrs = headers,
-      responseHdrs = respHdrs,
+      requestHeaders = headers,
+      responseHeaders = respHdrs,
       responseBody = respBody,
       metadata = metadata,
       doRedirect = doRedirect)

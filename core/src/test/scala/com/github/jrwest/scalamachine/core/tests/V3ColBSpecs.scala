@@ -10,6 +10,7 @@ import flow._
 import v3.WebmachineDecisions
 import scalaz.NonEmptyList
 import org.apache.commons.httpclient.util.DateUtil
+import HTTPHeaders._
 
 
 class V3ColBSpecs extends Specification with Mockito with SpecsHelper with WebmachineDecisions { def is =
@@ -120,7 +121,7 @@ class V3ColBSpecs extends Specification with Mockito with SpecsHelper with Webma
 
   def testAllowedMethodFalseAllowHeader = {
     testDecisionReturnsData(b10, _.allowedMethods(any) answers mkAnswer(List(GET,POST,DELETE)), data = createData(method=PUT)) {
-      _.responseHeader("Allow") must beSome.like {
+      _.responseHeader(Allow) must beSome.like {
         case s => s must contain("GET") and contain("POST") and contain("DELETE") // this could be improved (use the actual list above)
       }
     }
@@ -148,20 +149,20 @@ class V3ColBSpecs extends Specification with Mockito with SpecsHelper with Webma
 
   def testAuthFalseHaltResult = {
     testDecisionReturnsData(b8, _.isAuthorized(any) answers mkResAnswer(HaltRes(500))) {
-      _.responseHeader("WWW-Authenticate") must beNone
+      _.responseHeader(WWWAuthenticate) must beNone
     }
   }
 
   def testAuthFalseErrorResult = {
     testDecisionReturnsData(b8, _.isAuthorized(any) answers mkResAnswer(ErrorRes(null))) {
-      _.responseHeader("WWW-Authenticate") must beNone
+      _.responseHeader(WWWAuthenticate) must beNone
     }
   }
 
   def testAuthFalseAuthHeader = {
     val headerValue = "somevalue"
     testDecisionReturnsData(b8, _.isAuthorized(any) answers mkAnswer(AuthFailure(headerValue))) {
-      _.responseHeader("WWW-Authenticate") must beSome.which { _ == headerValue }
+      _.responseHeader(WWWAuthenticate) must beSome.which { _ == headerValue }
     }
   }
 
@@ -206,17 +207,17 @@ class V3ColBSpecs extends Specification with Mockito with SpecsHelper with Webma
   }
 
   def testRequestIsOptions = {
-    testDecisionReturnsData(b3,_.options(any) answers mkAnswer(Map[String,String]()), data = createData(method=OPTIONS)) {
+    testDecisionReturnsData(b3,_.options(any) answers mkAnswer(Map[HTTPHeader,String]()), data = createData(method=OPTIONS)) {
       _.statusCode must beEqualTo(200)
     }
   }
 
   def testRequestIsOptionsUsesResourceOptionsHeaders = {
-    val testHeaders =  Map("X-A" -> "a", "X-B" -> "b")
+    val XA = createHeader("X-A")
+    val XB = createHeader("X-B")
+    val testHeaders =  Map(XA -> "a", XB -> "b")
     testDecisionReturnsData(b3,_.options(any) answers mkAnswer(testHeaders), data = createData(method=OPTIONS)) {
-      _.responseHeaders must containAllOf(testHeaders.toList) ^^ {
-        (d1: (String, String), d2: (String, String)) => d1._1.equalsIgnoreCase(d2._1) && d1._2.equalsIgnoreCase(d2._2)
-      }
+      _.responseHeaders must containAllOf(testHeaders.toList)
     }
   }
 

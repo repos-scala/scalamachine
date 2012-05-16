@@ -1,15 +1,13 @@
 package com.github.jrwest.scalamachine.core.tests
 
 import org.specs2._
-import matcher.MatchResult
 import mock._
 import org.mockito.{Matchers => MM}
 import com.github.jrwest.scalamachine.core._
 import Resource._
-import flow._
 import v3.WebmachineDecisions
-import scalaz.NonEmptyList
-import org.apache.commons.httpclient.util.DateUtil
+import HTTPHeaders._
+
 
 class V3ColGSpecs extends Specification with Mockito with SpecsHelper with WebmachineDecisions { def is =
   "Webmachine V3 Column G".title                                                    ^
@@ -61,7 +59,7 @@ class V3ColGSpecs extends Specification with Mockito with SpecsHelper with Webma
         resource.resourceExists(any) answers mkAnswer(true)
       }
     ) {
-      _.responseHeader("vary") must beSome.like {
+      _.responseHeader(Vary) must beSome.like {
         case vary => vary must contain("Accept") and contain("Accept-Encoding") and contain("Accept-Charset")
       }
     }
@@ -82,7 +80,7 @@ class V3ColGSpecs extends Specification with Mockito with SpecsHelper with Webma
         resource.resourceExists(any) answers mkAnswer(true)
       }
     ) {
-      _.responseHeader("vary") must beSome.like {
+      _.responseHeader(Vary) must beSome.like {
         case vary => vary must not =~("""Accept[^-]""")
       }
     }
@@ -103,7 +101,7 @@ class V3ColGSpecs extends Specification with Mockito with SpecsHelper with Webma
         resource.resourceExists(any) answers mkAnswer(true)
       }
     ) {
-      _.responseHeader("vary") must beSome.like {
+      _.responseHeader(Vary) must beSome.like {
         case vary => vary must not =~("""Accept[^-]""")
       }
     }
@@ -128,7 +126,7 @@ class V3ColGSpecs extends Specification with Mockito with SpecsHelper with Webma
         resource.resourceExists(any) answers mkAnswer(true)
       }
     ) {
-      _.responseHeader("vary") must beSome.like {
+      _.responseHeader(Vary) must beSome.like {
         case vary => vary must not contain("Accept-Charset")
       }
     }
@@ -153,7 +151,7 @@ class V3ColGSpecs extends Specification with Mockito with SpecsHelper with Webma
         resource.resourceExists(any) answers mkAnswer(true)
       }
     ) {
-      _.responseHeader("vary") must beSome.like {
+      _.responseHeader(Vary) must beSome.like {
         case vary => vary must not contain("Accept-Charset")
       }
     }
@@ -178,7 +176,7 @@ class V3ColGSpecs extends Specification with Mockito with SpecsHelper with Webma
         resource.resourceExists(any) answers mkAnswer(true)
       }
     ) {
-      _.responseHeader("vary") must beSome.like {
+      _.responseHeader(Vary) must beSome.like {
         case vary => vary must not contain("Accept-Charset")
       }
     }
@@ -203,7 +201,7 @@ class V3ColGSpecs extends Specification with Mockito with SpecsHelper with Webma
         resource.resourceExists(any) answers mkAnswer(true)
       }
     ) {
-      _.responseHeader("vary") must beSome.like {
+      _.responseHeader(Vary) must beSome.like {
         case vary => vary must not contain("Accept-Encoding")
       }
     }
@@ -229,7 +227,7 @@ class V3ColGSpecs extends Specification with Mockito with SpecsHelper with Webma
         resource.resourceExists(any) answers mkAnswer(true)
       }
     ) {
-      _.responseHeader("vary") must beSome.like {
+      _.responseHeader(Vary) must beSome.like {
         case vary => vary must not contain("Accept-Encoding")
       }
     }
@@ -254,7 +252,7 @@ class V3ColGSpecs extends Specification with Mockito with SpecsHelper with Webma
         resource.resourceExists(any) answers mkAnswer(true)
       }
     ) {
-      _.responseHeader("vary") must beSome.like {
+      _.responseHeader(Vary) must beSome.like {
         case vary => vary must not contain("Accept-Encoding")
       }
     }
@@ -279,7 +277,7 @@ class V3ColGSpecs extends Specification with Mockito with SpecsHelper with Webma
         resource.resourceExists(any) answers mkAnswer(true)
       }
     ) {
-      _.responseHeader("vary") must beSome.like {
+      _.responseHeader(Vary) must beSome.like {
         case vary => vary must contain("One") and contain("Two")
       }
     }
@@ -314,7 +312,7 @@ class V3ColGSpecs extends Specification with Mockito with SpecsHelper with Webma
   }
 
   def testG8IfMatchExists = {
-    testDecisionReturnsDecision(g8,g9, r => {}, data = createData(headers = Map("if-match" -> "*")))
+    testDecisionReturnsDecision(g8,g9, r => {}, data = createData(headers = Map(IfMatch -> "*")))
   }
 
   def testG8IfMatchMissing = {
@@ -322,19 +320,19 @@ class V3ColGSpecs extends Specification with Mockito with SpecsHelper with Webma
   }
 
   def testIfMatchStar = {
-    testDecisionReturnsDecision(g9,h10, r => {}, data = createData(headers = Map("if-match" -> "*")))
+    testDecisionReturnsDecision(g9,h10, r => {}, data = createData(headers = Map(IfMatch -> "*")))
   }
 
   def testIfMatchNotStar = {
-    testDecisionReturnsDecision(g9,g11, r => {}, data = createData(headers = Map("if-match" -> "1")))
+    testDecisionReturnsDecision(g9,g11, r => {}, data = createData(headers = Map(IfMatch -> "1")))
   }
 
   def testIfMatchHasEtag = {
-    testDecisionReturnsDecision(g11,h10,_.generateEtag(any) answers mkAnswer(Some("1")), data = createData(headers = Map("if-match" -> "1,2")))
+    testDecisionReturnsDecision(g11,h10,_.generateEtag(any) answers mkAnswer(Some("1")), data = createData(headers = Map(IfMatch -> "1,2")))
   }
 
   def testIfMatchMissingEtag = {
-    testDecisionReturnsData(g11,_.generateEtag(any) answers mkAnswer(None), data = createData(headers = Map("if-match" -> "1"))) {
+    testDecisionReturnsData(g11,_.generateEtag(any) answers mkAnswer(None), data = createData(headers = Map(IfMatch -> "1"))) {
       _.statusCode must beEqualTo(412)
     }
   }
