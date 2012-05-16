@@ -29,7 +29,7 @@ trait Resource {
 
   def isValidEntityLength(data: ReqRespData): (Res[Boolean],ReqRespData) = (default(true), data)
 
-  def options(data: ReqRespData): (Res[Map[String, String]],ReqRespData) = (default(Map()), data)
+  def options(data: ReqRespData): (Res[Map[HTTPHeader, String]],ReqRespData) = (default(Map()), data)
 
   def contentTypesProvided(data: ReqRespData): (Res[ContentTypesProvided],ReqRespData) = {
     (default((ContentType("text/html") -> defaultResponse) :: Nil), data)
