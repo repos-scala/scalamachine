@@ -81,7 +81,7 @@ trait Resource {
    * @note default - no additional headers
    * @return additional headers to include in the reponse to an `OPTIONS` request
    */
-  def options(data: ReqRespData): (Res[Map[String, String]],ReqRespData) = (default(Map()), data)
+  def options(data: ReqRespData): (Res[Map[HTTPHeader, String]],ReqRespData) = (default(Map()), data)
 
   /**
    * This function determines the body of GET/HEAD requests. If your resource responds to them, make sure to implement it

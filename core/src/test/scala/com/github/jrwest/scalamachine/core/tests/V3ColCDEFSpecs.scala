@@ -1,15 +1,12 @@
 package com.github.jrwest.scalamachine.core.tests
 
 import org.specs2._
-import matcher.MatchResult
 import mock._
 import org.mockito.{Matchers => MM}
 import com.github.jrwest.scalamachine.core._
 import Resource._
-import flow._
 import v3.WebmachineDecisions
-import scalaz.NonEmptyList
-import org.apache.commons.httpclient.util.DateUtil
+import HTTPHeaders._
 
 class V3ColCDEFSpecs extends Specification with Mockito with SpecsHelper with WebmachineDecisions { def is =
   "Webmachine V3 Column C, D, E & F".title                                          ^
@@ -91,13 +88,13 @@ class V3ColCDEFSpecs extends Specification with Mockito with SpecsHelper with We
   }
 
   def testAcceptHeaderExists = {
-    testDecisionReturnsDecision(c3,c4,_.contentTypesProvided(any) answers mkAnswer(Nil),data = createData(headers = Map("accept" -> "text/html")))
+    testDecisionReturnsDecision(c3,c4,_.contentTypesProvided(any) answers mkAnswer(Nil),data = createData(headers = Map(Accept -> "text/html")))
   }
 
   def testMediaTypeNotProvided = {
     val ctypes: ContentTypesProvided = (ContentType("text/html"), (d: ReqRespData) => (ValueRes("".getBytes), d)) :: Nil
 
-    testDecisionReturnsData(c4,_.contentTypesProvided(any) answers { d => ((ValueRes(ctypes),d.asInstanceOf[ReqRespData])) }, data = createData(headers = Map("accept" -> "text/plain"))) {
+    testDecisionReturnsData(c4,_.contentTypesProvided(any) answers { d => ((ValueRes(ctypes),d.asInstanceOf[ReqRespData])) }, data = createData(headers = Map(Accept -> "text/plain"))) {
       _.statusCode must beEqualTo(406)
     }
   }
@@ -105,7 +102,7 @@ class V3ColCDEFSpecs extends Specification with Mockito with SpecsHelper with We
   def testMediaTypeProvided = {
     val ctypes: ContentTypesProvided = (ContentType("text/html"), (d: ReqRespData) => (ValueRes("".getBytes), d)) :: Nil
 
-    testDecisionReturnsDecisionAndData(c4,d4,_.contentTypesProvided(any) answers mkAnswer(ctypes), data = createData(headers = Map("accept" -> "text/html"))) {
+    testDecisionReturnsDecisionAndData(c4,d4,_.contentTypesProvided(any) answers mkAnswer(ctypes), data = createData(headers = Map(Accept -> "text/html"))) {
       _.metadata.contentType must beSome.like {
         case ct => ct must beEqualTo(ContentType("text/html"))
       }
@@ -117,21 +114,21 @@ class V3ColCDEFSpecs extends Specification with Mockito with SpecsHelper with We
   }
 
   def testHasAcceptLanguage = {
-    testDecisionReturnsDecision(d4,d5,r => {},data = createData(headers = Map("accept-language" -> "en/us")))
+    testDecisionReturnsDecision(d4,d5,r => {},data = createData(headers = Map(AcceptLanguage -> "en/us")))
   }
 
   def testIsLanguageAvailableFalse = {
-    testDecisionReturnsData(d5,_.isLanguageAvailable(any) answers mkAnswer(false), data = createData(headers = Map("accept-language" -> "en/us"))) {
+    testDecisionReturnsData(d5,_.isLanguageAvailable(any) answers mkAnswer(false), data = createData(headers = Map(AcceptLanguage -> "en/us"))) {
       _.statusCode must beEqualTo(406)
     }
   }
 
   def testIsLanguageAvailableTrue = {
-    testDecisionReturnsDecision(d5,e5,_.isLanguageAvailable(any) answers mkAnswer(true), data = createData(headers = Map("accept-language" -> "en/us")))
+    testDecisionReturnsDecision(d5,e5,_.isLanguageAvailable(any) answers mkAnswer(true), data = createData(headers = Map(AcceptLanguage-> "en/us")))
   }
 
   def testAcceptCharsetExists = {
-    testDecisionReturnsDecision(e5,e6,r => {}, data = createData(headers = Map("accept-charset" -> "*")))
+    testDecisionReturnsDecision(e5,e6,r => {}, data = createData(headers = Map(AcceptCharset -> "*")))
   }
 
   def testAcceptMissingStarAcceptable = {
@@ -160,20 +157,20 @@ class V3ColCDEFSpecs extends Specification with Mockito with SpecsHelper with We
 
   def testAcceptExistsCharsetNegShortCircuit = {
     val provided: CharsetsProvided = None
-    testDecisionReturnsDecision(e6, f6, _.charsetsProvided(any) answers mkAnswer(provided), data = createData(headers = Map("accept-charset" -> "ISO-8859-1")))
+    testDecisionReturnsDecision(e6, f6, _.charsetsProvided(any) answers mkAnswer(provided), data = createData(headers = Map(AcceptCharset -> "ISO-8859-1")))
   }
 
   def testAcceptExistsAcceptableSetInMeta = {
     val charset = "ISO-8859-1"
     val provided: CharsetsProvided = Some((charset, identity[Array[Byte]](_)) :: Nil)
-    testDecisionReturnsDecisionAndData(e6, f6, _.charsetsProvided(any) answers mkAnswer(provided), data = createData(headers = Map("accept-charset" -> charset))) {
+    testDecisionReturnsDecisionAndData(e6, f6, _.charsetsProvided(any) answers mkAnswer(provided), data = createData(headers = Map(AcceptCharset -> charset))) {
       _.metadata.chosenCharset must beSome.which { _ == charset }
     }
   }
 
   def testAcceptExistsNotAcceptable = {
     val provided: CharsetsProvided = Some(Nil)
-    testDecisionReturnsData(e6, _.charsetsProvided(any) answers mkAnswer(provided), data = createData(headers = Map("acccept-charset" -> "ISO-8859-1"))) {
+    testDecisionReturnsData(e6, _.charsetsProvided(any) answers mkAnswer(provided), data = createData(headers = Map(AcceptCharset -> "ISO-8859-1"))) {
       _.statusCode must beEqualTo(406)
     }
   }
@@ -181,7 +178,7 @@ class V3ColCDEFSpecs extends Specification with Mockito with SpecsHelper with We
   def testF6MediaAndCharsetNotChosen = {
     val provided: EncodingsProvided = None
     testDecisionResultHasData(f6, _.encodingsProvided(any) answers mkAnswer(provided)) {
-      _.responseHeader("content-type") must beSome.like {
+      _.responseHeader(ContentTypeHeader) must beSome.like {
         case value => value must beEqualTo("text/plain")
       }
     }
@@ -191,7 +188,7 @@ class V3ColCDEFSpecs extends Specification with Mockito with SpecsHelper with We
     val provided: EncodingsProvided = None
     val contentType = ContentType("application/json", Map("a" -> "b", "c" -> "d"))
     testDecisionResultHasData(f6, _.encodingsProvided(any) answers mkAnswer(provided), data = createData(metadata = Metadata(contentType = Some(contentType)))) {
-      _.responseHeader("content-type") must beSome.like {
+      _.responseHeader(ContentTypeHeader) must beSome.like {
         case value => value must beEqualTo(contentType.mediaType + ";a=b,c=d").ignoreSpace.ignoreCase
       }
     }
@@ -201,7 +198,7 @@ class V3ColCDEFSpecs extends Specification with Mockito with SpecsHelper with We
     val provided: EncodingsProvided = None
     val charset = "ISO-8859-1"
     testDecisionResultHasData(f6, _.encodingsProvided(any) answers mkAnswer(provided), data = createData(metadata = Metadata(chosenCharset = Some(charset)))) {
-      _.responseHeader("content-type") must beSome.like {
+      _.responseHeader(ContentTypeHeader) must beSome.like {
         case value => value must beEqualTo("text/plain;charset=" + charset).ignoreSpace.ignoreCase
       }
     }
@@ -212,21 +209,21 @@ class V3ColCDEFSpecs extends Specification with Mockito with SpecsHelper with We
     val contentType = ContentType("application/json", Map("a" -> "b", "c" -> "d"))
     val charset = "ISO-8859-1"
     testDecisionResultHasData(f6, _.encodingsProvided(any) answers mkAnswer(provided), data = createData(metadata = Metadata(contentType = Some(contentType), chosenCharset = Some(charset)))) {
-      _.responseHeader("content-type") must beSome.like {
+      _.responseHeader(ContentTypeHeader) must beSome.like {
         case value => value must beEqualTo(contentType.mediaType + ";a=b,c=d;charset=" + charset).ignoreSpace.ignoreCase
       }
     }
   }
 
   def testAcceptEncodingExists = {
-    testDecisionReturnsDecision(f6,f7,r => {}, data = createData(headers = Map("accept-encoding" -> "*")))
+    testDecisionReturnsDecision(f6,f7,r => {}, data = createData(headers = Map(AcceptEncoding -> "*")))
   }
 
   def testAcceptEncodingMissingDefaultAcceptable = {
     val encoding = "some-encoding"
     val provided: EncodingsProvided = Some((encoding, identity[Array[Byte]](_)) :: Nil)
     testDecisionReturnsDecisionAndData(f6,g7,_.encodingsProvided(any) answers mkAnswer(provided)) {
-      d => (d.responseHeader("content-encoding") must beSome.like {
+      d => (d.responseHeader(ContentEncoding) must beSome.like {
         case enc => enc must beEqualTo(encoding)
       }) and (d.metadata.chosenEncoding must beSome.like {
         case enc => enc must beEqualTo(encoding)
@@ -243,14 +240,14 @@ class V3ColCDEFSpecs extends Specification with Mockito with SpecsHelper with We
 
   def testAcceptEncodingExistsShortCircuit = {
     val provided: EncodingsProvided = None
-    testDecisionReturnsDecision(f7,g7,_.encodingsProvided(any) answers mkAnswer(provided), data = createData(headers = Map("accept-encoding" -> "gzip")))
+    testDecisionReturnsDecision(f7,g7,_.encodingsProvided(any) answers mkAnswer(provided), data = createData(headers = Map(AcceptEncoding-> "gzip")))
   }
 
   def testAcceptEncodingExistsAcceptable = {
     val encoding = "gzip"
     val provided: EncodingsProvided = Some((encoding, identity[Array[Byte]](_)) :: Nil)
-    testDecisionReturnsDecisionAndData(f7,g7,_.encodingsProvided(any) answers mkAnswer(provided), data = createData(headers = Map("accept-encoding" -> encoding))) {
-      d => (d.responseHeader("content-encoding") must beSome.like {
+    testDecisionReturnsDecisionAndData(f7,g7,_.encodingsProvided(any) answers mkAnswer(provided), data = createData(headers = Map(AcceptEncoding -> encoding))) {
+      d => (d.responseHeader(ContentEncoding) must beSome.like {
         case enc => enc must beEqualTo(encoding)
       }) and (d.metadata.chosenEncoding must beSome.like {
         case enc => enc must beEqualTo(encoding)
@@ -260,8 +257,8 @@ class V3ColCDEFSpecs extends Specification with Mockito with SpecsHelper with We
 
   def testAcceptEncodingExistsNotAcceptable = {
     val provided: EncodingsProvided = Some(Nil)
-    testDecisionReturnsData(f7,_.encodingsProvided(any) answers mkAnswer(provided), data = createData(headers = Map("accept-encoding" -> "ISO-8859-1"))) {
-      d => (d.responseHeader("content-coding") must beNone) and (d.statusCode must beEqualTo(406))
+    testDecisionReturnsData(f7,_.encodingsProvided(any) answers mkAnswer(provided), data = createData(headers = Map(AcceptEncoding -> "ISO-8859-1"))) {
+      d => (d.responseHeader(ContentEncoding) must beNone) and (d.statusCode must beEqualTo(406))
     }
   }
 

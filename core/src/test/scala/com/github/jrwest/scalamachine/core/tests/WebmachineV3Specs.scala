@@ -10,6 +10,7 @@ import v3.WebmachineDecisions
 import Res._
 import org.apache.commons.httpclient.util.DateUtil
 import java.util.Date
+import HTTPHeaders._
 
 class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with WebmachineDecisions { def is = ""            ^
   "WebMachine V3".title                                                             ^
@@ -167,7 +168,7 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
     "otherwise, O18 returned"                                                       ! testDecisionReturnsDecision(o20,o18,r =>{},data=createData(respBody="1".getBytes)) ^
                                                                                     p^
   "P11 - New Resource?"                                                             ^
-    "if location header is set, response with code 201 returned"                    ! testDecisionReturnsData(p11,r=>{},data=createData(respHdrs=Map("location" -> "a"))) { _.statusCode must_== 201 } ^
+    "if location header is set, response with code 201 returned"                    ! testDecisionReturnsData(p11,r=>{},data=createData(respHdrs=Map(Location-> "a"))) { _.statusCode must_== 201 } ^
     "otherwise, O20 returned"                                                       ! testDecisionReturnsDecision(p11,o20,r => {})
                                                                                     end
 
@@ -273,7 +274,7 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
         )
       )
     ) {
-      _.responseHeader("expires") must beSome.like {
+      _.responseHeader(Expires) must beSome.like {
         case date => date must beEqualTo(Util.formatDate(expires))
       }
     }
@@ -301,7 +302,7 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
         )
       )
     ) {
-      _.responseHeader("last-modified") must beSome.like {
+      _.responseHeader(LastModified) must beSome.like {
         case date => date must beEqualTo(Util.formatDate(lastMod))
       }
     }
@@ -323,7 +324,7 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
       },
       data = createData(method = GET)
     ) {
-      _.responseHeader("etag") must beSome.like {
+      _.responseHeader(ETag) must beSome.like {
         case e => e must_== etag
       }
     }
@@ -345,14 +346,14 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
       data = createData(method = HEAD)
     ) {
       d =>
-        (d.responseHeader("etag") must beNone) and
-          (d.responseHeader("last-modified") must beNone) and
-          (d.responseHeader("expires") must beNone)
+        (d.responseHeader(ETag) must beNone) and
+          (d.responseHeader(LastModified) must beNone) and
+          (d.responseHeader(Expires) must beNone)
     }
   }
 
   def testH7IfMatchExists = {
-    testDecisionReturnsDecision(h7,i7,r => {}, data = createData(headers = Map("if-match" -> "*")))
+    testDecisionReturnsDecision(h7,i7,r => {}, data = createData(headers = Map(IfMatch -> "*")))
   }
 
   def testH7IfMatchMissing = {
@@ -362,7 +363,7 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
   }
 
   def testIfUnmodifiedSinceExists = {
-    testDecisionReturnsDecision(h10, h11, r => {}, data = createData(headers = Map("if-unmodified-since" -> "whocares")))
+    testDecisionReturnsDecision(h10, h11, r => {}, data = createData(headers = Map(IfUnmodifiedSince -> "whocares")))
   }
 
   def testIfUnmodifiedSinceMissing = {
@@ -370,31 +371,31 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
   }
 
   def testIUMSRFC822Valid = {
-    testDecisionReturnsDecision(h11,h12,r => {}, data = createData(headers = Map("if-unmodified-since" -> "Sun, 06 Nov 1994 08:49:37 GMT")))
+    testDecisionReturnsDecision(h11,h12,r => {}, data = createData(headers = Map(IfUnmodifiedSince -> "Sun, 06 Nov 1994 08:49:37 GMT")))
   }
 
   def testIUMSRFC850Valid = {
-    testDecisionReturnsDecision(h11,h12,r => {}, data = createData(headers = Map("if-unmodified-since" -> "Sunday, 06-Nov-94 08:49:37 GMT")))
+    testDecisionReturnsDecision(h11,h12,r => {}, data = createData(headers = Map(IfUnmodifiedSince -> "Sunday, 06-Nov-94 08:49:37 GMT")))
   }
 
   def testIUMSANSICValid = {
-    testDecisionReturnsDecision(h11,h12,r => {}, data = createData(headers = Map("if-unmodified-since" -> "Sun Nov  6 08:49:37 1994")))
+    testDecisionReturnsDecision(h11,h12,r => {}, data = createData(headers = Map(IfUnmodifiedSince -> "Sun Nov  6 08:49:37 1994")))
   }
 
   def testIUMSInvalid = {
-    testDecisionReturnsDecision(h11,i12,r => {}, data = createData(headers = Map("if-unmodified-since" -> "invalid")))
+    testDecisionReturnsDecision(h11,i12,r => {}, data = createData(headers = Map(IfUnmodifiedSince -> "invalid")))
   }
 
   def testIUMSLessThanLastMod = {
     val date = DateUtil.parseDate("Sat, 29 Oct 1995 19:43:31 GMT")
-    testDecisionReturnsData(h12,_.lastModified(any) answers mkAnswer(Some(date)), data = createData(headers = Map("if-unmodified-since" -> "Sat, 29 Oct 1994 19:43:31 GMT"))) {
+    testDecisionReturnsData(h12,_.lastModified(any) answers mkAnswer(Some(date)), data = createData(headers = Map(IfUnmodifiedSince -> "Sat, 29 Oct 1994 19:43:31 GMT"))) {
       _.statusCode must beEqualTo(412)
     }
   }
 
   def testIUMSGreaterThanLastMod = {
     val date = DateUtil.parseDate("Sat, 29 Oct 1993 19:43:31 GMT")
-    testDecisionReturnsDecision(h12,i12,_.lastModified(any) answers mkAnswer(Some(date)), data = createData(headers = Map("if-unmodified-since" -> "Sat, 29 Oct 1994 19:43:31 GMT")))
+    testDecisionReturnsDecision(h12,i12,_.lastModified(any) answers mkAnswer(Some(date)), data = createData(headers = Map(IfUnmodifiedSince -> "Sat, 29 Oct 1994 19:43:31 GMT")))
   }
 
   def testIsPutTrue = {
@@ -406,7 +407,7 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
   }
 
   def testIfNoneMatchExists = {
-    testDecisionReturnsDecision(i12,i13,r => {},data = createData(headers = Map("if-none-match" -> "*")))
+    testDecisionReturnsDecision(i12,i13,r => {},data = createData(headers = Map(IfNoneMatch -> "*")))
   }
 
   def testIfNoneMatchMissing = {
@@ -422,7 +423,7 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
   def testResourceMovedPermanently(toTest: Decision) = {
     val location = "http://somewhere.com"
     testDecisionReturnsData(toTest,r => r.movedPermanently(any) answers mkAnswer(Some(location))) {
-      d => (d.statusCode must beEqualTo(301)) and (d.responseHeader("location") must beSome.like {
+      d => (d.statusCode must beEqualTo(301)) and (d.responseHeader(Location) must beSome.like {
         case loc => loc must beEqualTo(location)
       })
     }
@@ -433,11 +434,11 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
   }
 
   def testIfNoneMatchStar = {
-    testDecisionReturnsDecision(i13,j18,r => {},data = createData(headers = Map("if-none-match" -> "*")))
+    testDecisionReturnsDecision(i13,j18,r => {},data = createData(headers = Map(IfNoneMatch -> "*")))
   }
 
   def testIfNoneMatchNotStar = {
-    testDecisionReturnsDecision(i13,k13,r => {}, data = createData(headers = Map("if-none-match" -> "notstar")))
+    testDecisionReturnsDecision(i13,k13,r => {}, data = createData(headers = Map(IfNoneMatch -> "notstar")))
   }
 
   def testJ18IsGet = {
@@ -467,17 +468,17 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
   }
 
   def testIfNoneMatchHasEtag = {
-    testDecisionReturnsDecision(k13,j18,_.generateEtag(any) answers mkAnswer(Some("1")), data = createData(headers = Map("if-none-match" -> "1,2")))
+    testDecisionReturnsDecision(k13,j18,_.generateEtag(any) answers mkAnswer(Some("1")), data = createData(headers = Map(IfNoneMatch -> "1,2")))
   }
 
   def testIfNoneMatchMissingEtag = {
-    testDecisionReturnsDecision(k13,l13,_.generateEtag(any) answers mkAnswer(None), data = createData(headers = Map("if-none-match" -> "1,2")))
+    testDecisionReturnsDecision(k13,l13,_.generateEtag(any) answers mkAnswer(None), data = createData(headers = Map(IfNoneMatch -> "1,2")))
   }
 
   def testResourceMovedTemporarily = {
     val location = "http://abc.com"
     testDecisionReturnsData(l5,_.movedTemporarily(any) answers mkAnswer(Some(location))) {
-      d => (d.statusCode must beEqualTo(307)) and (d.responseHeader("location") must beSome.like {
+      d => (d.statusCode must beEqualTo(307)) and (d.responseHeader(Location) must beSome.like {
         case loc => loc must beEqualTo(location)
       })
     }
@@ -507,25 +508,25 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
   }
 
   def testIMSExists = {
-    testDecisionReturnsDecision(l13,l14,r => {}, data = createData(headers = Map("if-modified-since" -> "*")))
+    testDecisionReturnsDecision(l13,l14,r => {}, data = createData(headers = Map(IfModifiedSince -> "*")))
   }
 
   def testIMSValid = {
-    testDecisionReturnsDecision(l14,l15,r => {}, data = createData(headers = Map("if-modified-since" -> "Sun, 06 Nov 1994 08:49:37 GMT")))
+    testDecisionReturnsDecision(l14,l15,r => {}, data = createData(headers = Map(IfModifiedSince -> "Sun, 06 Nov 1994 08:49:37 GMT")))
   }
 
   def testIMSInvalid = {
-    testDecisionReturnsDecision(l14,m16,r => {}, data = createData(headers = Map("if-modified-since" -> "invalid")))
+    testDecisionReturnsDecision(l14,m16,r => {}, data = createData(headers = Map(IfModifiedSince -> "invalid")))
   }
 
   def testIMSInFuture = {
     // hack
-    testDecisionReturnsDecision(l15,m16,r => {}, data = createData(headers = Map("if-modified-since" -> "Sun, 06 Nov 2050 08:49:37 GMT")))
+    testDecisionReturnsDecision(l15,m16,r => {}, data = createData(headers = Map(IfModifiedSince -> "Sun, 06 Nov 2050 08:49:37 GMT")))
   }
 
   def testIMSNotInFuture = {
     // hack
-    testDecisionReturnsDecision(l15,l17,r => {}, data = createData(headers = Map("if-modified-since" -> "Sun, 06 Nov 1994 08:49:37 GMT")))
+    testDecisionReturnsDecision(l15,l17,r => {}, data = createData(headers = Map(IfModifiedSince -> "Sun, 06 Nov 1994 08:49:37 GMT")))
   }
 
   def testLastModGreaterThanIMS = {
@@ -533,7 +534,7 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
       l17,
       m16,
       _.lastModified(any) answers mkAnswer(Util.parseDate("Sun, 06 Nov 1995 08:49:37 GMT")),
-      data = createData(headers = Map("if-modified-since" -> "Sun, 06 Nov 1994 08:49:37 GMT"))
+      data = createData(headers = Map(IfModifiedSince -> "Sun, 06 Nov 1994 08:49:37 GMT"))
     )
   }
 
@@ -541,7 +542,7 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
     testDecisionReturnsData(
      l17,
       _.lastModified(any) answers mkAnswer(Util.parseDate("Sun, 06 Nov 1993 08:49:37 GMT")),
-      data = createData(headers = Map("if-modified-since" -> "Sun, 06 Nov 1994 08:49:37 GMT"))
+      data = createData(headers = Map(IfModifiedSince -> "Sun, 06 Nov 1994 08:49:37 GMT"))
     ) {
       _.statusCode must beEqualTo(304)
     }
@@ -569,8 +570,8 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
       },
       data = createData(
         metadata = Metadata(chosenCharset = Some("ch1"), chosenEncoding = Some("enc1")),
-        headers = Map("content-type" -> "text/plain"),
-        respHdrs = Map("location" -> "someloc"),
+        headers = Map(ContentTypeHeader -> "text/plain"),
+        respHdrs = Map(Location -> "someloc"),
         doRedirect = true
       )
     ) { _.statusCode must beEqualTo(303) }
@@ -597,7 +598,7 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
         r.encodingsProvided(any) answers mkAnswer(encodings)
         r.charsetsProvided(any) answers mkAnswer(charsets)
       },
-      data = createData(metadata = Metadata(chosenCharset = Some("ch1"), chosenEncoding = Some("enc1")), headers = Map("content-type" -> "text/plain"))
+      data = createData(metadata = Metadata(chosenCharset = Some("ch1"), chosenEncoding = Some("enc1")), headers = Map(ContentTypeHeader -> "text/plain"))
     )
   }
 
@@ -613,7 +614,7 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
         r.createPath(any) answers mkAnswer(Some("a/b"))
         r.contentTypesAccepted(any) answers mkAnswer(contentTypesAccepted)
       },
-      data = createData(headers = Map("content-type" -> "text/html2"))
+      data = createData(headers = Map(ContentTypeHeader -> "text/html2"))
     ) { _.statusCode must beEqualTo(415) }
 
   }
@@ -630,7 +631,7 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
         r.createPath(any) answers mkAnswer(Some("a/b"))
         r.contentTypesAccepted(any) answers mkAnswer(contentTypesAccepted)
       },
-      data = createData(headers = Map("content-type" -> "text/html"))
+      data = createData(headers = Map(ContentTypeHeader -> "text/html"))
     ) { _.statusCode must beEqualTo(500) }
 
   }
@@ -655,7 +656,7 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
         r.encodingsProvided(any) answers mkAnswer(encodings)
         r.charsetsProvided(any) answers mkAnswer(charsets)
       },
-      data = createData(metadata = Metadata(chosenCharset = Some("ch1"), chosenEncoding = Some("enc1")), headers = Map("content-type" -> "text/plain"))
+      data = createData(metadata = Metadata(chosenCharset = Some("ch1"), chosenEncoding = Some("enc1")), headers = Map(ContentTypeHeader-> "text/plain"))
     ) {
       _.responseBody.fold(notEmpty = new String(_), empty = "") must beEqualTo(setBody + charsetBody + encodingBody)
     }
@@ -670,9 +671,9 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
         r.createPath(any) answers mkAnswer(Some("a/b"))
         r.contentTypesAccepted(any) answers mkAnswer(Nil)
       },
-      data = createData(respHdrs = Map("location" -> existing))
+      data = createData(respHdrs = Map(Location -> existing))
     ) {
-      _.responseHeader("location") must beSome.like {
+      _.responseHeader(Location) must beSome.like {
         case loc => loc must beEqualTo(existing)
       }
     }
@@ -690,7 +691,7 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
       },
       data = createData(baseUri = baseUri)
     ) {
-      _.responseHeader("location") must beSome.like {
+      _.responseHeader(Location) must beSome.like {
         case loc => loc must beEqualTo("http://example.com/a/v")
       }
     }
@@ -794,7 +795,7 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
         r.encodingsProvided(any) answers mkAnswer(encodings)
         r.charsetsProvided(any) answers mkAnswer(charsets)
       },
-      data = createData(metadata = Metadata(chosenCharset = Some("ch1"), chosenEncoding = Some("enc1")), headers = Map("content-type" -> "text/plain"))
+      data = createData(metadata = Metadata(chosenCharset = Some("ch1"), chosenEncoding = Some("enc1")), headers = Map(ContentTypeHeader-> "text/plain"))
     ) {
       _.responseBody.fold(notEmpty = new String(_), empty = "") must beEqualTo(setBody + charsetBody + encodingBody)
     }
@@ -811,7 +812,7 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
         r.isConflict(any) answers mkAnswer(false)
         r.contentTypesAccepted(any) answers mkAnswer(contentTypesAccepted)
       },
-      data = createData(headers = Map("content-type" -> "text/html"))
+      data = createData(headers = Map(ContentTypeHeader -> "text/html"))
     ) { _.statusCode must beEqualTo(500) }
 
   }
@@ -823,7 +824,7 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
         r.isConflict(any) answers mkAnswer(false)
         r.contentTypesAccepted(any) answers mkAnswer(Nil)
       },
-      data = createData(headers = Map("content-type" -> "text/html"))
+      data = createData(headers = Map(ContentTypeHeader -> "text/html"))
     ) { _.statusCode must beEqualTo(415) }
 
   }

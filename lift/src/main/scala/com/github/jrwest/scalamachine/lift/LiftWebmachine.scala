@@ -19,12 +19,19 @@ trait LiftWebmachine {
     ReqRespData(
       method = parseMethod(req.request.method),
       pathParts = path(req),
-      requestHdrs = req.headers.toMap)
+      requestHeaders = {
+        for {
+          (name, value) <- req.headers.toMap
+          hdr <- HTTPHeader.fromString(name)
+        } yield (hdr,value)
+
+      }
+    )
   } // TODO: correctly handle duplicate headers once core does
 
   def fromData(data: ReqRespData): Box[LiftResponse] = Full(InMemoryResponse(
     data = data.responseBody.fold(notEmpty = identity(_), empty = Array()),
-    headers = data.responseHeaders.toList, // TODO: correctly handle duplicate headers once core does
+    headers = for { (h,v) <- data.responseHeaders.toList } yield (h.wireName, v), // TODO: correctly handle duplicate headers once core does
     cookies = Nil,
     code = data.statusCode
   ))
