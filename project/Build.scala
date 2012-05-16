@@ -40,7 +40,7 @@ object ScalamachineBuild extends Build {
 
   lazy val scalamachine = Project("scalamachine", file("."),
     settings = standardSettings,
-    aggregate = Seq(core,lift)
+    aggregate = Seq(core,lift,netty)
   )
 
   lazy val core = Project("scalamachine-core", file("core"),
