@@ -13,7 +13,6 @@ trait DispatchTable[-A, B, +W[_]] extends PartialFunction[A, W[B]] {
 
   def isDefinedAt(req: A): Boolean = _routes.find(_.isDefinedAt(path(req))).isDefined
 
-  // TODO: add route data to ReqRespData (see DataPart case class)
   def apply(req: A): W[B] = {
     val data = toData(req)
     wrap {
