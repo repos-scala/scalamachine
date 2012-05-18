@@ -6,23 +6,29 @@ import com.github.jrwest.scalamachine.internal.scalaz.State
 
 trait Decision {
   import Decision.FlowState
+  import ReqRespData.{statusCodeL, respBodyL}
 
   def name: String
 
   def apply(resource: Resource): FlowState[Option[Decision]] = {
-    import ReqRespData.statusCodeL
     for {
       res <- decide(resource)
       _ <- res match {
         case HaltRes(code) => statusCodeL := code
-        // TODO: set response body to error
-        case ErrorRes(_) => statusCodeL := 500
+        case ErrorRes(error) => setError(error)
         case _ => statusCodeL.st
       }
     } yield res.toOption
   }
 
   protected def decide(resource: Resource): FlowState[Res[Decision]]
+
+  private def setError(error: Any) = for {
+    _ <- statusCodeL := 500
+    body <- respBodyL
+    _ <- body.fold(notEmpty = _ => respBodyL.st, empty = respBodyL := error.toString.getBytes)
+  } yield ()
+
 
   override def equals(o: Any): Boolean = o match {
     case o: Decision => o.name == name

@@ -61,7 +61,10 @@ object HTTPMethod {
 }
 
 trait HTTPBody {
+  def bytes: Array[Byte]
   def isEmpty: Boolean
+
+  def stringValue = new String(bytes)
 
   def fold[A](notEmpty: Array[Byte] => A, empty: => A): A = this match {
     case EmptyBody => empty
@@ -70,6 +73,7 @@ trait HTTPBody {
 
 }
 case object EmptyBody extends HTTPBody {
+  val bytes = Array[Byte]()
   val isEmpty = true
 }
 case class NonEmptyBody(bytes: Array[Byte]) extends HTTPBody {

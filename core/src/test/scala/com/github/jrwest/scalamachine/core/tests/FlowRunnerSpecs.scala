@@ -5,6 +5,7 @@ import execute.Success
 import mock._
 import com.github.jrwest.scalamachine.core._
 import flow._
+import Res._
 
 
 class FlowRunnerSpecs extends Specification with Mockito { def is =
@@ -20,6 +21,11 @@ class FlowRunnerSpecs extends Specification with Mockito { def is =
     "returns the resulting data from the last decision"                             ! testTerminationReturnsCorrectData ^
   "Given a decision returns another decision"                                       ^
     "the runner runs the next decision passing in the resulting data"               ! testContinuesWhenGivenNextDecision ^
+                                                                                    endp^
+  "Given a Decision that results in an ErrorRes"                                    ^
+    "response code is set to 500"                                                   ! testDecisionResultsInErrorResCode500 ^
+    "response body is set to value of error if not set"                             ! testDecisionResultsInErrorResBodySetIfMissing ^
+    "response body is left unchanged if set"                                        ! testDecisionResultsInErrorResBodyNotSetIfExisting ^
                                                                                     end
 
   trait TestFlowTracking extends FlowRunnerBase {
@@ -70,6 +76,34 @@ class FlowRunnerSpecs extends Specification with Mockito { def is =
           (next must beEqualTo(endDecision)) and
           (data must beEqualTo(firstStepData))
     })
+  }
+
+  def testDecisionResultsInErrorResCode500 = {
+    val decision = new Decision {
+      def name = "test"
+      override protected def decide(r: Resource) = State((d: ReqRespData) => (error(""), d))
+    }
+    decision(mock[Resource])(ReqRespData())._2.statusCode must beEqualTo(500)
+  }
+
+  def testDecisionResultsInErrorResBodySetIfMissing = {
+    val body = "abc"
+    val decision = new Decision {
+      def name = "test"
+      override protected def decide(r: Resource) = State((d: ReqRespData) => (error(body), d))
+    }
+
+    decision(mock[Resource])(ReqRespData())._2.responseBody.stringValue must beEqualTo(body)
+  }
+
+  def testDecisionResultsInErrorResBodyNotSetIfExisting = {
+    val body = "abc"
+    val decision = new Decision {
+      def name = "test"
+      override protected def decide(r: Resource) = State((d: ReqRespData) => (error(body+"abc"), d))
+    }
+
+    decision(mock[Resource])(ReqRespData(responseBody = body.getBytes))._2.responseBody.stringValue must beEqualTo(body)
   }
 
 }
