@@ -7,6 +7,7 @@ import com.github.jrwest.scalamachine.core._
 import Resource._
 import v3.WebmachineDecisions
 import HTTPHeaders._
+import HTTPMethods._
 
 
 class V3ColGSpecs extends Specification with Mockito with SpecsHelper with WebmachineDecisions { def is =

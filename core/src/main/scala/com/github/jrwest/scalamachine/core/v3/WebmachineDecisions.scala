@@ -20,6 +20,7 @@ import Resource._
 import java.util.Date
 import com.github.jrwest.scalamachine.internal.scalaz.{OptionT, State}
 import HTTPHeaders._
+import HTTPMethods._
 
 trait WebmachineDecisions {
 

@@ -11,6 +11,7 @@ import v3.WebmachineDecisions
 import com.github.jrwest.scalamachine.internal.scalaz.NonEmptyList
 import org.apache.commons.httpclient.util.DateUtil
 import HTTPHeaders._
+import HTTPMethods._
 
 
 class V3ColBSpecs extends Specification with Mockito with SpecsHelper with WebmachineDecisions { def is =
@@ -154,7 +155,7 @@ class V3ColBSpecs extends Specification with Mockito with SpecsHelper with Webma
   }
 
   def testAuthFalseErrorResult = {
-    testDecisionReturnsData(b8, _.isAuthorized(any) answers mkResAnswer(ErrorRes(null))) {
+    testDecisionReturnsData(b8, _.isAuthorized(any) answers mkResAnswer(ErrorRes(""))) {
       _.responseHeader(WWWAuthenticate) must beNone
     }
   }

@@ -5,7 +5,7 @@ import matcher.MatchResult
 import mock._
 import com.github.jrwest.scalamachine.core._
 import flow.Decision
-
+import HTTPMethods._
 
 trait SpecsHelper {
   this: Specification with Mockito =>

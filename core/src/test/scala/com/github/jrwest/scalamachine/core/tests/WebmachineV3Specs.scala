@@ -11,6 +11,7 @@ import Res._
 import org.apache.commons.httpclient.util.DateUtil
 import java.util.Date
 import HTTPHeaders._
+import HTTPMethods._
 
 class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with WebmachineDecisions { def is = ""            ^
   "WebMachine V3".title                                                             ^

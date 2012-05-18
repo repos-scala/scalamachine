@@ -13,32 +13,8 @@ case class ContentType(mediaType: String, params: Map[String, String] = Map()) {
 
 // not so sure about these yet, was done in a hurry
 trait HTTPMethod
-case object GET extends HTTPMethod {
-  override def toString = "GET"
-}
-case object HEAD extends HTTPMethod {
-  override def toString = "HEAD"
-}
-case object POST extends HTTPMethod {
-  override def toString = "POST"
-}
-case object PUT extends HTTPMethod {
-  override def toString = "PUT"
-}
-case object DELETE extends HTTPMethod {
-  override def toString = "DELETE"
-}
-case object TRACE extends HTTPMethod {
-  override def toString = "TRACE"
-}
-case object CONNECT extends HTTPMethod {
-  override def toString = "CONNECT"
-}
-case object OPTIONS extends HTTPMethod {
-  override def toString = "OPTIONS"
-}
-
 object HTTPMethod {
+  import HTTPMethods._
   // currently, unknown strings are assumed to be GETS
   // this is under assumption that wherever scalamachine is embedded
   // handles unknown HTTP methods properly, thinking about changing to an unapply
@@ -58,6 +34,33 @@ object HTTPMethod {
   import com.github.jrwest.scalamachine.internal.scalaz.Equal._
 
   implicit val httpMethodEqual: Equal[HTTPMethod] = equalA
+}
+
+object HTTPMethods {
+  case object GET extends HTTPMethod {
+    override def toString = "GET"
+  }
+  case object HEAD extends HTTPMethod {
+    override def toString = "HEAD"
+  }
+  case object POST extends HTTPMethod {
+    override def toString = "POST"
+  }
+  case object PUT extends HTTPMethod {
+    override def toString = "PUT"
+  }
+  case object DELETE extends HTTPMethod {
+    override def toString = "DELETE"
+  }
+  case object TRACE extends HTTPMethod {
+    override def toString = "TRACE"
+  }
+  case object CONNECT extends HTTPMethod {
+    override def toString = "CONNECT"
+  }
+  case object OPTIONS extends HTTPMethod {
+    override def toString = "OPTIONS"
+  }
 }
 
 trait HTTPBody {

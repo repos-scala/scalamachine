@@ -1,6 +1,7 @@
 package com.github.jrwest.scalamachine.core
 
 import com.github.jrwest.scalamachine.internal.scalaz.Lens._
+import HTTPMethods._
 
 // TODO: make headers type alias
 // TODO: use scalaz CaseInsensitive for header key?

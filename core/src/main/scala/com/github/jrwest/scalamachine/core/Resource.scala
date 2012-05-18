@@ -1,6 +1,7 @@
 package com.github.jrwest.scalamachine.core
 
 import java.util.Date
+import HTTPMethods._
 
 /**
  * Resources represent HTTP resources in an application's API.
