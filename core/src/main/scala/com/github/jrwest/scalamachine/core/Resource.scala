@@ -247,7 +247,9 @@ trait Resource {
 
   private def default[A](value: A): Res[A] = ValueRes(value)
 
-  private val defaultResponse: ReqRespData => (Res[Array[Byte]], ReqRespData) = (default("hello, scalamachine".getBytes), _)
+  private val defaultResponse: ReqRespData => (Res[Array[Byte]], ReqRespData) = (default(defaultHtml.getBytes), _)
+
+  private val defaultHtml = <html><body>Hello,Scalamachine</body></html>.toString
 
 }
 
