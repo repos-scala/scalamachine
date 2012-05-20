@@ -26,8 +26,14 @@ object lenses {
   val respBodyL: ReqRespData @-@ HTTPBody =
     lensG(_.responseBody, d => b => d copy (responseBody = b))
 
-  val pathDataL: ReqRespData @-@ PathData =
+  private val pathDataL: ReqRespData @-@ PathData =
     lensG(_.pathData, d => pd => d copy (pathData = pd))
+
+  val pathInfoL: ReqRespData @-@ Map[Symbol,String] =
+    pathDataL <=< lensG(_.info, d => i => d copy (info = i))
+
+  val pathTokensL: ReqRespData @-@ Seq[String] =
+    pathDataL <=< lensG(_.tokens, d => ts => d copy (tokens = ts))
 
   val dispPathL: ReqRespData @-@ String =
     lensG(_.dispPath, d => dp => d copy (pathData = d.pathData.copy(tokens = dp.split("/"))))
