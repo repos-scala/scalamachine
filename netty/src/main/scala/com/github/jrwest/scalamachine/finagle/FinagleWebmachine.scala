@@ -23,6 +23,7 @@ trait FinagleWebmachine {
     ReqRespData(
       method = HTTPMethod.fromString(req.getMethod.getName),
       pathParts = path(req),
+      baseUri = "http://" + req.getHeader(HttpHeaders.Names.HOST),
       requestHeaders = for {
         (k,v) <- req.getHeaders.asScala.map(entry => (entry.getKey, entry.getValue)).toMap
         hdr <- HTTPHeader.fromString(k)
