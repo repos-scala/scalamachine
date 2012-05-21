@@ -12,6 +12,7 @@ trait SpecsHelper {
 
   def createResource = mock[Resource]
   def createData(method: HTTPMethod = GET,
+                 pathParts: List[String] = Nil,
                  headers: Map[HTTPHeader,String] = Map(),
                  metadata: Metadata = Metadata(),
                  baseUri: String = "",
@@ -20,6 +21,7 @@ trait SpecsHelper {
                  doRedirect: Boolean = false) =
     ReqRespData(
       baseUri = baseUri,
+      pathParts = pathParts,
       method = method,
       requestHeaders = headers,
       responseHeaders = respHdrs,

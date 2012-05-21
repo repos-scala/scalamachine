@@ -48,6 +48,7 @@ object ReqRespData {
   private[core] val methodL: ReqRespData @-@ HTTPMethod = lensG(_.method, d => m => d copy (method = m))
   private[core] val respBodyL: ReqRespData @-@ HTTPBody = lensG(_.responseBody, d => b => d copy (responseBody = b))
   private[core] val pathDataL: ReqRespData @-@ PathData = lensG(_.pathData, d => pd => d copy (pathData = pd))
+  private[core] val pathL: ReqRespData @-@ String = lensG(_.path, d => p => d copy (pathParts = p.split("/").toList))
   private[core] val dispPathL: ReqRespData @-@ String = lensG(_.dispPath, d => dp => d copy (pathData = d.pathData.copy(tokens = dp.split("/"))))
   private[core] val doRedirectL: ReqRespData @-@ Boolean = lensG(_.doRedirect, d => b => d copy (doRedirect = b))
 }

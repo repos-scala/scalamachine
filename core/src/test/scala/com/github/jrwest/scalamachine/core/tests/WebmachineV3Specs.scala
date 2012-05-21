@@ -681,7 +681,7 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
   }
 
   def testCreatePathSomeLocationNotSet = {
-    val baseUri = "http://example.com/"
+    val baseUri = "http://example.com"
     val createPath = "a/v"
     testDecisionResultHasData(
       n11,
@@ -690,10 +690,10 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
         r.createPath(any) answers mkAnswer(Some(createPath))
         r.contentTypesAccepted(any) answers mkAnswer(Nil)
       },
-      data = createData(baseUri = baseUri)
+      data = createData(baseUri = baseUri, pathParts = "b" :: Nil)
     ) {
       _.responseHeader(Location) must beSome.like {
-        case loc => loc must beEqualTo("http://example.com/a/v")
+        case loc => loc must beEqualTo("http://example.com/b/a/v")
       }
     }
   }

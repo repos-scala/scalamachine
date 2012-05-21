@@ -522,10 +522,11 @@ trait WebmachineDecisions {
         // set location header if its not already set
         mbExistingLoc <- resT[FlowState]((responseHeadersL member Location).map(_.point[Res]))
         baseUri <- resT[FlowState](baseUriL.map(_.point[Res]))
+        path <- resT[FlowState](pathL.map(_.point[Res]))
         _ <- resT[FlowState](
           mbExistingLoc
             .map(_ => (responseHeadersL member Location).map(_.point[Res]))
-            .getOrElse(((responseHeadersL member Location) := Some(baseUri + createPath)).map(_.point[Res]))
+            .getOrElse(((responseHeadersL member Location) := Some(List(baseUri,path,createPath).mkString("/"))).map(_.point[Res]))
         )
 
         _ <- acceptContent(resource)
