@@ -38,6 +38,12 @@ object lenses {
   val pathTokensL: ReqRespData @-@ Seq[String] =
     pathDataL <=< lensG(_.tokens, d => ts => d copy (tokens = ts))
 
+  val pathPartsL: ReqRespData @-@ List[String] =
+    lensG(_.pathParts, d => p => d copy (pathParts = p))
+
+  val pathL: ReqRespData @-@ String =
+    lensG(_.path, d => p => d copy (pathParts = p.split("/").toList))
+
   val dispPathL: ReqRespData @-@ String =
     lensG(_.dispPath, d => dp => d copy (pathData = d.pathData.copy(tokens = dp.split("/"))))
 
