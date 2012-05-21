@@ -593,17 +593,8 @@ trait WebmachineDecisions {
       def setHeader(header: HTTPHeader, value: Option[String]): ResT[FlowState,Option[String]] =
         resT[FlowState](((responseHeadersL member header) := value).map(_.point[Res]))
 
-      val act = for {
-        doBody <- resT[FlowState](methodL.map(m => result(m === GET || m === HEAD)))
-        // set Etag, last mod, and expires if GET or HEAD and they are provided by resource
-        mbEtag <- ifGetOrHead(doBody, resource.generateEtag(_), none[String])
-        mbLastMod <- ifGetOrHead(doBody, resource.lastModified(_), none[Date])
-        mbExpires <- ifGetOrHead(doBody, resource.expires(_), none[Date])
-        _ <- setHeader(ETag, mbEtag)
-        _ <- setHeader(LastModified, mbLastMod.map(Util.formatDate(_)))
-        _ <- setHeader(Expires, mbExpires.map(Util.formatDate(_)))
-
-        // find content providing function given chosen content type and produce body, setting it in the response
+      val setBody = for {
+      // find content providing function given chosen content type and produce body, setting it in the response
         mbChosenCType <- resT[FlowState]((metadataL <=< contentTypeL).map(_.point[Res]))
         chosenCType <- resT[FlowState](mbChosenCType.fold(
           some = result(_),
@@ -616,6 +607,18 @@ trait WebmachineDecisions {
         producedBody <- resT[FlowState](State((d: ReqRespData) => mbProvidedF.map(_(d)) | ((result(Array[Byte]()),d))))
         body <- resT[FlowState](encodeBody(resource, producedBody).map(_.point[Res]))
         _ <- resT[FlowState]((respBodyL := body).map(_.point[Res]))
+      } yield ()
+
+      val act = for {
+        doBody <- resT[FlowState](methodL.map(m => result(m === GET || m === HEAD)))
+        // set Etag, last mod, and expires if GET or HEAD and they are provided by resource
+        mbEtag <- ifGetOrHead(doBody, resource.generateEtag(_), none[String])
+        mbLastMod <- ifGetOrHead(doBody, resource.lastModified(_), none[Date])
+        mbExpires <- ifGetOrHead(doBody, resource.expires(_), none[Date])
+        _ <- setHeader(ETag, mbEtag)
+        _ <- setHeader(LastModified, mbLastMod.map(Util.formatDate(_)))
+        _ <- setHeader(Expires, mbExpires.map(Util.formatDate(_)))
+        _ <- if (doBody) setBody else resT[FlowState](result(()).point[FlowState])
 
         // determine if response has multiple choices
         mc <- resT[FlowState](State((d: ReqRespData) => resource.multipleChoices(d)))
