@@ -22,8 +22,8 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
   """                                                                               ^
                                                                                     p^
   "H7 - If-Match Exists?"                                                           ^
-    "if If-Match header exists, I7 is returned"                                     ! testH7IfMatchExists ^
-    "otherwise a response with code 412 is returned"                                ! testH7IfMatchMissing ^
+    "if If-Match header exists, response with code 412 is returned"                 ! testH7IfMatchExists ^
+    "otherwise, I7 is returned"                                                     ! testH7IfMatchMissing ^
                                                                                     p^
   "H10 - If-Unmodified-Since Exists?"                                               ^
     "if header exists, H11 is returned"                                             ! testIfUnmodifiedSinceExists ^
@@ -353,12 +353,12 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
     }
   }
 
-  def testH7IfMatchExists = {
-    testDecisionReturnsDecision(h7,i7,r => {}, data = createData(headers = Map(IfMatch -> "*")))
+  def testH7IfMatchMissing = {
+    testDecisionReturnsDecision(h7,i7,r => {})
   }
 
-  def testH7IfMatchMissing = {
-    testDecisionReturnsData(h7,r => {}) {
+  def testH7IfMatchExists = {
+    testDecisionReturnsData(h7,r => {}, data = createData(headers = Map(IfMatch -> "*"))) {
       _.statusCode must beEqualTo(412)
     }
   }

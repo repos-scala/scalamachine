@@ -285,7 +285,7 @@ trait WebmachineDecisions {
     def name: String = "v3h7"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] =
-      headerExists(IfMatch, result(i7), halt(412))
+      headerExists(IfMatch, halt(412), result(i7))
   }
 
   /* If-Unmodified-Since Exists? */
