@@ -23,6 +23,9 @@ object lenses {
   val methodL: Lens[ReqRespData,HTTPMethod] =
     Lens(_.method, (d,m) => d copy (method = m))
 
+  val reqBodyL: Lens[ReqRespData, HTTPBody] =
+    Lens(_.requestBody, (d,b) => d copy (requestBody = b))
+
   val respBodyL: Lens[ReqRespData,HTTPBody] =
     Lens(_.responseBody, (d,b) => d copy (responseBody = b))
 

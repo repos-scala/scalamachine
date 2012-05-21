@@ -13,6 +13,7 @@ case class ReqRespData(
                         statusCode: Int = 200,
                         requestHeaders: Map[HTTPHeader, String] = Map(),
                         responseHeaders: Map[HTTPHeader, String] = Map(),
+                        requestBody: HTTPBody = EmptyBody,
                         responseBody: HTTPBody = EmptyBody,
                         metadata: Metadata = Metadata(),
                         doRedirect: Boolean = false

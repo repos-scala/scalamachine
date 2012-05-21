@@ -7,7 +7,7 @@ import scala.collection.JavaConverters._
 import org.jboss.netty.buffer.ChannelBuffers
 import com.github.jrwest.scalamachine.core.v3.V3DispatchTable
 import org.jboss.netty.handler.codec.http._
-import com.github.jrwest.scalamachine.core.{HTTPHeader, HTTPMethod, ReqRespData}
+import com.github.jrwest.scalamachine.core.{HTTPBody, HTTPHeader, HTTPMethod, ReqRespData}
 
 trait FinagleWebmachine {
   this: DispatchTable[HttpRequest, HttpResponse, Future] =>
@@ -19,16 +19,18 @@ trait FinagleWebmachine {
   }
 
   // TODO: fill in base URI and other fields
-  def toData(req: HttpRequest): ReqRespData =
+  def toData(req: HttpRequest): ReqRespData = {
     ReqRespData(
       method = HTTPMethod.fromString(req.getMethod.getName),
       pathParts = path(req),
-      baseUri = "http://" + req.getHeader(HttpHeaders.Names.HOST),
+      baseUri = "http://" + HttpHeaders.getHost(req),
+      requestBody = reqBody(req),
       requestHeaders = for {
         (k,v) <- req.getHeaders.asScala.map(entry => (entry.getKey, entry.getValue)).toMap
         hdr <- HTTPHeader.fromString(k)
       }  yield (hdr, v)
     )
+  }
 
   def fromData(data: ReqRespData): HttpResponse = {
     val response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.valueOf(data.statusCode))
@@ -44,6 +46,14 @@ trait FinagleWebmachine {
   }
 
   def wrap(res: => HttpResponse) = Future(res)
+
+  private def reqBody(req: HttpRequest): HTTPBody = {
+    val contentLength = HttpHeaders.getContentLength(req)
+    val array: Array[Byte] = new Array(contentLength.toInt)
+    req.getContent.getBytes(0, array)
+
+    array
+  }
 
 }
 
