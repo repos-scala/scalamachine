@@ -1,0 +1,1 @@
+alias pub=;scalamachine-core/publish; scalamachine-netty/publish; scalamachine-lift/publish; scalamachine-scalaz6/publish; scalamachine-scalaz7/publish
