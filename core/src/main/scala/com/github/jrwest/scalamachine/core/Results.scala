@@ -57,7 +57,7 @@ trait ResOps[A] {
 }
 
 
-object Res extends ResFunctions with ResInstances {
+object Res extends ResFunctions with ResInternalInstances {
 
   implicit def resOps[T](r: Res[T]): ResOps[T] = new ResOps[T] {
     def res: Res[T] = r
@@ -72,7 +72,7 @@ trait ResFunctions {
   def empty[A]: Res[A] = EmptyRes
 }
 
-trait ResInstances {
+trait ResInternalInstances {
   import com.github.jrwest.scalamachine.internal.scalaz.{Monad, Traverse, Applicative}
   implicit val resScalazInstances = new Traverse[Res] with Monad[Res] {
     def point[A](a: => A): Res[A] = ValueRes(a)
@@ -87,17 +87,7 @@ trait ResInstances {
   }
 }
 
-object ValueRes {
-  import com.github.jrwest.scalamachine.internal.scalaz.Monad
-  // Shouldn't be necessary but it is in order to assuage type inferencer in some cases
-  // and sometimes useful when you only want to work withing ValueRes structure
-  implicit val valueResScalazInstances = new Monad[ValueRes] {
-    def point[A](a: => A): ValueRes[A] = ValueRes(a)
-    def bind[A, B](fa: ValueRes[A])(f: A => ValueRes[B]): ValueRes[B] = f(fa.value)
-  }
-}
-
-case class ResT[M[_],A](run: M[Res[A]]) {
+private[scalamachine] case class ResT[M[_],A](run: M[Res[A]]) {
   self =>
 
   def map[B](f: A => B)(implicit F: Functor[M]): ResT[M,B] = {
@@ -119,9 +109,9 @@ case class ResT[M[_],A](run: M[Res[A]]) {
 }
 
 // TODO: ResT type class instances
-object ResT extends ResTFunctions
+private[scalamachine] object ResT extends ResTFunctions
 
-trait ResTFunctions {
+private[scalamachine] trait ResTFunctions {
   import com.github.jrwest.scalamachine.internal.scalaz.~>
   def resT[M[_]] = new (({type λ[α] = M[Res[α]]})#λ ~> ({type λ[α] = ResT[M, α]})#λ) {
     def apply[A](a: M[Res[A]]) = new ResT[M, A](a)
