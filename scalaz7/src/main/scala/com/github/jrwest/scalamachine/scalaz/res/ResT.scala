@@ -1,8 +1,8 @@
 package com.github.jrwest.scalamachine.scalaz.res
 
-import scalaz.{Monad, Functor}
 import com.github.jrwest.scalamachine.core.{Res, ValueRes, HaltRes, ErrorRes, EmptyRes}
 import Res._
+import scalaz.{MonadTrans, Pointed, Monad, Functor}
 
 case class ResT[M[_],A](run: M[Res[A]]) {
   self =>
@@ -25,11 +25,29 @@ case class ResT[M[_],A](run: M[Res[A]]) {
   }
 }
 
-object ResT extends ResTFunctions
+object ResT extends ResTFunctions with ResTInstances
 
 trait ResTFunctions {
   import scalaz.~>
   def resT[M[_]] = new (({type λ[α] = M[Res[α]]})#λ ~> ({type λ[α] = ResT[M, α]})#λ) {
     def apply[A](a: M[Res[A]]) = new ResT[M, A](a)
+  }
+}
+
+
+trait ResTInstances {
+  import scalaz.syntax.pointed._
+
+  implicit def resTInstances[M[_] : Monad] = new Monad[({type R[X]=ResT[M,X]})#R] {
+    def point[A](a: => A): ResT[M,A] = ResT[M,A](Pointed[M].point(Pointed[Res].point(a)))
+    def bind[A,B](fa: ResT[M,A])(f: A => ResT[M,B]): ResT[M,B] = fa flatMap f
+  }
+
+  implicit val ResTMonadTrans = new MonadTrans[ResT] {
+    def liftM[G[_], A](ga: G[A])(implicit G: Monad[G]): ResT[G,A] =
+      ResT[G,A](G.map(ga)(_.point[Res]))
+
+    implicit def apply[G[_]: Monad]: Monad[({type R[X]=ResT[G,X]})#R] =
+      resTInstances[G]
   }
 }

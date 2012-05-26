@@ -26,10 +26,20 @@ case class ResT[M[_], A](run: M[Res[A]]) {
   }
 }
 
-object ResT extends ResTFunctions
+object ResT extends ResTFunctions with ResTInstances
 
 trait ResTFunctions {
   def resT[M[_]] = new (({type λ[α] = M[Res[α]]})#λ ~> ({type λ[α] = ResT[M, α]})#λ) {
     def apply[A](a: M[Res[A]]) = new ResT[M, A](a)
+  }
+}
+
+trait ResTInstances {
+  implicit def resTPure[M[_]](implicit M: Pure[M]): Pure[({type R[X]=ResT[M,X]})#R] = new Pure[({type R[X]=ResT[M,X]})#R] {
+    def pure[A](a: => A): ResT[M,A] = ResT[M,A](M.pure(a.pure[Res]))
+  }
+
+  implicit def resTBind[M[_]](implicit M: Monad[M]): Bind[({type R[X]=ResT[M,X]})#R] = new Bind[({type R[X]=ResT[M,X]})#R] {
+    def bind[A,B](ra: ResT[M,A], f: A => ResT[M,B]): ResT[M,B] = ra flatMap f
   }
 }
