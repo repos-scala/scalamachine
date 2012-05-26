@@ -25,6 +25,8 @@ import HTTPMethods._
 
 trait WebmachineDecisions {
 
+  type ResTFlow[X] = ResT[FlowState,X]
+
   /* Service Available? */
   lazy val b13: Decision = Decision("v3b13", true, (r: Resource) => r.serviceAvailable(_: ReqRespData), b12, 503)
 
@@ -167,7 +169,7 @@ trait WebmachineDecisions {
     protected def decide(resource: Resource): FlowState[Res[Decision]] = {
       val act = for {
         mbHeader <- (requestHeadersL member AcceptCharset).st.liftM[ResT]
-        decision <- mbHeader >| resT[FlowState](result(e6).point[FlowState]) | chooseCharset(resource, "*")
+        decision <- mbHeader >| e6.point[ResTFlow] | chooseCharset(resource, "*")
       } yield decision
       act.run
     }
@@ -200,7 +202,7 @@ trait WebmachineDecisions {
         charset <- (metadataL <=< chosenCharsetL).map(_.map(";charset=" + _).getOrElse("")).liftM[ResT]
         _ <- ((responseHeadersL member ContentTypeHeader) := some(media.toHeader + charset)).liftM[ResT]
         mbHeader <- (requestHeadersL member AcceptEncoding).st.liftM[ResT]
-        decision <- mbHeader >| resT[FlowState](result(f7).point[FlowState]) | chooseEncoding(resource, "identity;q=1.0,*;q=0.5")
+        decision <- mbHeader >| f7.point[ResTFlow] | chooseEncoding(resource, "identity;q=1.0,*;q=0.5")
       } yield decision
 
       act.run
@@ -545,7 +547,7 @@ trait WebmachineDecisions {
             mbLoc
               .map(_ => resT[FlowState](halt[Decision](303).point[FlowState]))
               .getOrElse(resT[FlowState](error[Decision]("redirect with no location").point[FlowState]))
-          else resT[FlowState](result(p11).point[FlowState])
+          else p11.point[ResTFlow]
       } yield decision
 
       act.run
@@ -591,10 +593,10 @@ trait WebmachineDecisions {
     protected def decide(resource: Resource): FlowState[Res[Decision]] = {
       def ifGetOrHead[A](isTrue: Boolean, f: ReqRespData => (Res[A], ReqRespData), default: => A) =
         if (isTrue) resT[FlowState](State(f))
-        else resT[FlowState](result(default).point[FlowState])
+        else default.point[ResTFlow]
 
       def setHeader(header: HTTPHeader, value: Option[String]): ResT[FlowState,Option[String]] =
-        resT[FlowState](((responseHeadersL member header) := value).map(_.point[Res]))
+        ((responseHeadersL member header) := value).liftM[ResT]
 
       val setBody = for {
       // find content providing function given chosen content type and produce body, setting it in the response
@@ -614,7 +616,7 @@ trait WebmachineDecisions {
       } yield ()
 
       val act = for {
-        doBody <- resT[FlowState](methodL.map(m => result(m === GET || m === HEAD)))
+        doBody <- methodL.map(m => m === GET || m === HEAD).liftM[ResT]
         // set Etag, last mod, and expires if GET or HEAD and they are provided by resource
         mbEtag <- ifGetOrHead(doBody, resource.generateEtag(_), none[String])
         mbLastMod <- ifGetOrHead(doBody, resource.lastModified(_), none[Date])
@@ -622,7 +624,7 @@ trait WebmachineDecisions {
         _ <- setHeader(ETag, mbEtag)
         _ <- setHeader(LastModified, mbLastMod.map(Util.formatDate(_)))
         _ <- setHeader(Expires, mbExpires.map(Util.formatDate(_)))
-        _ <- if (doBody) setBody else resT[FlowState](result(()).point[FlowState])
+        _ <- if (doBody) setBody else ().point[ResTFlow]
 
         // determine if response has multiple choices
         mc <- resT[FlowState]((resource.multipleChoices(_: ReqRespData)).st)
@@ -718,18 +720,23 @@ trait WebmachineDecisions {
   } yield mbIfMatch >| exists | dne
 
 
-  private def testMethod(expected: HTTPMethod, isExpected: Res[Decision], notExpected: Res[Decision]): FlowState[Res[Decision]] =
+  private def testMethod(expected: HTTPMethod,
+                         isExpected: Res[Decision],
+                         notExpected: Res[Decision]): FlowState[Res[Decision]] = {
     testMethod(expected :: Nil, isExpected, notExpected)
+  }
 
 
-  private def testMethod(expected: List[HTTPMethod], isExpected: Res[Decision], notExpected: Res[Decision]): FlowState[Res[Decision]] =
-    for {
+  private def testMethod(expected: List[HTTPMethod],
+                         isExpected: Res[Decision],
+                         notExpected: Res[Decision]): FlowState[Res[Decision]] = for {
       method <- methodL
     } yield if (expected.contains(method)) isExpected else notExpected
 
 
-  private def validateDate(headerName: HTTPHeader, valid: Res[Decision], invalid: Res[Decision]): FlowState[Res[Decision]] =
-    for {
+  private def validateDate(headerName: HTTPHeader,
+                           valid: Res[Decision],
+                           invalid: Res[Decision]): FlowState[Res[Decision]] = for {
       // if we have reached here we have verified the header has value already so we default
       // empty string which should never be reached
       iums <- (requestHeadersL member headerName).map { _ getOrElse "" }
@@ -743,31 +750,35 @@ trait WebmachineDecisions {
                        notModified: Res[Decision])(test: (Long,Long) => Boolean): FlowState[Res[Decision]] = {
 
     def isModified(mbLastMod: Option[Date], mbHeaderDate: Option[String]) =
-      (mbLastMod |@| mbHeaderDate.map(Util.parseDate(_)).getOrElse(none)) { (t1,t2) => test(t1.getTime,t2.getTime) } getOrElse false
+      (mbLastMod |@| mbHeaderDate.map(Util.parseDate(_)).getOrElse(none)) {
+        (t1,t2) => test(t1.getTime,t2.getTime)
+      } getOrElse false
 
     val act = for {
-    // same deal here as h11
       mbIums <- (requestHeadersL member headerName).st.liftM[ResT]
       mbLastMod <- resT[FlowState]((resource.lastModified(_: ReqRespData)).st)
-      decision <- resT[FlowState](if (isModified(mbLastMod, mbIums)) modified.point[FlowState] else notModified.point[FlowState])
+      decision <- resT[FlowState] {
+        if (isModified(mbLastMod, mbIums)) modified.point[FlowState] else notModified.point[FlowState]
+      }
     } yield decision
 
     act.run
   }
 
 
-  def acceptContent(resource: Resource): ResT[FlowState,Boolean] = {
-    val reqCType: FlowState[ContentType] = for {
-      mbContentType <- requestHeadersL member ContentTypeHeader
-    } yield mbContentType.map(Util.acceptToMediaTypes(_).headOption.map(_.mediaRange)).join | ContentType("application/octet-stream")
+  private def acceptContent(resource: Resource): ResT[FlowState,Boolean] = {
+    val reqCType = for {
+      contentType <- optionT[FlowState]((requestHeadersL member ContentTypeHeader).st)
+      mediaInfo <- optionT[FlowState](Util.acceptToMediaTypes(contentType).headOption.point[FlowState])
+    } yield mediaInfo.mediaRange
 
     for {
       // get request content type
-      contentType <- reqCType.liftM[ResT]
+      contentType <- reqCType.getOrElse(ContentType("application/octet-stream")).liftM[ResT]
 
       // lookup content types accepted and find body prod function
       acceptedList <- resT[FlowState]((resource.contentTypesAccepted(_: ReqRespData)).st)
-      mbAcceptableF <- resT[FlowState](acceptedList.find(_._1 == contentType).map(_._2).point[Res].point[FlowState])
+      mbAcceptableF <- acceptedList.find(_._1 === contentType).map(_._2).point[ResTFlow]
 
       // if found, run it, call encodeBodyIfSet if it succeeds, 500 otherwise
       // if not found, return halt 415
@@ -779,7 +790,7 @@ trait WebmachineDecisions {
   }
 
 
-  def encodeBody(resource: Resource, body: Array[Byte]): FlowState[HTTPBody] = for {
+  private def encodeBody(resource: Resource, body: Array[Byte]): FlowState[HTTPBody] = for {
     mbCharset <- metadataL <=< chosenCharsetL
     mbProvidedCh <- (resource.charsetsProvided(_: ReqRespData)).st.map(_.getOrElse(None))
     mbEncoding <- metadataL <=< chosenEncodingL
@@ -793,7 +804,7 @@ trait WebmachineDecisions {
   } yield encoder(charsetter(body))
 
 
-  def encodeBodyIfSet(resource: Resource): FlowState[Unit] = for {
+  private def encodeBodyIfSet(resource: Resource): FlowState[Unit] = for {
     body <- respBodyL
     newBody <- body.fold(notEmpty = encodeBody(resource, _), empty = body.point[FlowState])
     _ <- respBodyL := newBody

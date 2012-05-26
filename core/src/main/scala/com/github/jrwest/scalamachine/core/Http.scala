@@ -11,6 +11,12 @@ case class ContentType(mediaType: String, params: Map[String, String] = Map()) {
     else(for { (k,v) <- params } yield k + "=" + v).mkString(";", ",", "") )
 }
 
+object ContentType {
+  import com.github.jrwest.scalamachine.internal.scalaz.Equal
+  import Equal._
+  implicit def contentTypeEql: Equal[ContentType] = equalA
+}
+
 // not so sure about these yet, was done in a hurry
 trait HTTPMethod
 object HTTPMethod {
