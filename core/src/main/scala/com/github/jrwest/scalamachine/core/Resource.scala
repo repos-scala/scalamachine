@@ -108,7 +108,7 @@ trait Resource {
   /**
    * this functions determines the charset of the response body and influences whether or not the request
    * can be serviced by this resource based on the `Accept-Charset`. If the charset is acceptable,
-   * the charsetting function will be run. See information about the return value for me.
+   * the charsetting function will be run. See information about the return value for more.
    *
    * The charsetting function is of type `Array[Byte] => Array[Byte]`
    *
@@ -136,7 +136,7 @@ trait Resource {
   /**
    * @note default - `Nil`
    * @return headers to be included in the `Vary` response header.
-   *         `Accept`, `Accept-Encoding`, `Accept-Charset` will always be included and do not need ot be in the returned list
+   *         `Accept`, `Accept-Encoding`, `Accept-Charset` will always be included and do not need to be in the returned list
    */
   def variances(data: ReqRespData): (Res[Seq[String]], ReqRespData) = (default(Nil), data)
 
