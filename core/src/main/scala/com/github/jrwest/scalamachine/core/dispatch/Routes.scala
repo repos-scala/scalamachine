@@ -60,7 +60,7 @@ sealed trait Route extends PartialFunction[Seq[String], (Resource, PathData)] {
 }
 
 object Route {
-  def routeMatching(terms: Seq[RouteTerm], r: => Resource): Route = new Route {
+  def routeMatching(terms: Seq[RoutePart], r: => Resource): Route = new Route {
     def pathTerms: Seq[RouteTerm] = terms
 
     def resource: Resource = r
@@ -68,7 +68,7 @@ object Route {
     protected val hasStar = false
   }
 
-  def routeStartingWith(terms: Seq[RouteTerm], r: => Resource): Route = new Route {
+  def routeStartingWith(terms: Seq[RoutePart], r: => Resource): Route = new Route {
     def pathTerms: Seq[RouteTerm] = terms ++ Seq(StarTerm)
 
     def resource: Resource = r

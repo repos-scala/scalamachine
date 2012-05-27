@@ -72,7 +72,7 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
 
     
   trait PathDataShared {
-    def routeF: List[RouteTerm] => Route
+    def routeF: List[RoutePart] => Route
     def toPart: String => RoutePart
 
     def testDispPathAlwaysEmpty = check {
@@ -122,7 +122,7 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
   }
   
   trait MixedRoutesShared  {
-    def routeF: List[RouteTerm] => Route
+    def routeF: List[RoutePart] => Route
 
     def testMatchesIIFStringPartsMatch = forAll(pathAndDataPartIdxs) {
       (data: (List[String],Set[Int])) => {
@@ -151,7 +151,7 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
   }
 
   object MixedRoutesWithStar extends MixedRoutesShared with MixedTermsPathDataShared {
-    val routeF: List[RouteTerm] => Route = routeStartingWith(_, null)
+    val routeF: List[RoutePart] => Route = routeStartingWith(_, null)
 
     def testMatchesWithLeftoverTokens = forAll(pathAndDataPartIdxs,nonEmptyPath) {
       (data: (List[String],Set[Int]), additional: List[String]) => {
@@ -179,7 +179,7 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
   }
 
   object MixedRoutesNoStar extends MixedRoutesShared with MixedTermsPathDataShared {
-    val routeF: List[RouteTerm] => Route = routeMatching(_, null)   
+    val routeF: List[RoutePart] => Route = routeMatching(_, null)
 
     def testMoreTokensThanParts = forAll(pathAndDataPartIdxs,nonEmptyPath) {
       (data: (List[String],Set[Int]), additional: List[String]) => {
@@ -201,7 +201,7 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
   }
 
   object AllDataRouteWithStar extends AllDataPathDataShared {
-    val routeF: List[RouteTerm] => Route = routeStartingWith(_,null)
+    val routeF: List[RoutePart] => Route = routeStartingWith(_,null)
 
     def testWithLeftoverTokens = forAll(nonEmptyPath,nonEmptyPath) {
       (pathParts: List[String], additional: List[String]) =>
@@ -214,7 +214,7 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
 
 
   object AllDataRouteNoStar extends AllDataPathDataShared {    
-    val routeF: List[RouteTerm] => Route = routeMatching(_,null)
+    val routeF: List[RoutePart] => Route = routeMatching(_,null)
 
     def testEqualLengths = check {
       (pathParts: List[String]) =>
@@ -238,7 +238,7 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
   }
   
   object AllStringRoutesWithStar extends AllStringsPathDataShared {
-    val routeF: List[RouteTerm] => Route = routeStartingWith(_,null)
+    val routeF: List[RoutePart] => Route = routeStartingWith(_,null)
     
     def testExactStartingWithMatch = check {
       (pathParts: List[String]) => routeStartingWith(pathParts.map(StringPart(_)), null).isDefinedAt(pathParts) must beTrue
@@ -257,7 +257,7 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
 
   object AllStringRoutesNoStar extends AllStringsPathDataShared {
     
-    val routeF: List[RouteTerm] => Route = routeMatching(_,null)
+    val routeF: List[RoutePart] => Route = routeMatching(_,null)
 
     def testExactMatchingPath = check {
       (pathParts: List[String])  => routeMatching(pathParts.map(StringPart(_)), null).isDefinedAt(pathParts) must beTrue
@@ -321,7 +321,7 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
     n <- Gen.choose(1,ls.size-1)
   } yield (ls,idxs,n)
 
-  val buildMixedRouteTerms: (List[String],Set[Int]) => List[RouteTerm] =
+  val buildMixedRouteTerms: (List[String],Set[Int]) => List[RoutePart] =
     (pathParts, dataIdxs) => pathParts.zipWithIndex.map {
       case (s,idx) if dataIdxs.contains(idx) => DataPart(Symbol(s))
       case (s,_) => StringPart(s)
