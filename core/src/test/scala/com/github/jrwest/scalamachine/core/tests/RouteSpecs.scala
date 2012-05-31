@@ -66,8 +66,30 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
           "path data has empty path tokens Seq if num tokens == num route terms"    ! AllDataRouteWithStar.testPathTokensAlwaysEmpty ^
           "path data has left over tokens in path tokens Seq with order preserved"  ! AllDataRouteWithStar.testLeftoverTokensPathTokens ^p^p^
       "path data's path info contains key corresponding to token for each data part"! testMixedRoutesPathInfo ^
+                                                                                    endp^
+  "Matching Hosts"                                                                  ^
+    "if host route does not begin with a star term"                                 ^
+      "matches iif each token with corresponding string part matches"               ! skipped ^
+      "does not match if tokens.length < parts.length"                              ! skipped ^
+      "does not match if tokens.length > parts.length"                              ! skipped ^
+      "does not match if >= 1 token does not match corresponding string part"       ! skipped ^
+      "host data always has empty dispatch subdomain string"                        ! skipped ^
+      "host data always has empty subdomain tokens"                                 ! skipped ^
+      "host data has entry in host info for every data part"                        ! skipped ^p^
+    "if host route begins with a star term"                                         ^
+      "matches iif each token with corresponding string part matches (lefovers ok)" ! skipped ^
+      "does not match if tokens.length < parts.length"                              ! skipped ^
+      "does not match if >= 1 token does not match corresponding string part"       ! skipped ^
+      "host data has empty dispatch subdomain if tokens.length == parts.length"     ! skipped ^
+      "host data has leftover tokens seperated by dots as dispatch subdomain"       ! skipped ^
+      "host data has empty dispatch tokens if tokens.length == parts.length"        ! skipped ^
+      "host data has left tokens as dispatch tokens w/ order preserved"             ! skipped ^
+      "host data has entry in host info for every data part"                        ! skipped ^
+                                                                                    endp^
+  "Matching Hosts and Paths"                                                        ^
+                                                                                    endp^
+  "Gaurds"                                                                          ^
                                                                                     end
-
 
 
     
@@ -76,38 +98,38 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
     def toPart: String => RoutePart
 
     def testDispPathAlwaysEmpty = check {
-      (pathParts: List[String]) => routeF(pathParts.map(toPart(_))).apply(pathParts)._2.dispPath must beEmpty
+      (pathParts: List[String]) => routeF(pathParts.map(toPart(_))).apply((Nil,pathParts))._2.dispPath must beEmpty
     }
 
     def testPathTokensAlwaysEmpty = check {
-      (pathParts: List[String]) => routeF(pathParts.map(toPart(_))).apply(pathParts)._2.tokens must beEmpty
+      (pathParts: List[String]) => routeF(pathParts.map(toPart(_))).apply((Nil,pathParts))._2.tokens must beEmpty
     }
 
-    def testLeftoverTokensDispPath = forAll(nonEmptyPath,nonEmptyPath) {
+    def testLeftoverTokensDispPath = forAll(nonEmptyTokens,nonEmptyTokens) {
       (pathParts: List[String], additional: List[String]) =>
-        routeF(pathParts.map(toPart(_))).apply(pathParts ++ additional)._2.dispPath must beEqualTo(additional.mkString("/"))
+        routeF(pathParts.map(toPart(_))).apply((Nil,pathParts ++ additional))._2.dispPath must beEqualTo(additional.mkString("/"))
     }
 
-    def testLeftoverTokensPathTokens = forAll(nonEmptyPath,nonEmptyPath) {
+    def testLeftoverTokensPathTokens = forAll(nonEmptyTokens,nonEmptyTokens) {
       (pathParts: List[String], additional: List[String]) =>
-        routeF(pathParts.map(toPart(_))).apply(pathParts ++ additional)._2.tokens must containAllOf(additional).inOrder
+        routeF(pathParts.map(toPart(_))).apply((Nil,pathParts ++ additional))._2.tokens must containAllOf(additional).inOrder
     }
   }
 
   trait MixedTermsPathDataShared {
     this: MixedRoutesShared =>
 
-    def testDispPathAlwaysEmpty = forAll(pathAndDataPartIdxs) {
+    def testDispPathAlwaysEmpty = forAll(tokensAndDataPartIdxs) {
       (data: (List[String],Set[Int])) => {
         val (pathParts,dataIdxs) = data
-        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).apply(pathParts)._2.dispPath must beEmpty
+        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).apply((Nil,pathParts))._2.dispPath must beEmpty
       }
     }
 
-    def testPathTokensAlwaysEmpty = forAll(pathAndDataPartIdxs) {
+    def testPathTokensAlwaysEmpty = forAll(tokensAndDataPartIdxs) {
       (data: (List[String],Set[Int])) => {
         val (pathParts,dataIdxs) = data
-        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).apply(pathParts)._2.tokens must beEmpty
+        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).apply((Nil,pathParts))._2.tokens must beEmpty
       }
     }
 
@@ -124,107 +146,107 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
   trait MixedRoutesShared  {
     def routeF: List[RoutePart] => Route
 
-    def testMatchesIIFStringPartsMatch = forAll(pathAndDataPartIdxs) {
+    def testMatchesIIFStringPartsMatch = forAll(tokensAndDataPartIdxs) {
       (data: (List[String],Set[Int])) => {
         val (pathParts,dataIdxs) = data
-        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).isDefinedAt(pathParts) must beTrue
+        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).isDefinedAt((Nil,pathParts)) must beTrue
       }
     }
 
-    def testLessTokensThanParts = forAll(pathDataPartIdxsAndDropCount) {
+    def testLessTokensThanParts = forAll(tokensDataPartIdxsAndDropCount) {
       (data: (List[String],Set[Int],Int)) => {
         val (pathParts, dataIdxs,dropCount) = data
         routeF(buildMixedRouteTerms(pathParts,dataIdxs))
-          .isDefinedAt(pathParts.reverse.drop(dropCount).reverse) must beFalse
+          .isDefinedAt((Nil,pathParts.reverse.drop(dropCount).reverse)) must beFalse
       }
     }
 
-    def testStringPartDoesntMatch = forAll(pathDataPartIdxsAndChange) {
+    def testStringPartDoesntMatch = forAll(tokensDataPartIdxsAndChange) {
       (data: (List[String],Set[Int],Int,String)) => {
         val (pathParts,dataIdxs,changeAt,changeTo) = data
         val changedParts = pathParts.toBuffer
         changedParts.update(changeAt, changeTo)
-        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).isDefinedAt(changedParts.toList) must beFalse
+        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).isDefinedAt((Nil,changedParts.toList)) must beFalse
       }
     }
        
   }
 
   object MixedRoutesWithStar extends MixedRoutesShared with MixedTermsPathDataShared {
-    val routeF: List[RoutePart] => Route = routeStartingWith(_, null)
+    val routeF: List[RoutePart] => Route = l => pathStartingWith(l) serve null
 
-    def testMatchesWithLeftoverTokens = forAll(pathAndDataPartIdxs,nonEmptyPath) {
+    def testMatchesWithLeftoverTokens = forAll(tokensAndDataPartIdxs,nonEmptyTokens) {
       (data: (List[String],Set[Int]), additional: List[String]) => {
         val (pathParts,dataIdxs) = data
-        routeStartingWith(pathParts.zipWithIndex.map {
+        pathStartingWith(pathParts.zipWithIndex.map {
           case (s,idx) if dataIdxs.contains(idx) => DataPart(Symbol(s))
           case (s,_) => StringPart(s)
-        }, null).isDefinedAt(pathParts ++ additional) must beTrue
+        }).serve(null).isDefinedAt((Nil,pathParts ++ additional)) must beTrue
       }
     }
 
-    def testLeftoverTokensDispPath = forAll(pathAndDataPartIdxs,nonEmptyPath) {
+    def testLeftoverTokensDispPath = forAll(tokensAndDataPartIdxs,nonEmptyTokens) {
       (data: (List[String],Set[Int]), additional: List[String]) => {
         val (pathParts,dataIdxs) = data
-        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).apply(pathParts ++ additional)._2.dispPath must beEqualTo(additional.mkString("/"))
+        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).apply((Nil,pathParts ++ additional))._2.dispPath must beEqualTo(additional.mkString("/"))
       }
     }
 
-    def testLeftoverTokensPathTokens = forAll(pathAndDataPartIdxs,nonEmptyPath) {
+    def testLeftoverTokensPathTokens = forAll(tokensAndDataPartIdxs,nonEmptyTokens) {
       (data: (List[String],Set[Int]), additional: List[String]) => {
         val (pathParts,dataIdxs) = data
-        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).apply(pathParts ++ additional)._2.tokens must containAllOf(additional).inOrder
+        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).apply((Nil,pathParts ++ additional))._2.tokens must containAllOf(additional).inOrder
       }
     }
   }
 
   object MixedRoutesNoStar extends MixedRoutesShared with MixedTermsPathDataShared {
-    val routeF: List[RoutePart] => Route = routeMatching(_, null)
+    val routeF: List[RoutePart] => Route = l => pathMatching(l) serve null
 
-    def testMoreTokensThanParts = forAll(pathAndDataPartIdxs,nonEmptyPath) {
+    def testMoreTokensThanParts = forAll(tokensAndDataPartIdxs,nonEmptyTokens) {
       (data: (List[String],Set[Int]), additional: List[String]) => {
         val (pathParts,dataIdxs) = data
-        routeMatching(buildMixedRouteTerms(pathParts,dataIdxs), null).isDefinedAt(pathParts ++ additional) must beFalse
+        pathMatching(buildMixedRouteTerms(pathParts,dataIdxs)).serve(null).isDefinedAt((Nil,pathParts ++ additional)) must beFalse
       }
     }
 
   }
   
-  def testMixedRoutesPathInfo = forAll(for { (a,b) <- pathAndDataPartIdxs;c <- Arbitrary.arbitrary[Boolean] } yield (a,b,c)) {
+  def testMixedRoutesPathInfo = forAll(for { (a,b) <- tokensAndDataPartIdxs;c <- Arbitrary.arbitrary[Boolean] } yield (a,b,c)) {
     (data: (List[String],Set[Int],Boolean)) => {
       val (pathParts,dataIdxs,bool) = data
       val terms = buildMixedRouteTerms(pathParts,dataIdxs)
-      val route = if (bool) routeMatching(terms,null) else routeStartingWith(terms,null)
+      val route = if (bool) pathMatching(terms) serve null else pathStartingWith(terms) serve null
       val expected = pathParts.zipWithIndex.filter(t => dataIdxs.contains(t._2)).map(tpl => (Symbol(tpl._1),tpl._1))
-      route.apply(pathParts)._2.info must containAllOf(expected).only
+      route.apply((Nil,pathParts))._2.info must containAllOf(expected).only
     }
   }
 
   object AllDataRouteWithStar extends AllDataPathDataShared {
-    val routeF: List[RoutePart] => Route = routeStartingWith(_,null)
+    val routeF: List[RoutePart] => Route = l => pathStartingWith(l) serve null
 
-    def testWithLeftoverTokens = forAll(nonEmptyPath,nonEmptyPath) {
+    def testWithLeftoverTokens = forAll(nonEmptyTokens,nonEmptyTokens) {
       (pathParts: List[String], additional: List[String]) =>
-        routeStartingWith(pathParts.map(s => DataPart(Symbol(s))), null).isDefinedAt(pathParts ++ additional) must beTrue
+        pathStartingWith(pathParts.map(s => DataPart(Symbol(s)))).serve(null).isDefinedAt((Nil,pathParts ++ additional)) must beTrue
     }
 
-    def testLessTokensThanParts = lessTokensThanParts(ls => routeStartingWith(ls.map(s => DataPart(Symbol(s))),null))
+    def testLessTokensThanParts = lessTokensThanParts(ls => pathStartingWith(ls.map(s => DataPart(Symbol(s)))) serve null)
 
   }
 
 
   object AllDataRouteNoStar extends AllDataPathDataShared {    
-    val routeF: List[RoutePart] => Route = routeMatching(_,null)
+    val routeF: List[RoutePart] => Route = l => pathMatching(l) serve null
 
     def testEqualLengths = check {
       (pathParts: List[String]) =>
-        routeMatching(pathParts.map(s => DataPart(Symbol(s))), null).isDefinedAt(pathParts) must beTrue
+        pathMatching(pathParts.map(s => DataPart(Symbol(s)))).serve(null).isDefinedAt((Nil,pathParts)) must beTrue
     }
 
     def testUnequalLengths = forAll(differingLists) {
       (lists: (List[String],List[String])) => {
         val (ls1,ls2) = lists
-        routeMatching(ls1.map(s => DataPart(Symbol(s))), null).isDefinedAt(ls2) must beFalse
+        pathMatching(ls1.map(s => DataPart(Symbol(s)))).serve(null).isDefinedAt((Nil,ls2)) must beFalse
       }
     }
   }
@@ -232,92 +254,91 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
   def testStringRoutesAlwaysHaveEmptyPathInfo = check {
     (pathParts: List[String], bool: Boolean) => {
       val terms = pathParts.map(StringPart(_))
-      val route = if (bool) routeMatching(terms,null) else routeStartingWith(terms,null)
-      route.apply(pathParts)._2.info must beEmpty
+      val route = if (bool) pathMatching(terms) serve null else pathStartingWith(terms) serve null
+      route.apply((Nil,pathParts))._2.info must beEmpty
     }      
   }
   
   object AllStringRoutesWithStar extends AllStringsPathDataShared {
-    val routeF: List[RoutePart] => Route = routeStartingWith(_,null)
+    val routeF: List[RoutePart] => Route = l => pathStartingWith(l) serve null
     
     def testExactStartingWithMatch = check {
-      (pathParts: List[String]) => routeStartingWith(pathParts.map(StringPart(_)), null).isDefinedAt(pathParts) must beTrue
+      (pathParts: List[String]) => pathStartingWith(pathParts.map(StringPart(_))).serve(null).isDefinedAt((Nil,pathParts)) must beTrue
     }
 
-    def testLeftoverTokensStillMatch = forAll(nonEmptyPath,nonEmptyPath) {
+    def testLeftoverTokensStillMatch = forAll(nonEmptyTokens,nonEmptyTokens) {
       (pathParts: List[String], additional: List[String]) =>
-        routeStartingWith(pathParts.map(StringPart(_)), null).isDefinedAt(pathParts ++ additional) must beTrue
+        pathStartingWith(pathParts.map(StringPart(_))).serve(null).isDefinedAt((Nil,pathParts ++ additional)) must beTrue
     }
 
-    def testPartDoesntMatch = atleastOnePartDoesntMatch(ls => routeStartingWith(ls.map(StringPart(_)), null))
+    def testPartDoesntMatch = atleastOnePartDoesntMatch(ls => pathStartingWith(ls.map(StringPart(_))) serve null)
 
-    def testLessTokensThanParts = lessTokensThanParts(ls => routeStartingWith(ls.map(StringPart(_)),null))
+    def testLessTokensThanParts = lessTokensThanParts(ls => pathStartingWith(ls.map(StringPart(_))) serve null)
 
   }
 
   object AllStringRoutesNoStar extends AllStringsPathDataShared {
     
-    val routeF: List[RoutePart] => Route = routeMatching(_,null)
+    val routeF: List[RoutePart] => Route = l => pathMatching(l) serve null
 
     def testExactMatchingPath = check {
-      (pathParts: List[String])  => routeMatching(pathParts.map(StringPart(_)), null).isDefinedAt(pathParts) must beTrue
+      (pathParts: List[String])  => pathMatching(pathParts.map(StringPart(_))).serve(null).isDefinedAt((Nil,pathParts)) must beTrue
     }
 
-    def testPartDoesntMatch = atleastOnePartDoesntMatch(ls => routeMatching(ls.map(StringPart(_)), null))
+    def testPartDoesntMatch = atleastOnePartDoesntMatch(ls => pathMatching(ls.map(StringPart(_))) serve null)
 
-    def testLessTokensThanParts = lessTokensThanParts(ls => routeMatching(ls.map(StringPart(_)),null))
+    def testLessTokensThanParts = lessTokensThanParts(ls => pathMatching(ls.map(StringPart(_))) serve null)
 
-    def testMoreTokensThanParts = forAll(nonEmptyPath,nonEmptyPath) {
+    def testMoreTokensThanParts = forAll(nonEmptyTokens,nonEmptyTokens) {
       (pathParts: List[String], additional: List[String]) =>
-        routeMatching(pathParts.map(StringPart(_)), null).isDefinedAt(pathParts ++ additional) must beFalse
+        pathMatching(pathParts.map(StringPart(_))).serve(null).isDefinedAt((Nil, pathParts ++ additional)) must beFalse
     }
 
   }
 
-  // ScalaCheck Generator for non empty List[String]
-  val nonEmptyStr  = Gen.alphaStr.suchThat(_.size > 0)
-  val nonEmptyPath = Gen.containerOf[List,String](nonEmptyStr) suchThat { _.size > 0 }
+  val token  = Gen.alphaStr.suchThat(_.size > 0)
+  val nonEmptyTokens = Gen.containerOf[List,String](token) suchThat { _.size > 0 }
 
-  // generates a nonempty path, an index to change and a value to change that index to
-  val pathAndChangeIndexAndValue =
+  // generates a nonempty token list, an index to change and a value to change that index to
+  val tokensAndChangeIndexAndValue =
     for {
-      ls <- nonEmptyPath
+      ls <- nonEmptyTokens
       n <- Gen.choose(0,ls.size - 1)
-      s <- nonEmptyStr
+      s <- token
     } yield (ls, n, s)
 
-  // generates a non empty path and the number of elements to drop from that path
-  val pathAndDropCount =  for { ls <- nonEmptyPath; n <- Gen.choose(1,ls.size - 1) } yield (ls, n)
+  // generates a non empty token list and the number of elements to drop from that list
+  val tokensAndDropCount =  for { ls <- nonEmptyTokens; n <- Gen.choose(1,ls.size - 1) } yield (ls, n)
 
   // generates lists of differing sizes
   val differingLists = for {
-    ls1 <- nonEmptyPath
-    ls2 <- nonEmptyPath
+    ls1 <- nonEmptyTokens
+    ls2 <- nonEmptyTokens
     shouldAdd <- Arbitrary.arbitrary[Boolean]
   } yield {
     val (baseList,changeList) = if (ls1.size > ls2.size) (ls1,ls2) else (ls2,ls1)
     if (shouldAdd) (baseList,baseList ++ changeList) else (baseList,baseList drop changeList.size)
   }
 
-  // generates a path and a set of indexes to be intended to be used as data parts
-  val pathAndDataPartIdxs = for {
-    ls <- nonEmptyPath    
+  // generates a non-empty token list and a set of indexes to be intended to be used as data parts
+  val tokensAndDataPartIdxs = for {
+    ls <- nonEmptyTokens
     idxs <- {
       val lsSize = ls.size
       Gen.containerOf1[Set,Int](Gen.choose(0,lsSize - 1)) suchThat { _.size < lsSize }
     }
   } yield (ls, idxs)
   
-  // generates a path, a set of indexes inteded to be data parts an index to change that is not one of the data part indexes
+  // generates a non-empty token list, a set of indexes inteded to be data parts an index to change that is not one of the data part indexes
   // and a value to change to
-  val pathDataPartIdxsAndChange = for {
-    (ls,idxs) <- pathAndDataPartIdxs
+  val tokensDataPartIdxsAndChange = for {
+    (ls,idxs) <- tokensAndDataPartIdxs
     n <- Gen.choose(0,ls.size - 1).suchThat(n => !(idxs.contains(n)))
-    s <- nonEmptyStr
+    s <- token
   } yield (ls,idxs,n,s)
 
-  val pathDataPartIdxsAndDropCount = for {
-    (ls,idxs) <- pathAndDataPartIdxs
+  val tokensDataPartIdxsAndDropCount = for {
+    (ls,idxs) <- tokensAndDataPartIdxs
     n <- Gen.choose(1,ls.size-1)
   } yield (ls,idxs,n)
 
@@ -327,19 +348,19 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
       case (s,_) => StringPart(s)
     }
 
-  def atleastOnePartDoesntMatch(routeF: List[String] => Route) = forAll(pathAndChangeIndexAndValue) {
+  def atleastOnePartDoesntMatch(routeF: List[String] => Route) = forAll(tokensAndChangeIndexAndValue) {
     (data: (List[String],Int,String)) => {
       val (pathParts,changeAt,changeTo) = data
       val changedParts = pathParts.toBuffer
       changedParts.update(changeAt, changeTo)
-      routeF(pathParts).isDefinedAt(changedParts.toList) must beFalse
+      routeF(pathParts).isDefinedAt((Nil,changedParts.toList)) must beFalse
     }
   }
 
-  def lessTokensThanParts(routeF: List[String] => Route) = forAll(pathAndDropCount) {
+  def lessTokensThanParts(routeF: List[String] => Route) = forAll(tokensAndDropCount) {
     (data: (List[String],Int)) => {
       val (pathParts, dropCount) = data
-      routeF(pathParts).isDefinedAt(pathParts.reverse.drop(dropCount).reverse) must beFalse
+      routeF(pathParts).isDefinedAt((Nil,pathParts.reverse.drop(dropCount).reverse)) must beFalse
     }
 
   }

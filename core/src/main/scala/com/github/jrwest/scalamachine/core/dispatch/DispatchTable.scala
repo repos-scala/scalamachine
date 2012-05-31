@@ -11,15 +11,15 @@ trait DispatchTable[-A, B, +W[_]] extends PartialFunction[A, W[B]] {
     _routes ::= route
   }
 
-  def isDefinedAt(req: A): Boolean = _routes.find(_.isDefinedAt(path(req))).isDefined
+  def isDefinedAt(req: A): Boolean = _routes.find(_.isDefinedAt(Nil -> path(req))).isDefined
 
   def apply(req: A): W[B] = {
     val data = toData(req)
     wrap {
       fromData {
-        _routes.find(_.isDefinedAt(data.pathParts))
+        _routes.find(_.isDefinedAt(Nil -> data.pathParts))
           .map(route => {
-          val (resource, pathData) = route(data.pathParts)
+          val (resource, pathData, _) = route(Nil -> data.pathParts)
           flowRunner.run(firstDecision, resource, data.setPathData(pathData))
         })
           .getOrElse(handle404(data))

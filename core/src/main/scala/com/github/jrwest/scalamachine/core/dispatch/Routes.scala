@@ -17,27 +17,41 @@ case class DataPart(name: Symbol) extends RoutePart {
   def apply(pathPart: String) = true
 }
 
-sealed trait Route extends PartialFunction[Seq[String], (Resource, PathData)] {
+sealed trait Route extends PartialFunction[(Seq[String],Seq[String]), (Resource, PathData, PathData)] {
   def pathTerms: Seq[RouteTerm]
+  def hostTerms: Seq[RouteTerm]
 
   def resource: Resource
 
-  protected def hasStar: Boolean
+  def checkPath: Boolean
+  def checkHost: Boolean
 
-  def isDefinedAt(path: Seq[String]) = {
-    buildPathData(path).isDefined
+  protected lazy val pathHasStar = pathTerms.reverse.headOption.map {
+    case StarTerm => true
+    case _ => false
+  } getOrElse false
+
+  protected lazy val hostHasStar = hostTerms.headOption.map {
+    case StarTerm => true
+    case _ => false
+  } getOrElse false
+
+  def isDefinedAt(hostAndPath: (Seq[String],Seq[String])) = {
+    buildPathData(hostAndPath._2).isDefined
   }
 
-  def apply(path: Seq[String]) =
-    buildPathData(path) map {
-      (resource, _)
-    } getOrElse {
-      throw new MatchError("Path doesn't match route")
-    }
+  def apply(hostAndPath: (Seq[String],Seq[String])) =
+    if (checkPath) {
+      buildPathData(hostAndPath._2) map {
+        (resource, _, PathData())
+      } getOrElse {
+        throw new MatchError("route doesn't match route")
+      }
+    } else throw new MatchError("host routes not yet supported")
 
 
   private def buildPathData(path: Seq[String]): Option[PathData] = {
-    if ((hasStar && path.size >= pathTerms.size - 1) || (pathTerms.size == path.size)) {
+    if ((pathHasStar && path.size >= pathTerms.size - 1) || (pathTerms.size == path.size)) {
       @annotation.tailrec
       def matchAndExtract(ps: Stream[String], prts: Stream[RouteTerm], infoAcc: Map[Symbol, String]): (Boolean, Map[Symbol, String]) = (ps, prts) match {
         case (Stream.Empty, _) => (true, infoAcc)
@@ -52,28 +66,43 @@ sealed trait Route extends PartialFunction[Seq[String], (Resource, PathData)] {
         }
       }
       val (matches, pathInfo) = matchAndExtract(path.toStream, pathTerms.toStream, Map())
-      val tokens = if (hasStar) path drop (pathTerms.size - 1) else Nil
+      val tokens = if (pathHasStar) path drop (pathTerms.size - 1) else Nil
       if (matches) Some(PathData(tokens = tokens, info = pathInfo)) else None
     } else None
   }
 
 }
 
+
 object Route {
-  def routeMatching(terms: Seq[RoutePart], r: => Resource): Route = new Route {
-    def pathTerms: Seq[RouteTerm] = terms
 
-    def resource: Resource = r
-
-    protected val hasStar = false
+  trait Serve {
+    def serve(r: => Resource): Route
   }
 
-  def routeStartingWith(terms: Seq[RoutePart], r: => Resource): Route = new Route {
-    def pathTerms: Seq[RouteTerm] = terms ++ Seq(StarTerm)
+  def pathMatching(terms: Seq[RoutePart]) = new Serve {
+    def serve(r: => Resource) = new Route {
+      val pathTerms: Seq[RouteTerm] = terms
+      val hostTerms: Seq[RouteTerm] = Nil
 
-    def resource: Resource = r
+      // Note: THIS MUST BE A DEF TO ENSURE THAT THE BY-NAME PARAMETER IS EVALUATED EACH TIME
+      def resource: Resource = r
 
-    protected val hasStar = true
+      val checkPath = true
+      val checkHost = false
+    }
+  }
+
+  def pathStartingWith(terms: Seq[RoutePart]) = new Serve {
+    def serve(r: => Resource) = new Route {
+      val pathTerms: Seq[RouteTerm] = terms ++ Seq(StarTerm)
+      val hostTerms: Seq[RouteTerm] = Nil
+
+      def resource: Resource = r
+
+      val checkPath = true
+      val checkHost = false
+    }
   }
 }
 
