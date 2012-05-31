@@ -37,12 +37,12 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
     "Routes with data parts"                                                        ^
       "if the route does not end in a star term"                                    ^
         "if the route contains string terms"                                        ^
-          "path matches iif each token that has corresponding string part matches"  ! MixedRoutesNoStar.testMatchesIIFStringPartsMatch ^
-          "path does not match if >= one token does not match corresponding string" ! MixedRoutesNoStar.testStringPartDoesntMatch ^
-          "path does not match if it has less tokens than route parts"              ! MixedRoutesNoStar.testLessTokensThanParts ^
-          "path does not match if has more tokens than route parts"                 ! MixedRoutesNoStar.testMoreTokensThanParts ^
-          "path data always has as empty dispatch path string"                      ! MixedRoutesNoStar.testDispPathAlwaysEmpty ^
-          "path data always has an empty path tokens Seq"                           ! MixedRoutesNoStar.testPathTokensAlwaysEmpty ^p^
+          "path matches iif each token that has corresponding string part matches"  ! MixedPathNoStar.testMatchesIIFStringPartsMatch ^
+          "path does not match if >= one token does not match corresponding string" ! MixedPathNoStar.testStringPartDoesntMatch ^
+          "path does not match if it has less tokens than route parts"              ! MixedPathNoStar.testLessTokensThanParts ^
+          "path does not match if has more tokens than route parts"                 ! MixedPathNoStar.testMoreTokensThanParts ^
+          "path data always has as empty dispatch path string"                      ! MixedPathNoStar.testDispPathAlwaysEmpty ^
+          "path data always has an empty path tokens Seq"                           ! MixedPathNoStar.testPathTokensAlwaysEmpty ^p^
         "if the route does not contain string terms"                                ^
           "path matches only if the number of tokens equal the number of terms"     ! AllDataRouteNoStar.testEqualLengths ^
           "the path does not match otherwise"                                       ! AllDataRouteNoStar.testUnequalLengths ^
@@ -50,14 +50,14 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
           "path data always has an empty path tokens Seq"                           ! AllDataRouteNoStar.testPathTokensAlwaysEmpty ^p^p^
       "if the route ends in a star term"                                            ^
         "if the route contains string terms"                                        ^
-          "path matches if each token thas has corresponding string part matches"   ! MixedRoutesWithStar.testMatchesIIFStringPartsMatch ^
-          "path matches with tokens equal to string parts even with leftover tokens"! MixedRoutesWithStar.testMatchesWithLeftoverTokens ^
-          "path does not match if >= one token is not equal to corresponding string"! MixedRoutesWithStar.testStringPartDoesntMatch ^
-          "path does not match if there are less tokens than route parts"           ! MixedRoutesWithStar.testLessTokensThanParts ^
-          "path data has an empty dispatch string if num tokens == num route terms" ! MixedRoutesWithStar.testDispPathAlwaysEmpty ^
-          "path data has left over tokens seperated by slash as dispatch string"    ! MixedRoutesWithStar.testLeftoverTokensDispPath ^
-          "path data has empty path tokens Seq if num tokens == num route terms"    ! MixedRoutesWithStar.testPathTokensAlwaysEmpty  ^
-          "path data has left over tokens in path tokens Seq with order preserved"  ! MixedRoutesWithStar.testLeftoverTokensPathTokens ^p^
+          "path matches if each token thas has corresponding string part matches"   ! MixedPathWithStar.testMatchesIIFStringPartsMatch ^
+          "path matches with tokens equal to string parts even with leftover tokens"! MixedPathWithStar.testMatchesWithLeftoverTokens ^
+          "path does not match if >= one token is not equal to corresponding string"! MixedPathWithStar.testStringPartDoesntMatch ^
+          "path does not match if there are less tokens than route parts"           ! MixedPathWithStar.testLessTokensThanParts ^
+          "path data has an empty dispatch string if num tokens == num route terms" ! MixedPathWithStar.testDispPathAlwaysEmpty ^
+          "path data has left over tokens seperated by slash as dispatch string"    ! MixedPathWithStar.testLeftoverTokensDispPath ^
+          "path data has empty path tokens Seq if num tokens == num route terms"    ! MixedPathWithStar.testPathTokensAlwaysEmpty  ^
+          "path data has left over tokens in path tokens Seq with order preserved"  ! MixedPathWithStar.testLeftoverTokensPathTokens ^p^
         "if the route does not contain string terms"                                ^
           "path matches only if the number of tokens is >= number of terms"         ! AllDataRouteWithStar.testWithLeftoverTokens ^
           "the path does not match otherwise"                                       ! AllDataRouteWithStar.testLessTokensThanParts ^
@@ -69,22 +69,22 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
                                                                                     endp^
   "Matching Hosts"                                                                  ^
     "if host route does not begin with a star term"                                 ^
-      "matches iif each token with corresponding string part matches"               ! skipped ^
-      "does not match if tokens.length < parts.length"                              ! skipped ^
-      "does not match if tokens.length > parts.length"                              ! skipped ^
-      "does not match if >= 1 token does not match corresponding string part"       ! skipped ^
-      "host data always has empty dispatch subdomain string"                        ! skipped ^
-      "host data always has empty subdomain tokens"                                 ! skipped ^
-      "host data has entry in host info for every data part"                        ! skipped ^p^
+      "matches iif each token with corresponding string part matches"               ! MixedHostNoStar.testMatchesIIFStringPartsMatch ^
+      "does not match if tokens.length < parts.length"                              ! MixedHostNoStar.testLessTokensThanParts ^
+      "does not match if tokens.length > parts.length"                              ! MixedHostNoStar.testMoreTokensThanParts ^
+      "does not match if >= 1 token does not match corresponding string part"       ! MixedHostNoStar.testStringPartDoesntMatch ^
+      "host data always has empty dispatch subdomain string"                        ! MixedHostNoStar.testDispSubDomainAlwaysEmpty ^
+      "host data always has empty subdomain tokens"                                 ! MixedHostNoStar.testSubdomainTokensAlwaysEmpty ^
+      "host data has entry in host info for every data part"                        ! MixedHostNoStar.testHostInfo ^p^
     "if host route begins with a star term"                                         ^
-      "matches iif each token with corresponding string part matches (lefovers ok)" ! skipped ^
-      "does not match if tokens.length < parts.length"                              ! skipped ^
-      "does not match if >= 1 token does not match corresponding string part"       ! skipped ^
-      "host data has empty dispatch subdomain if tokens.length == parts.length"     ! skipped ^
-      "host data has leftover tokens seperated by dots as dispatch subdomain"       ! skipped ^
-      "host data has empty dispatch tokens if tokens.length == parts.length"        ! skipped ^
-      "host data has left tokens as dispatch tokens w/ order preserved"             ! skipped ^
-      "host data has entry in host info for every data part"                        ! skipped ^
+      "matches iif each token with corresponding string part matches (lefovers ok)" ! MixedHostWithStar.testMatchesWithLeftoverTokens ^
+      "does not match if tokens.length < parts.length"                              ! MixedHostWithStar.testLessTokensThanParts ^
+      "does not match if >= 1 token does not match corresponding string part"       ! MixedHostWithStar.testStringPartDoesntMatch ^
+      "host data has empty dispatch subdomain if tokens.length == parts.length"     ! MixedHostWithStar.testDispSubDomainAlwaysEmpty ^
+      "host data has leftover tokens seperated by dots as dispatch subdomain"       ! MixedHostWithStar.testLeftoverTokensDispSubdomain ^
+      "host data has empty dispatch tokens if tokens.length == parts.length"        ! MixedHostWithStar.testSubdomainTokensAlwaysEmpty ^
+      "host data has left tokens as dispatch tokens w/ order preserved"             ! MixedHostWithStar.testLeftoverTokensSubdomainTokens ^
+      "host data has entry in host info for every data part"                        ! MixedHostWithStar.testHostInfo ^
                                                                                     endp^
   "Matching Hosts and Paths"                                                        ^
                                                                                     endp^
@@ -134,6 +134,35 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
     }
 
   }
+
+  trait MixedTermsHostDataShared {
+    this: MixedRoutesShared =>
+
+    def testDispSubDomainAlwaysEmpty = forAll(tokensAndDataPartIdxs) {
+      (data: (List[String],Set[Int])) => {
+        val (pathParts,dataIdxs) = data
+        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).apply((pathParts,Nil))._3.dispSubdomain must beEmpty
+      }
+    }
+
+    def testSubdomainTokensAlwaysEmpty = forAll(tokensAndDataPartIdxs) {
+      (data: (List[String],Set[Int])) => {
+        val (pathParts,dataIdxs) = data
+        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).apply((pathParts,Nil))._3.tokens must beEmpty
+      }
+    }
+
+    def testHostInfo = forAll(tokensAndDataPartIdxs) {
+      (data: (List[String],Set[Int])) => {
+        val (pathParts,dataIdxs) = data
+        val terms = buildMixedRouteTerms(pathParts,dataIdxs)
+        val route = routeF(terms)
+        val expected = pathParts.zipWithIndex.filter(t => dataIdxs.contains(t._2)).map(tpl => (Symbol(tpl._1),tpl._1))
+        route.apply((pathParts,Nil))._3.info must containAllOf(expected).only
+      }
+    }
+
+  }
   
   trait AllStringsPathDataShared extends PathDataShared {
     val toPart: String => RoutePart = StringPart(_)
@@ -149,15 +178,16 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
     def testMatchesIIFStringPartsMatch = forAll(tokensAndDataPartIdxs) {
       (data: (List[String],Set[Int])) => {
         val (pathParts,dataIdxs) = data
-        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).isDefinedAt((Nil,pathParts)) must beTrue
+        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).isDefinedAt((pathParts,pathParts)) must beTrue
       }
     }
 
     def testLessTokensThanParts = forAll(tokensDataPartIdxsAndDropCount) {
       (data: (List[String],Set[Int],Int)) => {
         val (pathParts, dataIdxs,dropCount) = data
+        val finalParts = pathParts.reverse.drop(dropCount).reverse
         routeF(buildMixedRouteTerms(pathParts,dataIdxs))
-          .isDefinedAt((Nil,pathParts.reverse.drop(dropCount).reverse)) must beFalse
+          .isDefinedAt((finalParts, finalParts)) must beFalse
       }
     }
 
@@ -166,13 +196,14 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
         val (pathParts,dataIdxs,changeAt,changeTo) = data
         val changedParts = pathParts.toBuffer
         changedParts.update(changeAt, changeTo)
-        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).isDefinedAt((Nil,changedParts.toList)) must beFalse
+        val finalParts = changedParts.toList
+        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).isDefinedAt((finalParts,finalParts)) must beFalse
       }
     }
        
   }
 
-  object MixedRoutesWithStar extends MixedRoutesShared with MixedTermsPathDataShared {
+  object MixedPathWithStar extends MixedRoutesShared with MixedTermsPathDataShared {
     val routeF: List[RoutePart] => Route = l => pathStartingWith(l) serve null
 
     def testMatchesWithLeftoverTokens = forAll(tokensAndDataPartIdxs,nonEmptyTokens) {
@@ -200,13 +231,55 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
     }
   }
 
-  object MixedRoutesNoStar extends MixedRoutesShared with MixedTermsPathDataShared {
+  object MixedPathNoStar extends MixedRoutesShared with MixedTermsPathDataShared {
     val routeF: List[RoutePart] => Route = l => pathMatching(l) serve null
 
     def testMoreTokensThanParts = forAll(tokensAndDataPartIdxs,nonEmptyTokens) {
       (data: (List[String],Set[Int]), additional: List[String]) => {
         val (pathParts,dataIdxs) = data
         pathMatching(buildMixedRouteTerms(pathParts,dataIdxs)).serve(null).isDefinedAt((Nil,pathParts ++ additional)) must beFalse
+      }
+    }
+
+  }
+
+  object MixedHostWithStar extends MixedRoutesShared with MixedTermsHostDataShared {
+    def routeF: List[RoutePart] => Route = l => hostEndingWith(l) serve null
+
+    def testMatchesWithLeftoverTokens = forAll(tokensAndDataPartIdxs,Gen.containerOf[List,String](token)) {
+      (data: (List[String],Set[Int]), additional: List[String]) => {
+        val (hostParts,dataIdxs) = data
+        hostEndingWith(hostParts.zipWithIndex.map {
+          case (s,idx) if dataIdxs.contains(idx) => DataPart(Symbol(s))
+          case (s,_) => StringPart(s)
+        }).serve(null).isDefinedAt((additional ++ hostParts, Nil)) must beTrue
+      }
+    }
+
+    def testLeftoverTokensDispSubdomain = forAll(tokensAndDataPartIdxs,nonEmptyTokens) {
+      (data: (List[String],Set[Int]), additional: List[String]) => {
+        val (pathParts,dataIdxs) = data
+        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).apply((additional ++ pathParts, Nil))._3.dispSubdomain must beEqualTo(additional.mkString("."))
+      }
+    }
+
+    def testLeftoverTokensSubdomainTokens = forAll(tokensAndDataPartIdxs,nonEmptyTokens) {
+      (data: (List[String],Set[Int]), additional: List[String]) => {
+        val (pathParts,dataIdxs) = data
+        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).apply((additional ++ pathParts, Nil))._3.tokens must containAllOf(additional).inOrder
+      }
+    }
+
+
+  }
+
+  object MixedHostNoStar extends MixedRoutesShared with MixedTermsHostDataShared {
+    val routeF: List[RoutePart] => Route = l => hostMatching(l) serve null
+
+    def testMoreTokensThanParts = forAll(tokensAndDataPartIdxs,nonEmptyTokens) {
+      (data: (List[String],Set[Int]), additional: List[String]) => {
+        val (pathParts,dataIdxs) = data
+        hostMatching(buildMixedRouteTerms(pathParts,dataIdxs)).serve(null).isDefinedAt((additional ++ pathParts, Nil)) must beFalse
       }
     }
 

@@ -92,3 +92,7 @@ case class PathData(tokens: Seq[String] = Nil, info: Map[Symbol,String] = Map())
   val dispPath = tokens.mkString("/")
 }
 
+case class HostData(tokens: Seq[String] = Nil, info: Map[Symbol,String] = Map()) {
+  val dispSubdomain = tokens.mkString(".")
+}
+

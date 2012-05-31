@@ -1,9 +1,9 @@
 package com.github.jrwest.scalamachine.core
 package dispatch
 
-trait RouteTerm extends (String => Boolean)
+sealed trait RouteTerm extends (String => Boolean)
 
-trait RoutePart extends RouteTerm
+sealed trait RoutePart extends RouteTerm
 
 private[core] case object StarTerm extends RouteTerm {
   def apply(pathPart: String) = true
@@ -17,7 +17,7 @@ case class DataPart(name: Symbol) extends RoutePart {
   def apply(pathPart: String) = true
 }
 
-sealed trait Route extends PartialFunction[(Seq[String],Seq[String]), (Resource, PathData, PathData)] {
+sealed trait Route extends PartialFunction[(Seq[String],Seq[String]), (Resource, PathData, HostData)] {
   def pathTerms: Seq[RouteTerm]
   def hostTerms: Seq[RouteTerm]
 
@@ -36,38 +36,51 @@ sealed trait Route extends PartialFunction[(Seq[String],Seq[String]), (Resource,
     case _ => false
   } getOrElse false
 
+
+  // TODO: lots of refactoring
+
   def isDefinedAt(hostAndPath: (Seq[String],Seq[String])) = {
-    buildPathData(hostAndPath._2).isDefined
+    if (checkPath)
+      buildData(hostAndPath._2, pathTerms, pathHasStar).isDefined
+    else
+      buildData(hostAndPath._1.reverse, hostTerms.reverse, hostHasStar).isDefined
   }
 
   def apply(hostAndPath: (Seq[String],Seq[String])) =
     if (checkPath) {
-      buildPathData(hostAndPath._2) map {
-        (resource, _, PathData())
+      buildData(hostAndPath._2, pathTerms, pathHasStar) map { r =>
+        (resource, PathData(tokens = r._1, info = r._2), HostData(tokens = hostAndPath._1))
       } getOrElse {
-        throw new MatchError("route doesn't match route")
+        throw new MatchError("route doesn't match path")
       }
-    } else throw new MatchError("host routes not yet supported")
+    } else {
+      buildData(hostAndPath._1.reverse, hostTerms.reverse, hostHasStar) map { r =>
+        (resource, PathData(tokens = hostAndPath._2), HostData(tokens = r._1.reverse, info = r._2))
+      } getOrElse {
+        throw new MatchError("route doesn't match host")
+      }
+    }
 
 
-  private def buildPathData(path: Seq[String]): Option[PathData] = {
-    if ((pathHasStar && path.size >= pathTerms.size - 1) || (pathTerms.size == path.size)) {
+  private def buildData(tokens: Seq[String], terms: Seq[RouteTerm], hasStar: Boolean): Option[(Seq[String], Map[Symbol,String])] = {
+    val termsLength = terms.size
+    val tokensLength = tokens.size
+    if ((hasStar && tokensLength >= termsLength - 1) || (termsLength == tokensLength)) {
       @annotation.tailrec
-      def matchAndExtract(ps: Stream[String], prts: Stream[RouteTerm], infoAcc: Map[Symbol, String]): (Boolean, Map[Symbol, String]) = (ps, prts) match {
+      def matchAndExtract(tkns: Stream[String], trms: Stream[RouteTerm], infoAcc: Map[Symbol, String]): (Boolean, Map[Symbol, String]) = (tkns, trms) match {
         case (Stream.Empty, _) => (true, infoAcc)
         case (_, Stream.Empty) => (true, infoAcc)
-        case (p #:: psRest, pr #:: prtsRest) => pr match {
+        case (tk #:: tkRest, trm #:: trmsRest) => trm match {
           case StringPart(expected) =>
-            if (expected == p) matchAndExtract(psRest, prtsRest, infoAcc)
+            if (expected == tk) matchAndExtract(tkRest, trmsRest, infoAcc)
             else (false, infoAcc)
-          case DataPart(key) => matchAndExtract(psRest, prtsRest, infoAcc + (key -> p))
-          case _ => matchAndExtract(psRest, prtsRest, infoAcc)
-
+          case DataPart(key) => matchAndExtract(tkRest, trmsRest, infoAcc + (key -> tk))
+          case _ => matchAndExtract(tkRest, trmsRest, infoAcc)
         }
       }
-      val (matches, pathInfo) = matchAndExtract(path.toStream, pathTerms.toStream, Map())
-      val tokens = if (pathHasStar) path drop (pathTerms.size - 1) else Nil
-      if (matches) Some(PathData(tokens = tokens, info = pathInfo)) else None
+      val (matches, pathInfo) = matchAndExtract(tokens.toStream, terms.toStream, Map())
+      val dispTokens = if (hasStar) tokens drop (termsLength - 1) else Nil
+      if (matches) Some((dispTokens, pathInfo)) else None
     } else None
   }
 
@@ -85,7 +98,7 @@ object Route {
       val pathTerms: Seq[RouteTerm] = terms
       val hostTerms: Seq[RouteTerm] = Nil
 
-      // Note: THIS MUST BE A DEF TO ENSURE THAT THE BY-NAME PARAMETER IS EVALUATED EACH TIME
+      // THIS MUST BE A DEF TO ENSURE THAT THE BY-NAME PARAMETER IS EVALUATED EACH TIME
       def resource: Resource = r
 
       val checkPath = true
@@ -98,10 +111,37 @@ object Route {
       val pathTerms: Seq[RouteTerm] = terms ++ Seq(StarTerm)
       val hostTerms: Seq[RouteTerm] = Nil
 
+      // THIS MUST BE A DEF TO ENSURE THAT THE BY-NAME PARAMETER IS EVALUATED EACH TIME
       def resource: Resource = r
 
       val checkPath = true
       val checkHost = false
+    }
+  }
+
+  def hostMatching(terms: Seq[RoutePart]) = new Serve {
+    def serve(r: => Resource) = new Route {
+      val pathTerms: Seq[RouteTerm] = Nil
+      val hostTerms: Seq[RouteTerm] = terms
+
+      // THIS MUST BE A DEF TO ENSURE THAT THE BY-NAME PARAMETER IS EVALUATED EACH TIME
+      def resource: Resource = r
+
+      val checkPath: Boolean = false
+      val checkHost: Boolean = true
+    }
+  }
+
+  def hostEndingWith(terms: Seq[RouteTerm]) = new Serve {
+    def serve(r: => Resource) = new Route {
+      val pathTerms: Seq[RouteTerm] = Nil
+      val hostTerms: Seq[RouteTerm] = StarTerm +: terms
+
+      // THIS MUST BE A DEF TO ENSURE THAT THE BY-NAME PARAMETER IS EVALUATED EACH TIME
+      def resource: Resource = r
+
+      val checkPath: Boolean = false
+      val checkHost: Boolean = true
     }
   }
 }
