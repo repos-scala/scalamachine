@@ -3,21 +3,48 @@ package com.github.jrwest.scalamachine.core
 import com.github.jrwest.scalamachine.internal.scalaz.Lens._
 import HTTPMethods._
 
-// TODO: make headers type alias
-// TODO: use scalaz CaseInsensitive for header key?
-case class ReqRespData(
-                        baseUri: String = "", // e.g. "http://example.com"
-                        pathParts: List[String] = Nil,
-                        pathData: PathData = PathData(),
-                        method: HTTPMethod = GET,
-                        statusCode: Int = 200,
-                        requestHeaders: Map[HTTPHeader, String] = Map(),
-                        responseHeaders: Map[HTTPHeader, String] = Map(),
-                        requestBody: HTTPBody = EmptyBody,
-                        responseBody: HTTPBody = EmptyBody,
-                        metadata: Metadata = Metadata(),
-                        doRedirect: Boolean = false
-                        ) {
+/**
+ * Represents the request being sent by the client as well as the response built by the resource
+ *
+ * A Note about Headers:
+ * framework implementations ensure that only headers that Scalamachine knows
+ * about (defined via [[com.github.jrwest.scalamachine.core.HTTPHeaders.createHeader]])
+ * are present in header collections. Additionally, header collections do not currenlty support
+ * the same header appearing more than once in a request although allowed by the HTTP spec
+ * Support for this will be added shortly.
+ *
+ * Still missing from the original implementation:
+ *
+ *  - HTTP Version
+ *  - Peer (Client) IP
+ *  - Raw Path (URI Path including Query String)
+ *  - Cookies
+ *  - Query String
+ *  - "App Root" - see webmachine documentation (http://wiki.basho.com/Webmachine-Request.html)
+ *
+ * @param baseUri The base of the requested URI. Includes the scheme and host without the trailing slash (e.g. http://example.com)
+ * @param pathParts List of string tokens, the request URI path split by "/"
+ * @param method The request's [[com.github.jrwest.scalamachine.core.HTTPMethod]]
+ * @param statusCode integer response status code
+ * @param requestHeaders Request headers
+ * @param responseHeaders Response headers
+ * @param requestBody The body of the request. See [[com.github.jrwest.scalamachine.core.HTTPBody]] for more
+ * @param responseBody The body of the response to be set by this resource. See [[com.github.jrwest.scalamachine.core.HTTPBody]] for more
+ * @param doRedirect If true some responses will return 303 instead of 2xx
+ *
+ *
+ */
+case class ReqRespData(baseUri: String = "",
+                       pathParts: List[String] = Nil,
+                       method: HTTPMethod = GET,
+                       statusCode: Int = 200,
+                       requestHeaders: Map[HTTPHeader, String] = Map(),
+                       responseHeaders: Map[HTTPHeader, String] = Map(),
+                       requestBody: HTTPBody = EmptyBody,
+                       responseBody: HTTPBody = EmptyBody,
+                       doRedirect: Boolean = false,
+                       private[scalamachine] val pathData: PathData = PathData(),
+                       private[core] val metadata: Metadata = Metadata()) {
   
 
   private[scalamachine] def setPathData(newPathData: PathData) = copy(pathData = newPathData)

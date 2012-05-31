@@ -17,9 +17,6 @@ object lenses {
   val requestHeadersL: ReqRespData @-@ Map[HTTPHeader, String] =
     lensG(_.requestHeaders, d => hdrs => d copy (requestHeaders = hdrs))
 
-  val metadataL: ReqRespData @-@ Metadata =
-    lensG(_.metadata, d => meta => d copy (metadata = meta))
-
   val methodL: ReqRespData @-@ HTTPMethod =
     lensG(_.method, d => m => d copy (method = m))
 
@@ -49,4 +46,5 @@ object lenses {
 
   val doRedirectL: ReqRespData @-@ Boolean =
     lensG(_.doRedirect, d => b => d copy (doRedirect = b))
+
 }

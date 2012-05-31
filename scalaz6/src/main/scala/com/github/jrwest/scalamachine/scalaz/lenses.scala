@@ -5,6 +5,7 @@ import Scalaz._
 import com.github.jrwest.scalamachine.core._
 
 object lenses {
+
   val baseUriL: Lens[ReqRespData,String] =
     Lens(_.baseUri, (d,u) => d copy (baseUri = u))
 
@@ -16,9 +17,6 @@ object lenses {
 
   val requestHeadersL: Lens[ReqRespData,Map[HTTPHeader, String]] =
     Lens(_.requestHeaders, (d,hdrs) => d copy (requestHeaders = hdrs))
-
-  val metadataL: Lens[ReqRespData, Metadata] =
-    Lens(_.metadata, (d,meta) => d copy (metadata = meta))
 
   val methodL: Lens[ReqRespData,HTTPMethod] =
     Lens(_.method, (d,m) => d copy (method = m))
@@ -49,4 +47,5 @@ object lenses {
 
   val doRedirectL: Lens[ReqRespData,Boolean] =
     Lens(_.doRedirect, (d,b) => d copy (doRedirect = b))
+
 }
