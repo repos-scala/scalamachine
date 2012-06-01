@@ -12,12 +12,6 @@ import resources.{EchoPostBodyResource, EmptyResource, UnavailableResource}
 object ScalamachineExample extends FinagleWebmachineV3 {
 
   addRoute {
-    hostEndingWith {
-      StringPart("localhost") :: Nil
-    } serve new EmptyResource
-  }
-
-  addRoute {
     hostMatching {
       StringPart("jordan") :: StringPart("localhost") :: Nil
     } andPathMatching {
@@ -42,6 +36,13 @@ object ScalamachineExample extends FinagleWebmachineV3 {
       StringPart("echo") :: Nil
     } serve new EchoPostBodyResource
   }
+
+  addRoute {
+    hostEndingWith {
+      StringPart("localhost") :: Nil
+    } serve new EmptyResource
+  }
+
 
   override val flowRunner = new FlowRunner with FlowLogging
 }

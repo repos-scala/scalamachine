@@ -5,10 +5,10 @@ import flow._
 
 trait DispatchTable[-A, B, +W[_]] extends PartialFunction[A, W[B]] {
 
-  private var _routes: List[Route] = Nil
+  private var _routes = Vector.empty[Route]
 
   def addRoute(route: Route) {
-    _routes ::= route
+    _routes :+= route
   }
 
   def isDefinedAt(req: A): Boolean = _routes.find(_.isDefinedAt(host(req) -> path(req))).isDefined
