@@ -18,11 +18,15 @@ trait FinagleWebmachine {
     if (path.startsWith("/")) parts drop 1 else parts
   }
 
+  def hostString(req: HttpRequest) =
+    Option(HttpHeaders.getHost(req)) filterNot { _ == "" } getOrElse java.net.InetAddress.getLocalHost.getHostName
+
   // TODO: fill in base URI and other fields
   def toData(req: HttpRequest): ReqRespData = {
     ReqRespData(
       method = HTTPMethod.fromString(req.getMethod.getName),
       pathParts = path(req),
+      hostParts = host(req),
       baseUri = "http://" + HttpHeaders.getHost(req),
       requestBody = reqBody(req),
       requestHeaders = for {

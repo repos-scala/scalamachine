@@ -12,6 +12,8 @@ trait LiftWebmachine {
 
   def path(req: Req): List[String] = req.path.partPath
 
+  def hostString(req: Req) = req.hostName
+
   def wrap(res: => Box[LiftResponse]): () => Box[LiftResponse] = () => res
 
   // TODO: complete conversion once ReqRespData is filled out
@@ -19,6 +21,7 @@ trait LiftWebmachine {
     ReqRespData(
       method = parseMethod(req.request.method),
       pathParts = path(req),
+      hostParts = host(req),
       requestHeaders = {
         for {
           (name, value) <- req.headers.toMap

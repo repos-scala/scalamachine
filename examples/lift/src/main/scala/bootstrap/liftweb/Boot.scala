@@ -9,10 +9,14 @@ import code.resources.{EmptyResource, UnavailableResource}
 
 object ScalamachineExample extends LiftWebmachineV3 {
   addRoute {
-    pathMatching(StringPart("unavailable") :: Nil, new UnavailableResource)
+    pathMatching {
+      StringPart("unavailable") :: Nil
+    } serve new UnavailableResource
   }
   addRoute {
-    pathMatching(StringPart("empty") :: Nil, new EmptyResource)
+    pathMatching {
+      StringPart("empty") :: Nil
+    } serve new EmptyResource
   }
 }
 

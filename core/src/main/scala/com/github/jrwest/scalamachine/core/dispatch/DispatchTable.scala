@@ -11,16 +11,16 @@ trait DispatchTable[-A, B, +W[_]] extends PartialFunction[A, W[B]] {
     _routes ::= route
   }
 
-  def isDefinedAt(req: A): Boolean = _routes.find(_.isDefinedAt(Nil -> path(req))).isDefined
+  def isDefinedAt(req: A): Boolean = _routes.find(_.isDefinedAt(host(req) -> path(req))).isDefined
 
   def apply(req: A): W[B] = {
     val data = toData(req)
     wrap {
       fromData {
-        _routes.find(_.isDefinedAt(Nil -> data.pathParts))
+        _routes.find(_.isDefinedAt(data.hostParts -> data.pathParts))
           .map(route => {
-          val (resource, pathData, _) = route(Nil -> data.pathParts)
-          flowRunner.run(firstDecision, resource, data.setPathData(pathData))
+          val (resource, pathData, hostData) = route(data.hostParts -> data.pathParts)
+          flowRunner.run(firstDecision, resource, data.setPathData(pathData).setHostData(hostData))
         })
           .getOrElse(handle404(data))
       }
@@ -35,6 +35,19 @@ trait DispatchTable[-A, B, +W[_]] extends PartialFunction[A, W[B]] {
   def flowRunner = new FlowRunner
 
   def path(req: A): List[String]
+
+  protected def hostString(req: A): String
+
+  // the HOST (excluding port) split by "."
+  def host(req: A): List[String] = {
+    val fullName = hostString(req)
+    val portStartIdx = fullName indexOf ":"
+    val name =
+      if (portStartIdx >= 0) fullName dropRight (fullName.length - portStartIdx)
+      else fullName
+
+    name.split("\\.").toList
+  }
 
   def wrap(res: => B): W[B]
 

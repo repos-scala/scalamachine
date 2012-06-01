@@ -36,6 +36,7 @@ import HTTPMethods._
  */
 case class ReqRespData(baseUri: String = "",
                        pathParts: List[String] = Nil,
+                       hostParts: List[String] = Nil,
                        method: HTTPMethod = GET,
                        statusCode: Int = 200,
                        requestHeaders: Map[HTTPHeader, String] = Map(),
@@ -44,15 +45,23 @@ case class ReqRespData(baseUri: String = "",
                        responseBody: HTTPBody = EmptyBody,
                        doRedirect: Boolean = false,
                        private[scalamachine] val pathData: PathData = PathData(),
+                       private[scalamachine] val hostData: HostData = HostData(),
                        private[core] val metadata: Metadata = Metadata()) {
   
 
   private[scalamachine] def setPathData(newPathData: PathData) = copy(pathData = newPathData)
+  private[scalamachine] def setHostData(newHostData: HostData) = copy(hostData = newHostData)
 
   val path = pathParts.mkString("/")
+  val host = hostParts.mkString(".")
+
   val pathTokens = pathData.tokens
   val dispPath = pathData.dispPath
   val pathInfo = pathData.info
+
+  val subdomainTokens = hostData.tokens
+  val dispSubdomain = hostData.dispSubdomain
+  val hostInfo = hostData.info
 
   def setStatusCode(code: Int) = copy(statusCode = code)
 
