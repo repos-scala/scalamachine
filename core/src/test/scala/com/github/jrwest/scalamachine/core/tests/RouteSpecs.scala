@@ -87,6 +87,9 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
       "host data has entry in host info for every data part"                        ! MixedHostWithStar.testHostInfo ^
                                                                                     endp^
   "Matching Hosts and Paths"                                                        ^
+    "matches if host and path route matches given host and path tokens"             ! testHostAndPathRoute ^
+    "does not match if host route does not match given host tokens"                 ! testHostAndPathHostNotMatching ^
+    "does not match if path route does not match given path tokens"                 ! testHostAndPathPathNotMatching ^
                                                                                     endp^
   "Gaurds"                                                                          ^
                                                                                     end
@@ -271,6 +274,35 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
     }
 
 
+  }
+
+  def testHostAndPathRoute = forAll(tokensAndDataPartIdxs,Gen.containerOf[List,String](token)) {
+    (data: (List[String],Set[Int]), additional: List[String]) => {
+      val (tokens, idxs) = data
+      val terms = buildMixedRouteTerms(tokens, idxs)
+      val route: Route = hostEndingWith(terms) andPathStartingWith(terms) serve null
+      route.isDefinedAt((additional ++ tokens, tokens ++ additional)) must beTrue
+    }
+  }
+
+  def testHostAndPathHostNotMatching = forAll(tokensAndDataPartIdxs) {
+    (data: (List[String], Set[Int])) => {
+      val (tokens, idxs) = data
+      val terms = buildMixedRouteTerms(tokens, idxs)
+      val badTokens = tokens.reverse
+      val route: Route = hostMatching(terms) andPathMatching(terms) serve null
+      route.isDefinedAt((badTokens, tokens)) must beFalse
+    }
+  }
+
+  def testHostAndPathPathNotMatching = forAll(tokensAndDataPartIdxs) {
+    (data: (List[String], Set[Int])) => {
+      val (tokens, idxs) = data
+      val terms = buildMixedRouteTerms(tokens, idxs)
+      val badTokens = tokens.reverse
+      val route: Route = hostMatching(terms) andPathMatching(terms) serve null
+      route.isDefinedAt((tokens, badTokens)) must beFalse
+    }
   }
 
   object MixedHostNoStar extends MixedRoutesShared with MixedTermsHostDataShared {

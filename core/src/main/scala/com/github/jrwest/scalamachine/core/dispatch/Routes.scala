@@ -26,40 +26,41 @@ sealed trait Route extends PartialFunction[(Seq[String],Seq[String]), (Resource,
   def checkPath: Boolean
   def checkHost: Boolean
 
-  protected lazy val pathHasStar = pathTerms.reverse.headOption.map {
-    case StarTerm => true
-    case _ => false
-  } getOrElse false
+  def isDefinedAt(hostAndPath: (Seq[String],Seq[String])) = buildResult(hostAndPath).isDefined
 
-  protected lazy val hostHasStar = hostTerms.headOption.map {
-    case StarTerm => true
-    case _ => false
-  } getOrElse false
-
-
-  // TODO: lots of refactoring
-
-  def isDefinedAt(hostAndPath: (Seq[String],Seq[String])) = {
-    if (checkPath)
-      buildData(hostAndPath._2, pathTerms, pathHasStar).isDefined
-    else
-      buildData(hostAndPath._1.reverse, hostTerms.reverse, hostHasStar).isDefined
+  def apply(hostAndPath: (Seq[String],Seq[String])) = buildResult(hostAndPath) map {
+    data => (resource, data._1, data._2)
+  } getOrElse {
+    throw new MatchError("route doesn't match")
   }
 
-  def apply(hostAndPath: (Seq[String],Seq[String])) =
-    if (checkPath) {
-      buildData(hostAndPath._2, pathTerms, pathHasStar) map { r =>
-        (resource, PathData(tokens = r._1, info = r._2), HostData(tokens = hostAndPath._1))
-      } getOrElse {
-        throw new MatchError("route doesn't match path")
-      }
-    } else {
-      buildData(hostAndPath._1.reverse, hostTerms.reverse, hostHasStar) map { r =>
-        (resource, PathData(tokens = hostAndPath._2), HostData(tokens = r._1.reverse, info = r._2))
-      } getOrElse {
-        throw new MatchError("route doesn't match host")
-      }
-    }
+  private lazy val pathHasStar = pathTerms.reverse.headOption.map {
+    case StarTerm => true
+    case _ => false
+  } getOrElse false
+
+  private lazy val hostHasStar = hostTerms.headOption.map {
+    case StarTerm => true
+    case _ => false
+  } getOrElse false
+
+
+  private def buildResult(hostAndPath: (Seq[String], Seq[String])): Option[(PathData, HostData)] = {
+    val (hostTokens, pathTokens) = hostAndPath
+    lazy val pathData =
+      if (checkPath) buildData(pathTokens, pathTerms, pathHasStar) map { r => PathData(tokens = r._1, info = r._2) }
+      else Some(PathData(tokens = pathTokens))
+
+    lazy val hostData =
+      if (checkHost) buildData(hostTokens.reverse, hostTerms.reverse, hostHasStar) map {
+        r => HostData(tokens = r._1.reverse, info = r._2)
+      } else Some(HostData(tokens = hostTokens))
+
+    for {
+      pd <- pathData
+      hd <- hostData
+    } yield (pd, hd)
+  }
 
 
   private def buildData(tokens: Seq[String], terms: Seq[RouteTerm], hasStar: Boolean): Option[(Seq[String], Map[Symbol,String])] = {
@@ -89,7 +90,12 @@ sealed trait Route extends PartialFunction[(Seq[String],Seq[String]), (Resource,
 
 object Route {
 
-  trait Serve {
+  sealed trait RouteConjunction {
+    def andPathMatching(terms: Seq[RoutePart]): Serve
+    def andPathStartingWith(terms: Seq[RoutePart]): Serve
+  }
+
+  sealed trait Serve {
     def serve(r: => Resource): Route
   }
 
@@ -119,10 +125,49 @@ object Route {
     }
   }
 
-  def hostMatching(terms: Seq[RoutePart]) = new Serve {
+  def hostMatching(hTerms: Seq[RoutePart]) = new Serve with RouteConjunction {
+
     def serve(r: => Resource) = new Route {
       val pathTerms: Seq[RouteTerm] = Nil
-      val hostTerms: Seq[RouteTerm] = terms
+      val hostTerms: Seq[RouteTerm] = hTerms
+
+      // THIS MUST BE A DEF TO ENSURE THAT THE BY-NAME PARAMETER IS EVALUATED EACH TIME
+      def resource: Resource = r
+
+      val checkPath = false
+      val checkHost = true
+    }
+
+
+    def andPathMatching(pTerms: Seq[RoutePart]) = new Serve {
+      def serve(r: => Resource) = new Route {
+        val pathTerms = pTerms
+        val hostTerms = hTerms
+
+        def resource = r
+
+        val checkPath = true
+        val checkHost = true
+      }
+    }
+
+    def andPathStartingWith(pTerms: Seq[RoutePart]) = new Serve {
+      def serve(r: => Resource) = new Route {
+        val pathTerms = pTerms ++ Seq(StarTerm)
+        val hostTerms = hTerms
+
+        def resource = r
+
+        val checkPath = true
+        val checkHost = true
+      }
+    }
+  }
+
+  def hostEndingWith(hTerms: Seq[RouteTerm]) = new Serve with RouteConjunction {
+    def serve(r: => Resource) = new Route {
+      val pathTerms: Seq[RouteTerm] = Nil
+      val hostTerms: Seq[RouteTerm] = StarTerm +: hTerms
 
       // THIS MUST BE A DEF TO ENSURE THAT THE BY-NAME PARAMETER IS EVALUATED EACH TIME
       def resource: Resource = r
@@ -130,18 +175,29 @@ object Route {
       val checkPath: Boolean = false
       val checkHost: Boolean = true
     }
-  }
 
-  def hostEndingWith(terms: Seq[RouteTerm]) = new Serve {
-    def serve(r: => Resource) = new Route {
-      val pathTerms: Seq[RouteTerm] = Nil
-      val hostTerms: Seq[RouteTerm] = StarTerm +: terms
+    def andPathMatching(pTerms: Seq[RoutePart]) = new Serve {
+      def serve(r: => Resource) = new Route {
+        val pathTerms = pTerms
+        val hostTerms = StarTerm +: hTerms
 
-      // THIS MUST BE A DEF TO ENSURE THAT THE BY-NAME PARAMETER IS EVALUATED EACH TIME
-      def resource: Resource = r
+        def resource = r
 
-      val checkPath: Boolean = false
-      val checkHost: Boolean = true
+        val checkPath = true
+        val checkHost = true
+      }
+    }
+
+    def andPathStartingWith(pTerms: Seq[RoutePart]) = new Serve {
+      def serve(r: => Resource) = new Route {
+        val pathTerms = pTerms ++ Seq(StarTerm)
+        val hostTerms = StarTerm +: hTerms
+
+        def resource = r
+
+        val checkPath = true
+        val checkHost = true
+      }
     }
   }
 }
