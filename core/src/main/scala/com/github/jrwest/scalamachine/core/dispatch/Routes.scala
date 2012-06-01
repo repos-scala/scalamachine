@@ -336,7 +336,7 @@ object Route {
   }
 
 
-  /* RoutePart Constructors */
+  /* RoutePart Constructors & DSL */
   def routeToken(s: String): RoutePart = new StringPart {
     def value: String = s
   }
@@ -344,6 +344,44 @@ object Route {
   def routeData(n: Symbol): RoutePart = new DataPart {
     def name: Symbol = n
   }
+
+  import com.github.jrwest.scalamachine.internal.scalaz.syntax.SyntaxV
+
+  trait RouteVectorV extends SyntaxV[Vector[RoutePart]] {
+    def /(s: String): Vector[RoutePart] = dot(s)
+    def /(s: Symbol): Vector[RoutePart] = dot(s)
+    def dot(s: String): Vector[RoutePart] = self :+ routeToken(s)
+    def dot(s: Symbol): Vector[RoutePart] = self :+ routeData(s)
+  }
+
+  trait RouteStringV extends SyntaxV[String] {
+    def /(s: String): Vector[RoutePart] = dot(s)
+    def /(s: Symbol): Vector[RoutePart] = dot(s)
+    def dot(s: String): Vector[RoutePart] = Vector(routeToken(self), routeToken(s))
+    def dot(s: Symbol): Vector[RoutePart] = Vector(routeToken(self), routeData(s))
+  }
+
+  trait RouteSymbolV extends SyntaxV[Symbol] {
+    def /(s: String): Vector[RoutePart] = dot(s)
+    def /(s: Symbol): Vector[RoutePart] = dot(s)
+    def dot(s: String): Vector[RoutePart] = Vector(routeData(self), routeToken(s))
+    def dot(s: Symbol): Vector[RoutePart] = Vector(routeData(self), routeData(s))
+  }
+
+  implicit def vectorToV(v: Vector[RoutePart]): RouteVectorV = new RouteVectorV {
+    val self = v
+  }
+
+  implicit def stringToV(s: String): RouteStringV = new RouteStringV {
+    val self = s
+  }
+
+  implicit def symbolToV(s: Symbol): RouteSymbolV = new RouteSymbolV {
+    val self = s
+  }
+
+  implicit def stringToRouteVector(s: String): Vector[RoutePart] = Vector(routeToken(s))
+  implicit def symbolToRouteVector(s: Symbol): Vector[RoutePart] = Vector(routeData(s))
 }
 
 

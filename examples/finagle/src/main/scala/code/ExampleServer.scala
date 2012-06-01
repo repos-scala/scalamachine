@@ -13,33 +13,35 @@ object ScalamachineExample extends FinagleWebmachineV3 {
 
   route {
     hostMatching {
-      routeToken("jordan") :: routeToken("localhost") :: Nil
+      "jordan" dot "localhost"
     } andPathMatching {
-      routeToken("unavailable2") :: Nil
+      "unavailable" / 'id / "a"
+    } serve {
+      new UnavailableResource
+    }
+  }
+
+  route {
+    pathMatching {
+      "unavailable"
     } serve new UnavailableResource
   }
 
   route {
     pathMatching {
-      routeToken("unavailable") :: Nil
-    } serve new UnavailableResource
-  }
-
-  route {
-    pathMatching {
-      routeToken("empty") :: Nil
+      "empty"
     } serve  new EmptyResource
   }
 
   route {
     pathMatching {
-      routeToken("echo") :: Nil
+      "echo"
     } serve new EchoPostBodyResource
   }
 
   route {
     hostEndingWith {
-      routeToken("localhost") :: Nil
+      "localhost"
     } serve new EmptyResource
   }
 
