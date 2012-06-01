@@ -11,10 +11,12 @@ private[core] case object StarTerm extends RouteTerm {
 
 case class StringPart(value: String) extends RoutePart {
   def apply(pathPart: String) = pathPart.equalsIgnoreCase(value)
+  override def toString = "StringPart(%s)" format value
 }
 
 case class DataPart(name: Symbol) extends RoutePart {
   def apply(pathPart: String) = true
+  override def toString = "DataPart(%s)" format name
 }
 
 sealed trait Route extends PartialFunction[(Seq[String],Seq[String]), (Resource, PathData, HostData)] {
