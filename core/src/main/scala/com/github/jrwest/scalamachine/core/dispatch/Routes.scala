@@ -2,21 +2,36 @@ package com.github.jrwest.scalamachine.core
 package dispatch
 
 sealed trait RouteTerm extends (String => Boolean)
-
 sealed trait RoutePart extends RouteTerm
 
 private[core] case object StarTerm extends RouteTerm {
   def apply(pathPart: String) = true
 }
 
-case class StringPart(value: String) extends RoutePart {
+sealed trait StringPart extends RoutePart {
+  def value: String
   def apply(pathPart: String) = pathPart.equalsIgnoreCase(value)
   override def toString = "StringPart(%s)" format value
 }
 
-case class DataPart(name: Symbol) extends RoutePart {
+object StringPart {
+  def unapply(term: RouteTerm): Option[String] = term match {
+    case s: StringPart => Some(s.value)
+    case _ => None
+  }
+}
+
+sealed trait DataPart extends RoutePart {
+  def name: Symbol
   def apply(pathPart: String) = true
   override def toString = "DataPart(%s)" format name
+}
+
+object DataPart {
+  def unapply(term: RouteTerm): Option[Symbol] = term match {
+    case d: DataPart => Some(d.name)
+    case _ => None
+  }
 }
 
 sealed trait Route extends PartialFunction[(Seq[String],Seq[String]), (Resource, PathData, HostData)] {
@@ -201,6 +216,16 @@ object Route {
         val checkHost = true
       }
     }
+  }
+
+
+  /* RoutePart Constructors */
+  def routeToken(s: String): RoutePart = new StringPart {
+    def value: String = s
+  }
+
+  def routeData(n: Symbol): RoutePart = new DataPart {
+    def name: Symbol = n
   }
 }
 
