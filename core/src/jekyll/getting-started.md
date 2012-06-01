@@ -29,11 +29,13 @@ A request handled by Scalamachine is run through a [decision flow](http://wiki.b
 
 {% highlight scala %}
 import com.github.jrwest.scalamachine.finagle.FinagleWebmachineV3
-import com.github.jrwest.scalamachine.core.dispatch._
-import com.github.jrwest.scalamachine.core.
+import com.github.jrwest.scalamachine.core._
+import dispatch._
+import Route._
+
 class MyDispatchTable extends FinagleWebmachineV3 {
-  addRoute {
-    routeMatching(StringPart("example") :: Nil, new MyResource)
+  route {
+    pathMatching { "example" } serve new MyResource
   }
 }
 {% endhighlight %}
