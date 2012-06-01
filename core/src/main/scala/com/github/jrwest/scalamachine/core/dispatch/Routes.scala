@@ -34,7 +34,7 @@ object DataPart {
   }
 }
 
-sealed trait Route extends PartialFunction[(Seq[String],Seq[String]), (Resource, PathData, HostData)] {
+sealed trait Route extends PartialFunction[ReqRespData, (Resource, PathData, HostData)] {
   def pathTerms: Seq[RouteTerm]
   def hostTerms: Seq[RouteTerm]
 
@@ -43,10 +43,13 @@ sealed trait Route extends PartialFunction[(Seq[String],Seq[String]), (Resource,
   def checkPath: Boolean
   def checkHost: Boolean
 
-  def isDefinedAt(hostAndPath: (Seq[String],Seq[String])) = buildResult(hostAndPath).isDefined
+  val guard: ReqRespData => Boolean = _ => true
 
-  def apply(hostAndPath: (Seq[String],Seq[String])) = buildResult(hostAndPath) map {
-    data => (resource, data._1, data._2)
+  def isDefinedAt(data: ReqRespData) = buildResult(data).isDefined && guard(data)
+
+  def apply(data: ReqRespData) = buildResult(data) map { r =>
+    if (guard(data)) (resource, r._1, r._2)
+    else throw new MatchError("guard failure")
   } getOrElse {
     throw new MatchError("route doesn't match")
   }
@@ -62,8 +65,10 @@ sealed trait Route extends PartialFunction[(Seq[String],Seq[String]), (Resource,
   } getOrElse false
 
 
-  private def buildResult(hostAndPath: (Seq[String], Seq[String])): Option[(PathData, HostData)] = {
-    val (hostTokens, pathTokens) = hostAndPath
+  private def buildResult(data: ReqRespData): Option[(PathData, HostData)] = {
+    val hostTokens = data.hostParts
+    val pathTokens = data.pathParts
+
     lazy val pathData =
       if (checkPath) buildData(pathTokens, pathTerms, pathHasStar) map { r => PathData(tokens = r._1, info = r._2) }
       else Some(PathData(tokens = pathTokens))
@@ -116,7 +121,11 @@ object Route {
     def serve(r: => Resource): Route
   }
 
-  def pathMatching(terms: Seq[RoutePart]) = new Serve {
+  sealed trait GuardedBy {
+    def guardedBy(f: ReqRespData => Boolean): Serve
+  }
+
+  def pathMatching(terms: Seq[RoutePart]) = new Serve with GuardedBy {
     def serve(r: => Resource) = new Route {
       val pathTerms: Seq[RouteTerm] = terms
       val hostTerms: Seq[RouteTerm] = Nil
@@ -127,9 +136,22 @@ object Route {
       val checkPath = true
       val checkHost = false
     }
+
+    def guardedBy(f: ReqRespData => Boolean) = new Serve {
+      def serve(r: => Resource) = new Route {
+        val pathTerms: Seq[RouteTerm] = terms
+        val hostTerms: Seq[RouteTerm] = Nil
+        override val guard = f
+
+        def resource: Resource = r
+
+        val checkPath = true
+        val checkHost = false
+      }
+    }
   }
 
-  def pathStartingWith(terms: Seq[RoutePart]) = new Serve {
+  def pathStartingWith(terms: Seq[RoutePart]) = new Serve with GuardedBy {
     def serve(r: => Resource) = new Route {
       val pathTerms: Seq[RouteTerm] = terms ++ Seq(StarTerm)
       val hostTerms: Seq[RouteTerm] = Nil
@@ -140,9 +162,23 @@ object Route {
       val checkPath = true
       val checkHost = false
     }
+
+    def guardedBy(f: ReqRespData => Boolean) = new Serve {
+      def serve(r: => Resource) = new Route {
+        val pathTerms: Seq[RouteTerm] = terms ++ Seq(StarTerm)
+        val hostTerms: Seq[RouteTerm] = Nil
+        override val guard = f
+
+        def resource: Resource = r
+
+
+        val checkPath = true
+        val checkHost = false
+      }
+    }
   }
 
-  def hostMatching(hTerms: Seq[RoutePart]) = new Serve with RouteConjunction {
+  def hostMatching(hTerms: Seq[RoutePart]) = new Serve with RouteConjunction with GuardedBy {
 
     def serve(r: => Resource) = new Route {
       val pathTerms: Seq[RouteTerm] = Nil
@@ -155,8 +191,22 @@ object Route {
       val checkHost = true
     }
 
+    def guardedBy(f: ReqRespData => Boolean) = new Serve {
+      def serve(r: => Resource) = new Route {
+        val pathTerms: Seq[RouteTerm] = Nil
+        val hostTerms: Seq[RouteTerm] = hTerms
+        override val guard = f
 
-    def andPathMatching(pTerms: Seq[RoutePart]) = new Serve {
+        // THIS MUST BE A DEF TO ENSURE THAT THE BY-NAME PARAMETER IS EVALUATED EACH TIME
+        def resource: Resource = r
+
+        val checkPath = false
+        val checkHost = true
+      }
+    }
+
+
+    def andPathMatching(pTerms: Seq[RoutePart]) = new Serve with GuardedBy {
       def serve(r: => Resource) = new Route {
         val pathTerms = pTerms
         val hostTerms = hTerms
@@ -166,9 +216,22 @@ object Route {
         val checkPath = true
         val checkHost = true
       }
+
+      def guardedBy(f: ReqRespData => Boolean) = new Serve {
+        def serve(r: => Resource) = new Route {
+          val pathTerms = pTerms
+          val hostTerms = hTerms
+          override val guard = f
+
+          def resource = r
+
+          val checkPath = true
+          val checkHost = true
+        }
+      }
     }
 
-    def andPathStartingWith(pTerms: Seq[RoutePart]) = new Serve {
+    def andPathStartingWith(pTerms: Seq[RoutePart]) = new Serve with GuardedBy {
       def serve(r: => Resource) = new Route {
         val pathTerms = pTerms ++ Seq(StarTerm)
         val hostTerms = hTerms
@@ -178,10 +241,23 @@ object Route {
         val checkPath = true
         val checkHost = true
       }
+
+      def guardedBy(f: ReqRespData => Boolean) = new Serve {
+        def serve(r: => Resource) = new Route {
+          val pathTerms = pTerms ++ Seq(StarTerm)
+          val hostTerms = hTerms
+          override val guard = f
+
+          def resource = r
+
+          val checkPath = true
+          val checkHost = true
+        }
+      }
     }
   }
 
-  def hostEndingWith(hTerms: Seq[RouteTerm]) = new Serve with RouteConjunction {
+  def hostEndingWith(hTerms: Seq[RouteTerm]) = new Serve with RouteConjunction with GuardedBy {
     def serve(r: => Resource) = new Route {
       val pathTerms: Seq[RouteTerm] = Nil
       val hostTerms: Seq[RouteTerm] = StarTerm +: hTerms
@@ -193,7 +269,21 @@ object Route {
       val checkHost: Boolean = true
     }
 
-    def andPathMatching(pTerms: Seq[RoutePart]) = new Serve {
+    def guardedBy(f: ReqRespData => Boolean) = new Serve {
+      def serve(r: => Resource) = new Route {
+        val pathTerms: Seq[RouteTerm] = Nil
+        val hostTerms: Seq[RouteTerm] = StarTerm +: hTerms
+        override val guard = f
+
+        // THIS MUST BE A DEF TO ENSURE THAT THE BY-NAME PARAMETER IS EVALUATED EACH TIME
+        def resource: Resource = r
+
+        val checkPath: Boolean = false
+        val checkHost: Boolean = true
+      }
+    }
+
+    def andPathMatching(pTerms: Seq[RoutePart]) = new Serve with GuardedBy {
       def serve(r: => Resource) = new Route {
         val pathTerms = pTerms
         val hostTerms = StarTerm +: hTerms
@@ -203,9 +293,22 @@ object Route {
         val checkPath = true
         val checkHost = true
       }
+
+      def guardedBy(f: ReqRespData => Boolean) = new Serve {
+        def serve(r: => Resource) = new Route {
+          val pathTerms = pTerms
+          val hostTerms = StarTerm +: hTerms
+          override val guard = f
+
+          def resource = r
+
+          val checkPath = true
+          val checkHost = true
+        }
+      }
     }
 
-    def andPathStartingWith(pTerms: Seq[RoutePart]) = new Serve {
+    def andPathStartingWith(pTerms: Seq[RoutePart]) = new Serve with GuardedBy {
       def serve(r: => Resource) = new Route {
         val pathTerms = pTerms ++ Seq(StarTerm)
         val hostTerms = StarTerm +: hTerms
@@ -215,7 +318,21 @@ object Route {
         val checkPath = true
         val checkHost = true
       }
+
+      def guardedBy(f: ReqRespData => Boolean) = new Serve {
+        def serve(r: => Resource) = new Route {
+          val pathTerms = pTerms ++ Seq(StarTerm)
+          val hostTerms = StarTerm +: hTerms
+          override val guard = f
+
+          def resource = r
+
+          val checkPath = true
+          val checkHost = true
+        }
+      }
     }
+
   }
 
 

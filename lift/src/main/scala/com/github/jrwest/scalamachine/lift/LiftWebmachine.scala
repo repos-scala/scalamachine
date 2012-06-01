@@ -10,18 +10,14 @@ import v3.V3DispatchTable
 trait LiftWebmachine {
   this: DispatchTable[Req, Box[LiftResponse], Function0] =>
 
-  def path(req: Req): List[String] = req.path.partPath
-
-  def hostString(req: Req) = req.hostName
-
   def wrap(res: => Box[LiftResponse]): () => Box[LiftResponse] = () => res
 
   // TODO: complete conversion once ReqRespData is filled out
   def toData(req: Req) = {
     ReqRespData(
-      method = parseMethod(req.request.method),
-      pathParts = path(req),
-      hostParts = host(req),
+      method = HTTPMethod.fromString(req.request.method),
+      pathParts = req.path.partPath,
+      hostParts = host(req.hostName),
       requestHeaders = {
         for {
           (name, value) <- req.headers.toMap
@@ -38,8 +34,6 @@ trait LiftWebmachine {
     cookies = Nil,
     code = data.statusCode
   ))
-
-  private def parseMethod(methodStr: String): HTTPMethod = HTTPMethod.fromString(methodStr)
 
 }
 

@@ -11,35 +11,35 @@ import resources.{EchoPostBodyResource, EmptyResource, UnavailableResource}
 
 object ScalamachineExample extends FinagleWebmachineV3 {
 
-  addRoute {
+  route {
     hostMatching {
-      StringPart("jordan") :: StringPart("localhost") :: Nil
+      routeToken("jordan") :: routeToken("localhost") :: Nil
     } andPathMatching {
-      StringPart("unavailable2") :: Nil
+      routeToken("unavailable2") :: Nil
     } serve new UnavailableResource
   }
 
-  addRoute {
+  route {
     pathMatching {
-      StringPart("unavailable") :: Nil
+      routeToken("unavailable") :: Nil
     } serve new UnavailableResource
   }
 
-  addRoute {
+  route {
     pathMatching {
-      StringPart("empty") :: Nil
+      routeToken("empty") :: Nil
     } serve  new EmptyResource
   }
 
-  addRoute {
+  route {
     pathMatching {
-      StringPart("echo") :: Nil
+      routeToken("echo") :: Nil
     } serve new EchoPostBodyResource
   }
 
-  addRoute {
+  route {
     hostEndingWith {
-      StringPart("localhost") :: Nil
+      routeToken("localhost") :: Nil
     } serve new EmptyResource
   }
 
