@@ -113,7 +113,9 @@ sealed trait Route extends PartialFunction[ReqRespData, (Resource, PathData, Hos
 object Route {
 
   sealed trait RouteConjunction {
+    def andPathMatching(term: RoutePart): Serve = andPathMatching(Seq(term))
     def andPathMatching(terms: Seq[RoutePart]): Serve
+    def andPathStartingWith(term: RoutePart): Serve = andPathStartingWith(Seq(term))
     def andPathStartingWith(terms: Seq[RoutePart]): Serve
   }
 
@@ -125,7 +127,11 @@ object Route {
     def guardedBy(f: ReqRespData => Boolean): Serve
   }
 
-  def pathMatching(terms: Seq[RoutePart]) = new Serve with GuardedBy {
+  private type GuardedServe = Serve with GuardedBy
+  private type GuardedServeConj = Serve with RouteConjunction with GuardedBy
+
+  def pathMatching(term: RoutePart): GuardedServe = pathMatching(Seq(term))
+  def pathMatching(terms: Seq[RoutePart]): GuardedServe= new Serve with GuardedBy {
     def serve(r: => Resource) = new Route {
       val pathTerms: Seq[RouteTerm] = terms
       val hostTerms: Seq[RouteTerm] = Nil
@@ -151,7 +157,8 @@ object Route {
     }
   }
 
-  def pathStartingWith(terms: Seq[RoutePart]) = new Serve with GuardedBy {
+  def pathStartingWith(term: RoutePart): GuardedServe = pathStartingWith(Seq(term))
+  def pathStartingWith(terms: Seq[RoutePart]): GuardedServe = new Serve with GuardedBy {
     def serve(r: => Resource) = new Route {
       val pathTerms: Seq[RouteTerm] = terms ++ Seq(StarTerm)
       val hostTerms: Seq[RouteTerm] = Nil
@@ -178,7 +185,8 @@ object Route {
     }
   }
 
-  def hostMatching(hTerms: Seq[RoutePart]) = new Serve with RouteConjunction with GuardedBy {
+  def hostMatching(term: RoutePart): GuardedServeConj = hostMatching(Seq(term))
+  def hostMatching(hTerms: Seq[RoutePart]): GuardedServeConj = new Serve with RouteConjunction with GuardedBy {
 
     def serve(r: => Resource) = new Route {
       val pathTerms: Seq[RouteTerm] = Nil
@@ -257,7 +265,8 @@ object Route {
     }
   }
 
-  def hostEndingWith(hTerms: Seq[RouteTerm]) = new Serve with RouteConjunction with GuardedBy {
+  def hostEndingWith(term: RoutePart): GuardedServeConj = hostEndingWith(Seq(term))
+  def hostEndingWith(hTerms: Seq[RouteTerm]): GuardedServeConj = new Serve with RouteConjunction with GuardedBy {
     def serve(r: => Resource) = new Route {
       val pathTerms: Seq[RouteTerm] = Nil
       val hostTerms: Seq[RouteTerm] = StarTerm +: hTerms
@@ -380,8 +389,9 @@ object Route {
     val self = s
   }
 
-  implicit def stringToRouteVector(s: String): Vector[RoutePart] = Vector(routeToken(s))
-  implicit def symbolToRouteVector(s: Symbol): Vector[RoutePart] = Vector(routeData(s))
+  implicit def stringToRoutePart(s: String): RoutePart = routeToken(s)
+  implicit def symbolToRoutePart(s: Symbol): RoutePart = routeData(s)
+
 }
 
 
