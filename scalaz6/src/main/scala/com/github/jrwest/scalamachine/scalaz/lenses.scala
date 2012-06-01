@@ -43,7 +43,25 @@ object lenses {
     Lens(_.path, (d,p) => d copy (pathParts = p.split("/").toList))
 
   val dispPathL: Lens[ReqRespData,String] =
-    Lens(_.dispPath, (d,dp) => d copy (pathData = d.pathData.copy(tokens = dp.split("/"))))
+    Lens(_.dispPath, (d,dp) => d copy (pathData = d.pathData.copy(tokens = dp.split("/").toList)))
+
+  private val hostDataL: Lens[ReqRespData,HostData] =
+    Lens(_.hostData, (d,hd) => d copy (hostData = hd))
+
+  val hostInfoL: Lens[ReqRespData, Map[Symbol,String]] =
+    hostDataL andThen Lens(_.info, (d,i) => d copy (info = i))
+
+  val hostTokensL: Lens[ReqRespData, Seq[String]] =
+    hostDataL andThen Lens(_.tokens, (d,ts) => d copy (tokens = ts))
+
+  val hostPartsL: Lens[ReqRespData, List[String]] =
+    Lens(_.hostParts, (d,ps) => d copy (hostParts = ps))
+
+  val hostL: Lens[ReqRespData, String] =
+    Lens(_.host, (d,ps) => d copy (hostParts = ps.split(".").toList))
+
+  val dispSubdomainL: Lens[ReqRespData, String] =
+    Lens(_.dispSubdomain, (d,ds) => d copy (hostData = d.hostData.copy(tokens = ds.split("/").toList)))
 
   val doRedirectL: Lens[ReqRespData,Boolean] =
     Lens(_.doRedirect, (d,b) => d copy (doRedirect = b))
