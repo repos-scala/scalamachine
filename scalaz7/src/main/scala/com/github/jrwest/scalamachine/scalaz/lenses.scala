@@ -60,7 +60,7 @@ object lenses {
     lensG(_.host, d => ps => d copy (hostParts = ps.split(".").toList))
 
   val dispSubdomainL: ReqRespData @-@ String =
-    lensG(_.dispSubdomain, d => ds => d copy (hostData = d.hostData.copy(tokens = ds.split("/").toList)))
+    lensG(_.dispSubdomain, d => ds => d copy (hostData = d.hostData.copy(tokens = ds.split(".").toList)))
 
   val doRedirectL: ReqRespData @-@ Boolean =
     lensG(_.doRedirect, d => b => d copy (doRedirect = b))
