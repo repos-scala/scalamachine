@@ -9,13 +9,13 @@ title: Dispatching
 
 ## Routes
 
-Dispatching binds a `Route`, a pattern describing a URI path, to a Resource. A `Route` is created using a list of `RoutePart`s. A `RoutePart` is either a `StringPart` or a `DataPart`. When a request is received, the path of the request is matched against the route by splitting the path into tokens seperated by the `/` character. Routes must either match a path *exactly* or match the *beginning* of a path. If required to be exact each token must match each corresponding `RoutePart` with no remaining tokens or `RoutePart`s. If only the beginning is required to match each token must still match, but, remaining tokens are allowed. A token matches a `StringPart` if its lowercase value is equal to the lowercase value of the string the paramterizes `StringPart`. A token always matches a `DataPart`. 
+Dispatching binds a `Route`, a pattern describing a URI host and/or path, to a Resource. A `Route` is created using a list of `RoutePart`s. A `RoutePart` is either a `StringPart` or a `DataPart`. When a request is received, the host & path of the request are matched against the route by splitting the them into tokens (the host by the '.' character, and path by '/'). Routes must either match a host and/or path *exactly* or match the *beginning* of a path and/or the *end* of a hostname. If required to be exact each token must match each corresponding `RoutePart` with no remaining tokens or `RoutePart`s. If only the beginning or end is required to match each token must still match, but, remaining tokens are allowed. A token matches a `StringPart` if its lowercase value is equal to the lowercase value of the string the paramterizes `StringPart`. A token always matches a `DataPart`. 
 
-Tokens in the URI path that match `DataPart`s are stored in a field, `pathInfo`, in `ReqRespData`. `pathInfo` is a `Map[Symbol,String]`, where they keys are the `Symbol` values parameterizing the `DataPart` that matched the token and the values are the matched tokens. If there was a `DataPart('myData)` in a route that matched the token "somevalue", `pathInfo` with contain a `('myData -> "somevalue")` pair. 
+Tokens in the URI path that match `DataPart`s are stored in a field, `pathInfo`, in `ReqRespData`. `pathInfo` is a `Map[Symbol,String]`, where they keys are the `Symbol` values parameterizing the `DataPart` that matched the token and the values are the matched tokens. If there was a `DataPart('myData)` in a route that matched the token "somevalue", `pathInfo` with contain a `('myData -> "somevalue")` pair. The same is true for the host with the data contained in the `hostInfo` field. 
 
 ## Guards
 
-The original implementation of Webmachine supported the idea of "Guards" in its [dispatch implementation](http://wiki.basho.com/Webmachine-Dispatching.html). This is not yet supported in Scalamachine but there are plans to add it.
+Routes can also be guarded by a predicate, a function with type `ReqRespData => Boolean`. If the guard returns true when a route matches then the entire route is considered to be a match. Otherwise, the route is not considered a match. The guard is not run if either the hostname or path do not match. 
 
 # Examples
 
@@ -34,7 +34,7 @@ These examples are ported directly from [Basho's Webmachine Documentation](http:
   </thead>
   <tbody>
     <tr>
-      <td>routeMatching(StringPart("a") :: Nil)</td>
+      <td>pathMatching("a")</td>
       <td>/a</td>
       <td>""</td>
       <td>/a</td>
@@ -42,7 +42,7 @@ These examples are ported directly from [Basho's Webmachine Documentation](http:
       <td>Nil</td>      
     </tr>    
     <tr>
-      <td>routeStartingWith(StringPart("a") :: Nil)</td>
+      <td>pathStartingWith("a")</td>
       <td>/a</td>
       <td>""</td>
       <td>/a</td>
@@ -50,7 +50,7 @@ These examples are ported directly from [Basho's Webmachine Documentation](http:
       <td>Nil</td>
     </tr>
     <tr>
-      <td>routeStartingWith(StringPart("a") :: Nil)</td>
+      <td>pathStartingWith("a")</td>
       <td>/a/b/c</td>
       <td>"b/c"</td>
       <td>/a/b/c</td>
@@ -58,7 +58,7 @@ These examples are ported directly from [Basho's Webmachine Documentation](http:
       <td>"b" :: "c" :: Nil</td>
     </tr>
     <tr>
-      <td>routeMatching(StringPart("a") :: DataPart('foo) :: Nil)</td>
+      <td>pathMatching("a" / 'foo)</td>
       <td>/a/b</td>
       <td>""</td>
       <td>/a/b</td>
@@ -66,7 +66,7 @@ These examples are ported directly from [Basho's Webmachine Documentation](http:
       <td>Nil</td>
     </tr>
     <tr>
-      <td>routeStartingWith(StringPart("a") :: DataPart('foo) :: Nil)</td>
+      <td>pathStartingWith("a" / 'foo)</td>
       <td>/a/b</td>
       <td>""</td>
       <td>/a/b</td>
@@ -74,7 +74,7 @@ These examples are ported directly from [Basho's Webmachine Documentation](http:
       <td>Nil</td>
     </tr>
     <tr>
-      <td>routeStartingWith(StringPart("a") :: DataPart('foo) :: Nil</td>
+      <td>pathStartingWith("a" / 'foo)</td>
       <td>/a/b/c/d</td>
       <td>"c/d"</td>
       <td>/a/b/c/d</td>

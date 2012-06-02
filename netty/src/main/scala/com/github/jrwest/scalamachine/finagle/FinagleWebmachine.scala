@@ -12,17 +12,18 @@ import com.github.jrwest.scalamachine.core.{HTTPBody, HTTPHeader, HTTPMethod, Re
 trait FinagleWebmachine {
   this: DispatchTable[HttpRequest, HttpResponse, Future] =>
 
-  def path(req: HttpRequest): List[String] = {
-    val path = new URI(req.getUri).getPath
-    val parts = path.split("/").toList
-    if (path.startsWith("/")) parts drop 1 else parts
-  }
+  def wrap(res: => HttpResponse) = Future(res)
 
-  // TODO: fill in base URI and other fields
+  // TODO: fill in missing fields
   def toData(req: HttpRequest): ReqRespData = {
     ReqRespData(
       method = HTTPMethod.fromString(req.getMethod.getName),
       pathParts = path(req),
+      hostParts = host(
+        Option(HttpHeaders.getHost(req))
+          .filterNot(_ == "")
+          .getOrElse(java.net.InetAddress.getLocalHost.getHostName)
+      ),
       baseUri = "http://" + HttpHeaders.getHost(req),
       requestBody = reqBody(req),
       requestHeaders = for {
@@ -45,8 +46,6 @@ trait FinagleWebmachine {
     response
   }
 
-  def wrap(res: => HttpResponse) = Future(res)
-
   private def reqBody(req: HttpRequest): HTTPBody = {
     val contentLength = HttpHeaders.getContentLength(req)
     val array: Array[Byte] = new Array(contentLength.toInt)
@@ -54,6 +53,13 @@ trait FinagleWebmachine {
 
     array
   }
+
+  private def path(req: HttpRequest): List[String] = {
+    val path = new URI(req.getUri).getPath
+    val parts = path.split("/").toList
+    if (path.startsWith("/")) parts drop 1 else parts
+  }
+
 
 }
 
