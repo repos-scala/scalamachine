@@ -95,7 +95,7 @@ sealed trait Route extends PartialFunction[ReqRespData, (Resource, PathData, Hos
         case (_, Stream.Empty) => (true, infoAcc)
         case (tk #:: tkRest, trm #:: trmsRest) => trm match {
           case StringPart(expected) =>
-            if (expected == tk) matchAndExtract(tkRest, trmsRest, infoAcc)
+            if (expected.toLowerCase == tk.toLowerCase) matchAndExtract(tkRest, trmsRest, infoAcc)
             else (false, infoAcc)
           case DataPart(key) => matchAndExtract(tkRest, trmsRest, infoAcc + (key -> tk))
           case _ => matchAndExtract(tkRest, trmsRest, infoAcc)
