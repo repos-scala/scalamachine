@@ -130,7 +130,7 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
     }
 
     def testPathTokensAlwaysEmpty = check {
-      (pathParts: List[String]) => routeF(pathParts.map(toPart(_))).apply(ReqRespData(pathParts = pathParts))._2.tokens must beEmpty
+      (pathParts: List[String]) => routeF(pathParts.map(toPart(_))).apply(ReqRespData(pathParts = pathParts))._2.pathTokens must beEmpty
     }
 
     def testLeftoverTokensDispPath = forAll(nonEmptyTokens,nonEmptyTokens) {
@@ -140,7 +140,7 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
 
     def testLeftoverTokensPathTokens = forAll(nonEmptyTokens,nonEmptyTokens) {
       (pathParts: List[String], additional: List[String]) =>
-        routeF(pathParts.map(toPart(_))).apply(ReqRespData(pathParts = pathParts ++ additional))._2.tokens must containAllOf(additional).inOrder
+        routeF(pathParts.map(toPart(_))).apply(ReqRespData(pathParts = pathParts ++ additional))._2.pathTokens must containAllOf(additional).inOrder
     }
   }
 
@@ -157,7 +157,7 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
     def testPathTokensAlwaysEmpty = forAll(tokensAndDataPartIdxs) {
       (data: (List[String],Set[Int])) => {
         val (pathParts,dataIdxs) = data
-        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).apply(ReqRespData(pathParts = pathParts))._2.tokens must beEmpty
+        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).apply(ReqRespData(pathParts = pathParts))._2.pathTokens must beEmpty
       }
     }
 
@@ -169,14 +169,14 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
     def testDispSubDomainAlwaysEmpty = forAll(tokensAndDataPartIdxs) {
       (data: (List[String],Set[Int])) => {
         val (hostParts,dataIdxs) = data
-        routeF(buildMixedRouteTerms(hostParts,dataIdxs)).apply(ReqRespData(hostParts = hostParts))._3.dispSubdomain must beEmpty
+        routeF(buildMixedRouteTerms(hostParts,dataIdxs)).apply(ReqRespData(hostParts = hostParts))._2.dispSubdomain must beEmpty
       }
     }
 
     def testSubdomainTokensAlwaysEmpty = forAll(tokensAndDataPartIdxs) {
       (data: (List[String],Set[Int])) => {
         val (hostParts,dataIdxs) = data
-        routeF(buildMixedRouteTerms(hostParts,dataIdxs)).apply(ReqRespData(hostParts = hostParts))._3.tokens must beEmpty
+        routeF(buildMixedRouteTerms(hostParts,dataIdxs)).apply(ReqRespData(hostParts = hostParts))._2.subdomainTokens must beEmpty
       }
     }
 
@@ -186,7 +186,7 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
         val terms = buildMixedRouteTerms(hostParts,dataIdxs)
         val route = routeF(terms)
         val expected = hostParts.zipWithIndex.filter(t => dataIdxs.contains(t._2)).map(tpl => (Symbol(tpl._1),tpl._1))
-        route.apply(ReqRespData(hostParts = hostParts))._3.info must containAllOf(expected).only
+        route.apply(ReqRespData(hostParts = hostParts))._2.hostInfo must containAllOf(expected).only
       }
     }
 
@@ -254,7 +254,7 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
     def testLeftoverTokensPathTokens = forAll(tokensAndDataPartIdxs,nonEmptyTokens) {
       (data: (List[String],Set[Int]), additional: List[String]) => {
         val (pathParts,dataIdxs) = data
-        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).apply(ReqRespData(pathParts = pathParts ++ additional))._2.tokens must containAllOf(additional).inOrder
+        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).apply(ReqRespData(pathParts = pathParts ++ additional))._2.pathTokens must containAllOf(additional).inOrder
       }
     }
   }
@@ -287,14 +287,14 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
     def testLeftoverTokensDispSubdomain = forAll(tokensAndDataPartIdxs,nonEmptyTokens) {
       (data: (List[String],Set[Int]), additional: List[String]) => {
         val (pathParts,dataIdxs) = data
-        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).apply(ReqRespData(hostParts = additional ++ pathParts))._3.dispSubdomain must beEqualTo(additional.mkString("."))
+        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).apply(ReqRespData(hostParts = additional ++ pathParts))._2.dispSubdomain must beEqualTo(additional.mkString("."))
       }
     }
 
     def testLeftoverTokensSubdomainTokens = forAll(tokensAndDataPartIdxs,nonEmptyTokens) {
       (data: (List[String],Set[Int]), additional: List[String]) => {
         val (pathParts,dataIdxs) = data
-        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).apply(ReqRespData(hostParts = additional ++ pathParts))._3.tokens must containAllOf(additional).inOrder
+        routeF(buildMixedRouteTerms(pathParts,dataIdxs)).apply(ReqRespData(hostParts = additional ++ pathParts))._2.subdomainTokens must containAllOf(additional).inOrder
       }
     }
 
@@ -348,7 +348,7 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
       val terms = buildMixedRouteTerms(pathParts,dataIdxs)
       val route = if (bool) pathMatching(terms) serve null else pathStartingWith(terms) serve null
       val expected = pathParts.zipWithIndex.filter(t => dataIdxs.contains(t._2)).map(tpl => (Symbol(tpl._1),tpl._1))
-      route.apply(ReqRespData(pathParts = pathParts))._2.info must containAllOf(expected).only
+      route.apply(ReqRespData(pathParts = pathParts))._2.pathInfo must containAllOf(expected).only
     }
   }
 
@@ -385,7 +385,7 @@ class RouteSpecs extends Specification with ScalaCheck { def is =
     (pathParts: List[String], bool: Boolean) => {
       val terms = pathParts.map(routeToken(_))
       val route = if (bool) pathMatching(terms) serve null else pathStartingWith(terms) serve null
-      route.apply(ReqRespData(pathParts = pathParts))._2.info must beEmpty
+      route.apply(ReqRespData(pathParts = pathParts))._2.pathInfo must beEmpty
     }      
   }
   

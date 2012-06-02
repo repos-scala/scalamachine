@@ -34,7 +34,7 @@ object DataPart {
   }
 }
 
-sealed trait Route extends PartialFunction[ReqRespData, (Resource, PathData, HostData)] {
+sealed trait Route extends PartialFunction[ReqRespData, (Resource, ReqRespData)] {
   def pathTerms: Seq[RouteTerm]
   def hostTerms: Seq[RouteTerm]
 
@@ -45,11 +45,19 @@ sealed trait Route extends PartialFunction[ReqRespData, (Resource, PathData, Hos
 
   val guard: ReqRespData => Boolean = _ => true
 
-  def isDefinedAt(data: ReqRespData) = buildResult(data).isDefined && guard(data)
+  def isDefinedAt(data: ReqRespData) = buildResult(data).flatMap(
+    r => {
+      val updatedData = data.setPathData(r._1).setHostData(r._2)
+      if (guard(updatedData)) Some(updatedData) else None
+    }
+  ).isDefined
 
-  def apply(data: ReqRespData) = buildResult(data) map { r =>
-    if (guard(data)) (resource, r._1, r._2)
-    else throw new MatchError("guard failure")
+  def apply(data: ReqRespData) = buildResult(data) map {
+    r => {
+      val updatedData = data.setPathData(r._1).setHostData(r._2)
+      if (guard(updatedData)) (resource, updatedData)
+      else throw new MatchError("guard failure")
+    }
   } getOrElse {
     throw new MatchError("route doesn't match")
   }
