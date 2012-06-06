@@ -20,6 +20,9 @@ object lenses {
   val methodL: ReqRespData @-@ HTTPMethod =
     lensG(_.method, d => m => d copy (method = m))
 
+  val queryL: ReqRespData @-@ Map[String,List[String]] =
+    lensG(_.query, d => q => d copy (query = q))
+
   val reqBody: ReqRespData @-@ HTTPBody =
     lensG(_.requestBody, d => b => d copy (requestBody = b))
 
