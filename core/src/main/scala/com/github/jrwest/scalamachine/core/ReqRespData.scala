@@ -19,13 +19,14 @@ import HTTPMethods._
  *  - Peer (Client) IP
  *  - Raw Path (URI Path including Query String)
  *  - Cookies
- *  - Query String
  *  - "App Root" - see webmachine documentation (http://wiki.basho.com/Webmachine-Request.html)
  *
  * @param baseUri The base of the requested URI. Includes the scheme and host without the trailing slash (e.g. http://example.com)
  * @param pathParts List of string tokens, the request URI path split by "/"
  * @param method The request's [[com.github.jrwest.scalamachine.core.HTTPMethod]]
  * @param statusCode integer response status code
+ * @param query parsed query string. duplicate keys will have multiple elements in the values list
+ *              otherwise the values list will only have one element
  * @param requestHeaders Request headers
  * @param responseHeaders Response headers
  * @param requestBody The body of the request. See [[com.github.jrwest.scalamachine.core.HTTPBody]] for more
@@ -33,9 +34,11 @@ import HTTPMethods._
  * @param doRedirect If true some responses will return 303 instead of 2xx
  *
  *
+ *
  */
 case class ReqRespData(baseUri: String = "",
                        pathParts: List[String] = Nil,
+                       query: Map[String,List[String]] = Map(),
                        hostParts: List[String] = Nil,
                        method: HTTPMethod = GET,
                        statusCode: Int = 200,

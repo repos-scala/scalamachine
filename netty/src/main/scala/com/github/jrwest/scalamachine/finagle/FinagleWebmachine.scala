@@ -25,6 +25,7 @@ trait FinagleWebmachine {
           .getOrElse(java.net.InetAddress.getLocalHost.getHostName)
       ),
       baseUri = "http://" + HttpHeaders.getHost(req),
+      query = new QueryStringDecoder(req.getUri).getParameters.asScala.mapValues(_.asScala.toList).toMap,
       requestBody = reqBody(req),
       requestHeaders = for {
         (k,v) <- req.getHeaders.asScala.map(entry => (entry.getKey, entry.getValue)).toMap

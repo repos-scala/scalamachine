@@ -18,6 +18,7 @@ trait LiftWebmachine {
       method = HTTPMethod.fromString(req.request.method),
       pathParts = req.path.partPath,
       hostParts = host(req.hostName),
+      query = Map(), // TODO
       requestHeaders = {
         for {
           (name, value) <- req.headers.toMap
