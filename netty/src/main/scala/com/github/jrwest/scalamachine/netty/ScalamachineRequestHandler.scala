@@ -5,14 +5,18 @@ import org.jboss.netty.handler.codec.http._
 import com.github.jrwest.scalamachine.core.dispatch.DispatchTable
 import scalaz.Id._
 
-class ScalamachineRequestHandler(dispatchTable: DispatchTable[HttpRequest, HttpResponse, Id]) extends SimpleChannelUpstreamHandler {
+class ScalamachineRequestHandler(dispatchTable: DispatchTable[HttpRequest, HttpResponse, Id])
+  extends SimpleChannelUpstreamHandler {
 
   override def messageReceived(ctx: ChannelHandlerContext, evt: MessageEvent) {
     val request = evt.getMessage.asInstanceOf[HttpRequest]
 
     if (HttpHeaders.is100ContinueExpected(request)) send100Continue(evt)
     else {
-      val response: HttpResponse = dispatchTable.lift(request).getOrElse(new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND))
+      val response: HttpResponse = dispatchTable.lift(request) getOrElse {
+        new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND)
+      }
+
       writeResponse(evt, request, response)
     }
   }
