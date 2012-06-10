@@ -1,7 +1,7 @@
 package com.github.jrwest.scalamachine.core
 package flow
 
-import com.github.jrwest.scalamachine.internal.scalaz.State
+import scalaz.State
 
 
 trait Decision {
@@ -44,9 +44,9 @@ object Decision {
   import Res._
   import ResTransformer._
 
-  import com.github.jrwest.scalamachine.internal.scalaz.syntax.pointed._
+  import scalaz.syntax.pointed._
   type FlowState[T] = State[ReqRespData, T]
-  type ResourceF[T] = Resource => ReqRespData => (Res[T], ReqRespData)
+  type ResourceF[T] = Resource => ReqRespData => (ReqRespData, Res[T])
   type CheckF[T] = (T, ReqRespData) => Boolean
   type HandlerF[T] = T => FlowState[T]
   type Handler[T] = Either[HandlerF[T],Decision]
@@ -60,7 +60,7 @@ object Decision {
     protected def decide(resource: Resource): FlowState[Res[Decision]] = {
       val nextT = for {
         value <- resT[FlowState](State((d: ReqRespData) => test(resource)(d)))
-        handler <- resT[FlowState](State((d: ReqRespData) => if (check(value, d)) (result(onSuccess),d) else (result(onFailure), d)))
+        handler <- resT[FlowState](State((d: ReqRespData) => if (check(value, d)) (d, result(onSuccess)) else (d, result(onFailure))))
         next <- resT[FlowState](handler match {
           case Left(f) => f(value) >| empty[Decision]
           case Right(decision) => result(decision).point[FlowState]

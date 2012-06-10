@@ -18,71 +18,71 @@ trait Resource {
    * @note default - `true`
    * @return true if the service(s) necessary to service this resource are available, false otherwise
    */
-  def serviceAvailable(data: ReqRespData): (Res[Boolean],ReqRespData) = (default(true), data)
+  def serviceAvailable(data: ReqRespData): (ReqRespData,Res[Boolean]) = (data, default(true))
 
   /**
    * @note default - `List(OPTIONS, TRACE, CONNECT, HEAD, GET, POST, PUT, DELETE)`
    * @return list of [[com.github.jrwest.scalamachine.core.HTTPMethod]]s known by this resource
    */
-  def knownMethods(data: ReqRespData): (Res[List[HTTPMethod]],ReqRespData)= (
-    default(List(OPTIONS, TRACE, CONNECT, HEAD, GET, POST, PUT, DELETE)),
-    data
+  def knownMethods(data: ReqRespData): (ReqRespData,Res[List[HTTPMethod]])= (
+    data,
+    default(List(OPTIONS, TRACE, CONNECT, HEAD, GET, POST, PUT, DELETE))  
   )
 
   /**
    * @note default - `false`
    * @return true if the request URI is too long, otherwise false
    */
-  def uriTooLong(data: ReqRespData): (Res[Boolean],ReqRespData) = (default(false), data)
+  def uriTooLong(data: ReqRespData): (ReqRespData,Res[Boolean]) = (data, default(false))
 
   /**
    * @note default - `List(GET)`
    * @return list of [[com.github.jrwest.scalamachine.core.HTTPMethod]]s allowed by this resource
    */
-  def allowedMethods(data: ReqRespData): (Res[List[HTTPMethod]],ReqRespData) = (default(GET :: Nil), data)
+  def allowedMethods(data: ReqRespData): (ReqRespData,Res[List[HTTPMethod]]) = (data, default(GET :: Nil))
 
   /**
    * @note default - `false`
    * @return true if the request is malformed, false otherwise
    */
-  def isMalformed(data: ReqRespData): (Res[Boolean],ReqRespData) = (default(false), data)
+  def isMalformed(data: ReqRespData): (ReqRespData,Res[Boolean]) = (data, default(false))
 
   /**
    * @note default - `AuthSuccess`
    * @return [[com.github.jrwest.scalamachine.core.AuthSuccess]] if request is authorized
    *        [[com.github.jrwest.scalamachine.core.AuthFailure]] otherwise
    */
-  def isAuthorized(data: ReqRespData): (Res[AuthResult],ReqRespData) = (default(AuthSuccess), data)
+  def isAuthorized(data: ReqRespData): (ReqRespData,Res[AuthResult]) = (data, default(AuthSuccess))
 
   /**
    * @note default - `false`
    * @return true if request is forbidden, false otherwise
    */
-  def isForbidden(data: ReqRespData): (Res[Boolean],ReqRespData) = (default(false), data)
+  def isForbidden(data: ReqRespData): (ReqRespData,Res[Boolean]) = (data, default(false))
 
   /**
    * @note default - `true`
    * @return true if `Content-*` headers are valid, false otherwise
    */
-  def contentHeadersValid(data: ReqRespData): (Res[Boolean],ReqRespData) = (default(true), data)
+  def contentHeadersValid(data: ReqRespData): (ReqRespData,Res[Boolean]) = (data, default(true))
 
   /**
    * @note default - `true`
    * @return true if content type is known, false otherwise
    */
-  def isKnownContentType(data: ReqRespData): (Res[Boolean],ReqRespData) = (default(true), data)
+  def isKnownContentType(data: ReqRespData): (ReqRespData,Res[Boolean]) = (data, default(true))
 
   /**
    * @note default - `true`
    * @return true if request body length is valid, false otherwise
    */
-  def isValidEntityLength(data: ReqRespData): (Res[Boolean],ReqRespData) = (default(true), data)
+  def isValidEntityLength(data: ReqRespData): (ReqRespData,Res[Boolean]) = (data, default(true))
 
   /**
    * @note default - no additional headers
    * @return additional headers to include in the reponse to an `OPTIONS` request
    */
-  def options(data: ReqRespData): (Res[Map[HTTPHeader, String]],ReqRespData) = (default(Map()), data)
+  def options(data: ReqRespData): (ReqRespData,Res[Map[HTTPHeader, String]]) = (data, default(Map()))
 
   /**
    * This function determines the body of GET/HEAD requests. If your resource responds to them, make sure to implement it
@@ -94,8 +94,8 @@ trait Resource {
    * @return list of 2-tuples from the [[com.github.jrwest.scalamachine.core.ContentType]] to the rendering function.
    * @see [[com.github.jrwest.scalamachine.core.Resource.ContentTypesProvided]]
    */
-  def contentTypesProvided(data: ReqRespData): (Res[ContentTypesProvided],ReqRespData) = {
-    (default((ContentType("text/html") -> defaultResponse) :: Nil), data)
+  def contentTypesProvided(data: ReqRespData): (ReqRespData,Res[ContentTypesProvided]) = {
+    (data, default((ContentType("text/html") -> defaultResponse) :: Nil))
   }
 
   /**
@@ -103,7 +103,7 @@ trait Resource {
    * @return true if the accepted language is available
    * @todo change to real content negotiation like ruby port
    */
-  def isLanguageAvailable(data: ReqRespData): (Res[Boolean],ReqRespData) = (default(true), data)
+  def isLanguageAvailable(data: ReqRespData): (ReqRespData,Res[Boolean]) = (data, default(true))
 
   /**
    * this functions determines the charset of the response body and influences whether or not the request
@@ -117,13 +117,13 @@ trait Resource {
    *         However, if `Some` containing a list of 2-tuples of charsets and charsetting functions, the chosen charsetting function
    *         will be applied the response body.
    */
-  def charsetsProvided(data: ReqRespData): (Res[CharsetsProvided],ReqRespData) = (default(None), data)
+  def charsetsProvided(data: ReqRespData): (ReqRespData,Res[CharsetsProvided]) = (data, default(None))
 
   /**
    * @note default - supports the "identity" encoding
    * @return similar to [[com.github.jrwest.scalamachine.core.Resource.charsetsProvided]] except for response encoding
    */
-  def encodingsProvided(data: ReqRespData): (Res[CharsetsProvided],ReqRespData) = (default(Some(("identity", identity[Array[Byte]](_)) :: Nil)), data)
+  def encodingsProvided(data: ReqRespData): (ReqRespData,Res[CharsetsProvided]) = (data, default(Some(("identity", identity[Array[Byte]](_)) :: Nil)))
 
   /**
    * for most resources that access a datasource this is where that access should most likely be performed and
@@ -131,65 +131,65 @@ trait Resource {
    * @note default - `true`
    * @return true if the resource exists, false otherwise
    */
-  def resourceExists(data: ReqRespData): (Res[Boolean],ReqRespData) = (default(true), data)
+  def resourceExists(data: ReqRespData): (ReqRespData,Res[Boolean]) = (data, default(true))
 
   /**
    * @note default - `Nil`
    * @return headers to be included in the `Vary` response header.
    *         `Accept`, `Accept-Encoding`, `Accept-Charset` will always be included and do not need to be in the returned list
    */
-  def variances(data: ReqRespData): (Res[Seq[String]], ReqRespData) = (default(Nil), data)
+  def variances(data: ReqRespData): (ReqRespData,Res[Seq[String]]) = (data, default(Nil))
 
   /**
    * @note default - `None`
    * @return the _etag_, if any, for the resource to be included in the response or to determine if the cached response is fresh
    */
-  def generateEtag(data: ReqRespData): (Res[Option[String]], ReqRespData) = (default(None), data)
+  def generateEtag(data: ReqRespData): (ReqRespData,Res[Option[String]]) = (data, default(None))
 
   /**
    * @note default - `None`
    * @return the last modified date of the resource being requested, if any, included in response or to determine if
    *         cached response is fresh
    */
-  def lastModified(data: ReqRespData): (Res[Option[Date]], ReqRespData) = (default(None), data)
+  def lastModified(data: ReqRespData): (ReqRespData,Res[Option[Date]]) = (data, default(None))
 
   /**
    * @note default - `None`
    * @return None if the resource has not been moved, Some, contain the URI of its new location otherwise
    */
-  def movedPermanently(data: ReqRespData): (Res[Option[String]], ReqRespData) = (default(None), data)
+  def movedPermanently(data: ReqRespData): (ReqRespData,Res[Option[String]]) = (data, default(None))
 
   /**
    * @note default - `false`
    * @return true if the resource existed before, although it does not now, false otherwise
    */
-  def previouslyExisted(data: ReqRespData): (Res[Boolean], ReqRespData) = (default(false), data)
+  def previouslyExisted(data: ReqRespData): (ReqRespData,Res[Boolean]) = (data, default(false))
 
   /**
    * @note default - `None`
    * @return None if the resource is not moved temporarily, Some containing its temporary URI otherwise
    */
-  def movedTemporarily(data: ReqRespData): (Res[Option[String]], ReqRespData) = (default(None), data)
+  def movedTemporarily(data: ReqRespData): (ReqRespData,Res[Option[String]]) = (data, default(None))
 
   /**
    * @note default - `false`
    * @return true if this resource allows `POST` requests to be serviced when the resource does not exist,
    *         false otherwise
    */
-  def allowMissingPost(data: ReqRespData): (Res[Boolean], ReqRespData) = (default(false), data)
+  def allowMissingPost(data: ReqRespData): (ReqRespData,Res[Boolean]) = (data,default(false))
 
   /**
    * Perform the deletion of the resource during a `DELETE` request
    * @note default - `false`
    * @return true if the deletion succeed (does not necessarily have to complete), false otherwise
    */
-  def deleteResource(data: ReqRespData): (Res[Boolean], ReqRespData) = (default(false), data)
+  def deleteResource(data: ReqRespData): (ReqRespData,Res[Boolean]) = (data, default(false))
 
   /**
    * @note default - `true`
    * @return true if the deletion is complete at the time this function is called, false otherwise
    */
-  def deleteCompleted(data: ReqRespData): (Res[Boolean], ReqRespData) = (default(true), data)
+  def deleteCompleted(data: ReqRespData): (ReqRespData,Res[Boolean]) = (data, default(true))
 
   /**
    * Determines whether or not `createPath` or `processPost` is called during a `POST` request
@@ -197,14 +197,14 @@ trait Resource {
    * @return true will cause the resource to follow a path that calls `createPath`, false will
    *         result in the flow calling `processPost`
    */
-  def postIsCreate(data: ReqRespData): (Res[Boolean], ReqRespData) = (default(false), data)
+  def postIsCreate(data: ReqRespData): (ReqRespData,Res[Boolean]) = (data, default(false))
 
   /**
    * Used for `POST` requests that represent generic processing on a resource, instead of creation
    * @note default - `false`
    * @return true of the processing succeeded, false otherwise
    */
-  def processPost(data: ReqRespData): (Res[Boolean], ReqRespData) = (default(false), data)
+  def processPost(data: ReqRespData): (ReqRespData,Res[Boolean]) = (data, default(false))
 
   /**
    * Use for `POST` requests that represent creation of data. Makes handling somewhat similar to
@@ -215,7 +215,7 @@ trait Resource {
    * @todo need to elaborate more on what happens with the returned path and what
    *       exactly the string should be
    */
-  def createPath(data: ReqRespData): (Res[Option[String]], ReqRespData) = (default(None), data)
+  def createPath(data: ReqRespData): (ReqRespData,Res[Option[String]]) = (data, default(None))
 
   /**
    * Used during `PUT` requests and `POST` requests if `postIsCreate` returns true. Returns a list
@@ -229,33 +229,33 @@ trait Resource {
    * @return a list of 2-tuples containing the accepted content types and their associated handlers
    * @see [[com.github.jrwest.scalamachine.core.Resource.ContentTypesAccepted]]
    */
-  def contentTypesAccepted(data: ReqRespData): (Res[ContentTypesAccepted], ReqRespData) = (default(Nil), data)
+  def contentTypesAccepted(data: ReqRespData): (ReqRespData,Res[ContentTypesAccepted]) = (data, default(Nil))
 
   /**
    * @note default - `false`
    * @return true if the `PUT` request cannot be handled due to conflict, false otherwise
    */
-  def isConflict(data: ReqRespData): (Res[Boolean], ReqRespData) = (default(false), data)
+  def isConflict(data: ReqRespData): (ReqRespData,Res[Boolean]) = (data,default(false))
 
   /**
    * @note default - `None`
    * @return if `Some` the date will be set as the value of the `Expires` header in the response
    */
-  def expires(data: ReqRespData): (Res[Option[Date]], ReqRespData) = (default(None), data)
+  def expires(data: ReqRespData): (ReqRespData,Res[Option[Date]]) = (data,default(None))
 
-  def multipleChoices(data: ReqRespData): (Res[Boolean], ReqRespData) = (default(false), data)
+  def multipleChoices(data: ReqRespData): (ReqRespData,Res[Boolean]) = (data,default(false))
 
   private def default[A](value: A): Res[A] = ValueRes(value)
 
-  private val defaultResponse: ReqRespData => (Res[Array[Byte]], ReqRespData) = (default(defaultHtml.getBytes), _)
+  private val defaultResponse: ReqRespData => (ReqRespData,Res[Array[Byte]]) = (_,default(defaultHtml.getBytes))
 
   private val defaultHtml = <html><body>Hello,Scalamachine</body></html>.toString
 
 }
 
 object Resource {
-  type ContentTypesProvided = List[(ContentType, ReqRespData => (Res[Array[Byte]],ReqRespData))]
-  type ContentTypesAccepted = List[(ContentType, ReqRespData => (Res[Boolean], ReqRespData))]
+  type ContentTypesProvided = List[(ContentType, ReqRespData => (ReqRespData,Res[Array[Byte]]))]
+  type ContentTypesAccepted = List[(ContentType, ReqRespData => (ReqRespData,Res[Boolean]))]
   type CharsetsProvided = Option[List[(String,Array[Byte] => Array[Byte])]] // None value specifies charset negotiation short-circuiting
   type EncodingsProvided = Option[List[(String,Array[Byte] => Array[Byte])]] // None values specifies encoding negotiation short-circuiting
 }

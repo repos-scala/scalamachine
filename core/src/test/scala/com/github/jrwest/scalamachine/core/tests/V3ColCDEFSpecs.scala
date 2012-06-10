@@ -69,7 +69,7 @@ class V3ColCDEFSpecs extends Specification with Mockito with SpecsHelper with We
 
   def testMissingAcceptHeader = {
     val ctypes: ContentTypesProvided =
-      (ContentType("text/html"), (d: ReqRespData) => ((ValueRes("".getBytes),d))) :: (ContentType("text/plain"), (d: ReqRespData) => ((ValueRes("".getBytes), d))) ::  Nil
+      (ContentType("text/html"), (d: ReqRespData) => (d,(ValueRes("".getBytes)))) :: (ContentType("text/plain"), (d: ReqRespData) => ((d, ValueRes("".getBytes)))) ::  Nil
 
     testDecisionReturnsDecisionAndData(c3,d4,_.contentTypesProvided(any) answers mkAnswer(ctypes)) {
       _.metadata.contentType must beSome.like {
@@ -93,15 +93,15 @@ class V3ColCDEFSpecs extends Specification with Mockito with SpecsHelper with We
   }
 
   def testMediaTypeNotProvided = {
-    val ctypes: ContentTypesProvided = (ContentType("text/html"), (d: ReqRespData) => (ValueRes("".getBytes), d)) :: Nil
+    val ctypes: ContentTypesProvided = (ContentType("text/html"), (d: ReqRespData) => (d, ValueRes("".getBytes))) :: Nil
 
-    testDecisionReturnsData(c4,_.contentTypesProvided(any) answers { d => ((ValueRes(ctypes),d.asInstanceOf[ReqRespData])) }, data = createData(headers = Map(Accept -> "text/plain"))) {
+    testDecisionReturnsData(c4,_.contentTypesProvided(any) answers { d => (d.asInstanceOf[ReqRespData], (ValueRes(ctypes))) }, data = createData(headers = Map(Accept -> "text/plain"))) {
       _.statusCode must beEqualTo(406)
     }
   }
 
   def testMediaTypeProvided = {
-    val ctypes: ContentTypesProvided = (ContentType("text/html"), (d: ReqRespData) => (ValueRes("".getBytes), d)) :: Nil
+    val ctypes: ContentTypesProvided = (ContentType("text/html"), (d: ReqRespData) => (d, ValueRes("".getBytes))) :: Nil
 
     testDecisionReturnsDecisionAndData(c4,d4,_.contentTypesProvided(any) answers mkAnswer(ctypes), data = createData(headers = Map(Accept -> "text/html"))) {
       _.metadata.contentType must beSome.like {

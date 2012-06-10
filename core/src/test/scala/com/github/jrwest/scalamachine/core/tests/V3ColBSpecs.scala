@@ -8,7 +8,7 @@ import com.github.jrwest.scalamachine.core._
 import Resource._
 import flow._
 import v3.WebmachineDecisions
-import com.github.jrwest.scalamachine.internal.scalaz.NonEmptyList
+import scalaz.NonEmptyList
 import org.apache.commons.httpclient.util.DateUtil
 import HTTPHeaders._
 import HTTPMethods._

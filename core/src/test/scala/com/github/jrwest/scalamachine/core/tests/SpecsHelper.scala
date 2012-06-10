@@ -37,7 +37,7 @@ trait SpecsHelper {
     // one possible (maybe out there) way to resolve is move resources to being state actions (with a subclass that allows you to not need one if possible)
     // PROBABLY EASIER is to just stub the resource to return the data its given somehow and just used the passed in data above as the intial data to the decision
     stubF(resource) // make call to stub/mock
-    val (mbNextDecision, newData) = decision(resource)(data)
+    val (newData,mbNextDecision) = decision(resource)(data)
     f(newData, mbNextDecision)
   }
 
@@ -81,8 +81,8 @@ trait SpecsHelper {
     }
   }
 
-  def mkAnswer[T](value: T): Any => (Res[T], ReqRespData) = d => (ValueRes(value), d.asInstanceOf[ReqRespData])
-  def mkResAnswer[T](value: Res[T]): Any => (Res[T], ReqRespData) = d => (value,d.asInstanceOf[ReqRespData])
+  def mkAnswer[T](value: T): Any => (ReqRespData,Res[T]) = d => (d.asInstanceOf[ReqRespData],ValueRes(value))
+  def mkResAnswer[T](value: Res[T]): Any => (ReqRespData,Res[T]) = d => (d.asInstanceOf[ReqRespData],value)
 
 
 }

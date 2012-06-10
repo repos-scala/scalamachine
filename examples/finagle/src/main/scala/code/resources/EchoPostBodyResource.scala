@@ -6,12 +6,12 @@ class EchoPostBodyResource extends Resource {
   import Res._
   import HTTPMethods._
 
-  override def allowedMethods(data: ReqRespData): (Res[List[HTTPMethod]], ReqRespData) = {
-    (result(POST :: Nil), data)
+  override def allowedMethods(data: ReqRespData): (ReqRespData, Res[List[HTTPMethod]]) = {
+    (data, result(POST :: Nil))
   }
 
-  override def processPost(data: ReqRespData): (Res[Boolean], ReqRespData) = {
-    (result(true), data.copy(responseBody = data.requestBody))
+  override def processPost(data: ReqRespData): (ReqRespData, Res[Boolean]) = {
+    (data.copy(responseBody = data.requestBody), result(true))
   }
 
 }

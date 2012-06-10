@@ -12,7 +12,7 @@ case class ContentType(mediaType: String, params: Map[String, String] = Map()) {
 }
 
 object ContentType {
-  import com.github.jrwest.scalamachine.internal.scalaz.Equal
+  import scalaz.Equal
   import Equal._
   implicit def contentTypeEql: Equal[ContentType] = equalA
 }
@@ -36,8 +36,8 @@ object HTTPMethod {
     case _ => GET
   }
 
-  import com.github.jrwest.scalamachine.internal.scalaz.Equal
-  import com.github.jrwest.scalamachine.internal.scalaz.Equal._
+  import scalaz.Equal
+  import scalaz.Equal._
 
   implicit val httpMethodEqual: Equal[HTTPMethod] = equalA
 }

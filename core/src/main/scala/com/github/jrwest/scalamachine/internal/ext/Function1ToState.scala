@@ -4,7 +4,7 @@ package ext
 import scalaz.State
 
 trait Function1ToState[A,B] {
-  def f: A => (B,A)
+  def f: A => (A,B)
 
   def st: State[A,B] = State(f)
 }

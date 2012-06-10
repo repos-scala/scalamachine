@@ -3,14 +3,15 @@ package core
 package v3
 
 import flow._
-import internal.scalaz.std.option._
-import internal.scalaz.std.string._
+import scalaz.std.option._
+import scalaz.std.string._
 import optionSyntax._
-import internal.scalaz.syntax.order._
-import internal.scalaz.syntax.monad._
-import internal.scalaz.OptionT._
-import internal.scalaz.Lens._
-import internal.scalaz.State
+import scalaz.syntax.order._
+import scalaz.syntax.monad._
+import scalaz.OptionT._
+import scalaz.Lens._
+import scalaz.State
+import scalaz.Id
 import internal.ext._
 import Decision.FlowState
 import Res._
@@ -107,7 +108,7 @@ trait WebmachineDecisions {
 
   /* Accept Exists? */
   lazy val c3: Decision = new Decision {
-    import com.github.jrwest.scalamachine.internal.scalaz.syntax.std.allV.ToListVFromList
+    import scalaz.syntax.std.list._
 
     // TODO: move somewhere more global it will probably be used elsewhere
     val defaultContentType = ContentType("text/plain")
@@ -127,7 +128,7 @@ trait WebmachineDecisions {
     private def resolveContentType(r: Resource): State[ReqRespData,Decision] = for {
         res <- (r.contentTypesProvided(_: ReqRespData)).st
         cType <- firstOrDefault(res).point[FlowState]
-        _ <- (metadataL <=< contentTypeL) := Option(cType)
+        _ <- (metadataL >=> contentTypeL) := Option(cType)
       } yield d4 
 
     private def firstOrDefault(res: Res[ContentTypesProvided]): ContentType =  
@@ -144,7 +145,7 @@ trait WebmachineDecisions {
         providedResult <- (resource.contentTypesProvided(_: ReqRespData)).st
         provided <- (providedResult getOrElse Nil).unzip._1.point[FlowState]
         contentType <- Util.chooseMediaType(provided, acceptHeader).point[FlowState]
-        _ <- (metadataL <=< contentTypeL) := contentType
+        _ <- (metadataL >=> contentTypeL) := contentType
       } yield contentType >| d4.point[Res] | HaltRes(406)
     }
   }
@@ -198,8 +199,8 @@ trait WebmachineDecisions {
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] =  {
       val act = for {
-        media <- (metadataL <=< contentTypeL).map(_ | ContentType("text/plain")).liftM[ResT]
-        charset <- (metadataL <=< chosenCharsetL).map(_.map(";charset=" + _).getOrElse("")).liftM[ResT]
+        media <- (metadataL >=> contentTypeL).map(_ | ContentType("text/plain")).liftM[ResT]
+        charset <- (metadataL >=> chosenCharsetL).map(_.map(";charset=" + _).getOrElse("")).liftM[ResT]
         _ <- ((responseHeadersL member ContentTypeHeader) := some(media.toHeader + charset)).liftM[ResT]
         mbHeader <- (requestHeadersL member AcceptEncoding).st.liftM[ResT]
         decision <- mbHeader >| f7.point[ResTFlow] | chooseEncoding(resource, "identity;q=1.0,*;q=0.5")
@@ -591,7 +592,7 @@ trait WebmachineDecisions {
     def name: String = "v3o18"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = {
-      def ifGetOrHead[A](isTrue: Boolean, f: ReqRespData => (Res[A], ReqRespData), default: => A) =
+      def ifGetOrHead[A](isTrue: Boolean, f: ReqRespData => (ReqRespData,Res[A]), default: => A) =
         if (isTrue) resT[FlowState](State(f))
         else default.point[ResTFlow]
 
@@ -600,7 +601,7 @@ trait WebmachineDecisions {
 
       val setBody = for {
       // find content providing function given chosen content type and produce body, setting it in the response
-        mbChosenCType <- (metadataL <=< contentTypeL).st.liftM[ResT]
+        mbChosenCType <- (metadataL >=> contentTypeL).st.liftM[ResT]
         chosenCType <- resT[FlowState](mbChosenCType.fold(
           some = result(_),
           none = error("internal flow error, missing chosen ctype in o18")
@@ -610,7 +611,7 @@ trait WebmachineDecisions {
           _.find(_._1 == chosenCType).map(_._2)
         }
 
-        producedBody <- resT[FlowState](((d: ReqRespData) => mbProvidedF.map(_(d)) | ((result(Array[Byte]()),d))).st)
+        producedBody <- resT[FlowState](((d: ReqRespData) => mbProvidedF.map(_(d)) | ((d, result(Array[Byte]())))).st)
         body <- encodeBody(resource, producedBody).liftM[ResT]
         _ <- (respBodyL := body).liftM[ResT]
       } yield ()
@@ -685,7 +686,7 @@ trait WebmachineDecisions {
       } getOrElse { result((f6, none)) }
 
     def setCharsetMeta(chosen: Option[String]): ResT[FlowState,Option[String]] =
-      ((metadataL <=< chosenCharsetL) := chosen).liftM[ResT]
+      ((metadataL >=> chosenCharsetL) := chosen).liftM[ResT]
 
     for {
       p <- charsetsProvided
@@ -710,7 +711,7 @@ trait WebmachineDecisions {
     for {
       p <- encodingsProvided
       (decision, chosen) <- resT[FlowState](doChoose(p).point[FlowState])
-      _ <- ((metadataL <=< chosenEncodingL) := chosen).liftM[ResT]
+      _ <- ((metadataL >=> chosenEncodingL) := chosen).liftM[ResT]
       _ <- setEncodingHeader(chosen).liftM[ResT]
     } yield decision
   }
@@ -782,7 +783,7 @@ trait WebmachineDecisions {
 
       // if found, run it, call encodeBodyIfSet if it succeeds, 500 otherwise
       // if not found, return halt 415
-      didSucceed <- resT[FlowState](((d: ReqRespData) => mbAcceptableF.map(_(d)).getOrElse((halt(415),d))).st)
+      didSucceed <- resT[FlowState](((d: ReqRespData) => mbAcceptableF.map(_(d)).getOrElse((d,halt(415)))).st)
       _ <-
         if (didSucceed) encodeBodyIfSet(resource).liftM[ResT]
         else resT[FlowState](halt[HTTPBody](500).point[FlowState]) // TODO: real error message
@@ -791,9 +792,9 @@ trait WebmachineDecisions {
 
 
   private def encodeBody(resource: Resource, body: Array[Byte]): FlowState[HTTPBody] = for {
-    mbCharset <- metadataL <=< chosenCharsetL
+    mbCharset <- metadataL >=> chosenCharsetL
     mbProvidedCh <- (resource.charsetsProvided(_: ReqRespData)).st.map(_.getOrElse(None))
-    mbEncoding <- metadataL <=< chosenEncodingL
+    mbEncoding <- metadataL >=> chosenEncodingL
     mbProvidedEnc <- (resource.encodingsProvided(_: ReqRespData)).st.map(_.getOrElse(None))
     charsetter <- (((mbProvidedCh |@| mbCharset) {
       (p,c)  => p.find(_._1 === c)

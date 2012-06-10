@@ -67,9 +67,9 @@ object BuildSettings {
 }
 
 object Dependencies {
-  lazy val internalScalaz = "com.github.jrwest"       %% "scalamachine-scalaz-core" % "7.0-SNAPSHOT"    % "compile" withSources()
-  lazy val scalaz7        = "org.scalaz"              %% "scalaz-core"              % "7.0-SNAPSHOT"    % "compile" withSources()
-  lazy val scalaz6        = "org.scalaz"              %% "scalaz-core"              % "6.0.3"           % "compile" withSources()
+  //lazy val internalScalaz = "com.github.jrwest"       %% "scalamachine-scalaz-core" % "7.0-SNAPSHOT"    % "compile" withSources()
+  lazy val scalaz7        = "org.scalaz"              %% "scalaz-iteratee"          % "7.0-SNAPSHOT"    % "compile" withSources()
+  //lazy val scalaz6        = "org.scalaz"              %% "scalaz-core"              % "6.0.3"           % "compile" withSources()
   lazy val slf4j          = "org.slf4j"               % "slf4j-api"                 % "1.6.4"           % "compile"
   // Don't want to keep t his dependency long term but for now its fastest way to get date parsing for http
   lazy val commonsHttp    = "commons-httpclient"      % "commons-httpclient"        % "3.1"                        withSources()
@@ -98,14 +98,14 @@ object ScalamachineBuild extends Build {
 
   lazy val scalamachine = Project("scalamachine", file("."),
     settings = standardSettings ++ publishSettings ++ Seq(publishArtifact in Compile := false),
-    aggregate = Seq(core,scalaz6utils,scalaz7utils,lift,netty)
+    aggregate = Seq(core,lift,netty) // Seq(core,scalaz6utils,scalaz7utils,lift,netty)
   )
 
   lazy val core = Project("scalamachine-core", file("core"),
     settings = standardSettings ++ publishSettings ++ site.settings ++ site.jekyllSupport("jekyll") ++ site.includeScaladoc() ++ ghpages.settings ++
       Seq(
         name := "scalamachine-core",
-        libraryDependencies ++= Seq(internalScalaz,slf4j,commonsHttp,specs2,scalacheck,mockito,hamcrest,pegdown),
+        libraryDependencies ++= Seq(scalaz7,slf4j,commonsHttp,specs2,scalacheck,mockito,hamcrest,pegdown), // TODO: change back to internal scalaz
 	git.remoteRepo := "git@github.com:jrwest/scalamachine",
         docsRepo := "git@github.com:jrwest/scalamachine.site",
         git.branch in ghpages.updatedRepository := Some("master"),
@@ -113,6 +113,7 @@ object ScalamachineBuild extends Build {
       )
   )
 
+/*
   lazy val scalaz6utils = Project("scalamachine-scalaz6", file("scalaz6"),
     dependencies = Seq(core),
     settings = standardSettings ++ publishSettings ++
@@ -129,7 +130,7 @@ object ScalamachineBuild extends Build {
         name := "scalamachine-scalaz7",
         libraryDependencies ++= Seq(scalaz7)
       )
-  )
+  )*/
   
   lazy val lift = Project("scalamachine-lift", file("lift"),
     dependencies = Seq(core), 
@@ -166,6 +167,15 @@ object ScalamachineBuild extends Build {
         libraryDependencies ++= Seq(logback)
       )
   )
+
+  lazy val nettyExample = Project("scalamachine-netty-example", file("examples/netty"), 
+    dependencies = Seq(netty),
+    settings = standardSettings ++
+      Seq(
+	name := "scalamachine-netty-example", 
+        libraryDependencies ++= Seq(logback)
+    )
+  )              
 
 }
 

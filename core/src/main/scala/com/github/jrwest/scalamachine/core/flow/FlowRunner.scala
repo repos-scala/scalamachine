@@ -1,7 +1,7 @@
 package com.github.jrwest.scalamachine.core
 package flow
 
-import com.github.jrwest.scalamachine.internal.scalaz.State
+import scalaz.State
 import org.slf4j.{LoggerFactory, Logger}
 
 
@@ -12,7 +12,7 @@ trait FlowRunnerBase {
   // stacking this method gives access to start/end of flow
   def run(decision: Decision, resource: Resource, data: ReqRespData): ReqRespData
 
-  protected def runDecision(decision: Decision, resource: Resource, data: ReqRespData): (Option[Decision], ReqRespData)
+  protected def runDecision(decision: Decision, resource: Resource, data: ReqRespData): (ReqRespData,Option[Decision])
 }
 
 
@@ -25,14 +25,14 @@ class FlowRunner extends FlowRunnerBase {
     // the entire flow <<-- TODO: except for this is false
     def loop(decision: Decision, resource: Resource, data: ReqRespData): ReqRespData = {
       runDecision(decision, resource, data) match {
-        case (Some(next), newData) => run(next, resource, newData)
-        case (None, newData) => newData
+        case (newData,Some(next)) => run(next, resource, newData)
+        case (newData,None) => newData
       }
     }
     loop(decision, resource, data)
   }
 
-  protected def runDecision(decision: Decision, resource: Resource, data: ReqRespData): (Option[Decision], ReqRespData) =
+  protected def runDecision(decision: Decision, resource: Resource, data: ReqRespData): (ReqRespData,Option[Decision]) =
     decision(resource)(data)
 }
 
@@ -40,7 +40,7 @@ trait FlowLogging extends FlowRunnerBase {
 
   private val logger: Logger = LoggerFactory.getLogger(classOf[FlowRunner])
 
-  abstract override protected def runDecision(decision: Decision, resource: Resource, data: ReqRespData): (Option[Decision], ReqRespData) = {
+  abstract override protected def runDecision(decision: Decision, resource: Resource, data: ReqRespData): (ReqRespData,Option[Decision]) = {
     logger.debug("running decision %s with data: %s" format (decision.name, data))
     val result = super.runDecision(decision, resource, data)
     logger.debug("finished running decision %s" format decision.name)
