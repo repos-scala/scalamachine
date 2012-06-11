@@ -17,7 +17,6 @@ class ScalamachineChannelPipelineFactory(private val execHandler: ExecutionHandl
     pipeline.addLast("chunk-aggregator", new HttpChunkAggregator(1048576)) // not handling streaming requests yet
     pipeline.addLast("response-encoder", new HttpResponseEncoder)
     pipeline.addLast("execution-handler", execHandler)
-    pipeline.addLast("chunk-writer", new ChunkedWriteHandler)
     pipeline.addLast("requst-handler", new ScalamachineRequestHandler(dispatchTable))
 
 

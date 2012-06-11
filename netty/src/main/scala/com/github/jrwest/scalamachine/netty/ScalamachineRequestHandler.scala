@@ -46,13 +46,12 @@ class ScalamachineRequestHandler(dispatchTable: DispatchTable[HttpRequest, Netty
       }
       case HTTPBody.ErrorChunk(e) => {
         logger.error("Error Streaming Chunks", e)
-        val writeTrailerFuture = evt.getChannel.write(new DefaultHttpChunk(ChannelBuffers.wrappedBuffer(Array[Byte]())))
+        val writeTrailerFuture = evt.getChannel.write(HttpChunk.LAST_CHUNK)
         if (!keepAlive) writeTrailerFuture.addListener(ChannelFutureListener.CLOSE)
       }
       case HTTPBody.EOFChunk => {
         logger.debug("writing trailing chunk")
-        val writeTrailerFuture = evt.getChannel.write(new DefaultHttpChunk(ChannelBuffers.wrappedBuffer(Array[Byte]())))
-        //val writeTrailerFuture = evt.getChannel.write(HttpChunk.LAST_CHUNK)
+        val writeTrailerFuture = evt.getChannel.write(HttpChunk.LAST_CHUNK)
         if (!keepAlive) writeTrailerFuture.addListener(ChannelFutureListener.CLOSE)
       }
     }
