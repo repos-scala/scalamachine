@@ -26,7 +26,7 @@ trait Decision {
   private def setError(error: Any) = for {
     _ <- statusCodeL := 500
     body <- respBodyL
-    _ <- body.fold(notEmpty = _ => respBodyL.st, empty = respBodyL := error.toString.getBytes)
+    _ <- if (body.isEmpty) respBodyL := error.toString else respBodyL.st
   } yield ()
 
 

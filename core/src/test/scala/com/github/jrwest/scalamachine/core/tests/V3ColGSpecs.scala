@@ -44,8 +44,8 @@ class V3ColGSpecs extends Specification with Mockito with SpecsHelper with Webma
   def testVaryAll = {
     import Res._
     val ctypes: ContentTypesProvided =
-      (ContentType("text/plain"), (d: ReqRespData) => (d,result("".getBytes))) ::
-        (ContentType("application/json"), (d: ReqRespData) => (d,result("".getBytes))) ::
+      (ContentType("text/plain"), (d: ReqRespData) => (d,result(FixedLengthBody("")))) ::
+        (ContentType("application/json"), (d: ReqRespData) => (d,result(FixedLengthBody("")))) ::
         Nil
 
     val charsets: CharsetsProvided = Some(("charset1", identity[Array[Byte]](_)) :: ("charset2", identity[Array[Byte]](_)) :: Nil)
@@ -89,7 +89,7 @@ class V3ColGSpecs extends Specification with Mockito with SpecsHelper with Webma
 
   def testVaryContentTypesProvided1 = {
     import Res._
-    val ctypes: ContentTypesProvided = (ContentType("application/json"), (d: ReqRespData) => (d, result("".getBytes))) :: Nil
+    val ctypes: ContentTypesProvided = (ContentType("application/json"), (d: ReqRespData) => (d, result(FixedLengthBody("")))) :: Nil
     val charsets: CharsetsProvided = Some(("charset1", identity[Array[Byte]](_)) :: ("charset2", identity[Array[Byte]](_)) :: Nil)
     val encodings: EncodingsProvided = Some(("identity", identity[Array[Byte]](_)) :: ("gzip", identity[Array[Byte]](_)) :: Nil)
     testDecisionResultHasData(
@@ -111,8 +111,8 @@ class V3ColGSpecs extends Specification with Mockito with SpecsHelper with Webma
   def testVaryCharsetsShortCircuit = {
     import Res._
     val ctypes: ContentTypesProvided =
-      (ContentType("text/plain"), (d: ReqRespData) => (d, result("".getBytes))) ::
-        (ContentType("application/json"), (d: ReqRespData) => (d, result("".getBytes))) ::
+      (ContentType("text/plain"), (d: ReqRespData) => (d, result(FixedLengthBody("")))) ::
+        (ContentType("application/json"), (d: ReqRespData) => (d, result(FixedLengthBody("")))) ::
         Nil
 
     val charsets: CharsetsProvided = None
@@ -136,8 +136,8 @@ class V3ColGSpecs extends Specification with Mockito with SpecsHelper with Webma
   def testVaryCharsetsProvided0 = {
     import Res._
     val ctypes: ContentTypesProvided =
-      (ContentType("text/plain"), (d: ReqRespData) => (d, result("".getBytes))) ::
-        (ContentType("application/json"), (d: ReqRespData) => (d, result("".getBytes))) ::
+      (ContentType("text/plain"), (d: ReqRespData) => (d, result(HTTPBody.Empty))) ::
+        (ContentType("application/json"), (d: ReqRespData) => (d, result(HTTPBody.Empty))) ::
         Nil
 
     val charsets: CharsetsProvided = Some(Nil)
@@ -161,8 +161,8 @@ class V3ColGSpecs extends Specification with Mockito with SpecsHelper with Webma
   def testVaryCharsetsProvided1 = {
     import Res._
     val ctypes: ContentTypesProvided =
-      (ContentType("text/plain"), (d: ReqRespData) => (d, result("".getBytes))) ::
-        (ContentType("application/json"), (d: ReqRespData) => (d, result("".getBytes))) ::
+      (ContentType("text/plain"), (d: ReqRespData) => (d, result(HTTPBody.Empty))) ::
+        (ContentType("application/json"), (d: ReqRespData) => (d, result(HTTPBody.Empty))) ::
         Nil
 
     val charsets: CharsetsProvided = Some(("charset2", identity[Array[Byte]](_)) :: Nil)
@@ -186,8 +186,8 @@ class V3ColGSpecs extends Specification with Mockito with SpecsHelper with Webma
   def testVaryEncodingsShortCircuit = {
     import Res._
     val ctypes: ContentTypesProvided =
-      (ContentType("text/plain"), (d: ReqRespData) => (d, result("".getBytes))) ::
-        (ContentType("application/json"), (d: ReqRespData) => (d, result("".getBytes))) ::
+      (ContentType("text/plain"), (d: ReqRespData) => (d, result(HTTPBody.Empty))) ::
+        (ContentType("application/json"), (d: ReqRespData) => (d, result(HTTPBody.Empty))) ::
         Nil
 
     val charsets: CharsetsProvided = Some(("charset1", identity[Array[Byte]](_)) :: ("charset2", identity[Array[Byte]](_)) :: Nil)
@@ -212,8 +212,8 @@ class V3ColGSpecs extends Specification with Mockito with SpecsHelper with Webma
   def testVaryEncodingsProvided0 = {
     import Res._
     val ctypes: ContentTypesProvided =
-      (ContentType("text/plain"), (d: ReqRespData) => (d, result("".getBytes))) ::
-        (ContentType("application/json"), (d: ReqRespData) => (d, result("".getBytes))) ::
+      (ContentType("text/plain"), (d: ReqRespData) => (d, result(HTTPBody.Empty))) ::
+        (ContentType("application/json"), (d: ReqRespData) => (d, result(HTTPBody.Empty))) ::
         Nil
 
     val charsets: CharsetsProvided = Some(("charset1", identity[Array[Byte]](_)) :: ("charset2", identity[Array[Byte]](_)) :: Nil)
@@ -237,8 +237,8 @@ class V3ColGSpecs extends Specification with Mockito with SpecsHelper with Webma
   def testVaryEncodingsProvided1 = {
     import Res._
     val ctypes: ContentTypesProvided =
-      (ContentType("text/plain"), (d: ReqRespData) => (d, result("".getBytes))) ::
-        (ContentType("application/json"), (d: ReqRespData) => (d, result("".getBytes))) ::
+      (ContentType("text/plain"), (d: ReqRespData) => (d, result(HTTPBody.Empty))) ::
+        (ContentType("application/json"), (d: ReqRespData) => (d, result(HTTPBody.Empty))) ::
         Nil
 
     val charsets: CharsetsProvided = Some(("charset1", identity[Array[Byte]](_)) :: ("charset2", identity[Array[Byte]](_)) :: Nil)
@@ -262,8 +262,8 @@ class V3ColGSpecs extends Specification with Mockito with SpecsHelper with Webma
   def testVaryResourceAdditional = {
     import Res._
     val ctypes: ContentTypesProvided =
-      (ContentType("text/plain"), (d: ReqRespData) => (d, result("".getBytes))) ::
-        (ContentType("application/json"), (d: ReqRespData) => (d, result("".getBytes))) ::
+      (ContentType("text/plain"), (d: ReqRespData) => (d, result(HTTPBody.Empty))) ::
+        (ContentType("application/json"), (d: ReqRespData) => (d, result(HTTPBody.Empty))) ::
         Nil
 
     val charsets: CharsetsProvided = Some(("charset1", identity[Array[Byte]](_)) :: ("charset2", identity[Array[Byte]](_)) :: Nil)

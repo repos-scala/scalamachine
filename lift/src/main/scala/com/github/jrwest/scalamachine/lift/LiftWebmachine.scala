@@ -30,7 +30,7 @@ trait LiftWebmachine {
   } // TODO: correctly handle duplicate headers once core does
 
   def fromData(data: ReqRespData): Box[LiftResponse] = Full(InMemoryResponse(
-    data = data.responseBody.fold(notEmpty = identity(_), empty = Array()),
+    data = data.responseBody.bytes, // TODO: handle fail on stream response since lift can't support it
     headers = for { (h,v) <- data.responseHeaders.toList } yield (h.wireName, v), // TODO: correctly handle duplicate headers once core does
     cookies = Nil,
     code = data.statusCode

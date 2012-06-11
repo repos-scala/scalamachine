@@ -38,9 +38,7 @@ trait NettyWebmachine[M[_]] {
       (h,v) <- data.responseHeaders
     } yield response.setHeader(h.wireName,v)
 
-    response.setContent(ChannelBuffers.copiedBuffer(
-      data.responseBody.fold(notEmpty = identity(_), empty = Array[Byte]())
-    ))
+    response.setContent(ChannelBuffers.copiedBuffer(data.responseBody.bytes)) // TODO: handle streaming body
 
     response
   }

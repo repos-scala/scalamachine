@@ -247,14 +247,14 @@ trait Resource {
 
   private def default[A](value: A): Res[A] = ValueRes(value)
 
-  private val defaultResponse: ReqRespData => (ReqRespData,Res[Array[Byte]]) = (_,default(defaultHtml.getBytes))
+  private val defaultResponse: ReqRespData => (ReqRespData,Res[HTTPBody]) = (_,default(defaultHtml))
 
   private val defaultHtml = <html><body>Hello,Scalamachine</body></html>.toString
 
 }
 
 object Resource {
-  type ContentTypesProvided = List[(ContentType, ReqRespData => (ReqRespData,Res[Array[Byte]]))]
+  type ContentTypesProvided = List[(ContentType, ReqRespData => (ReqRespData,Res[HTTPBody]))]
   type ContentTypesAccepted = List[(ContentType, ReqRespData => (ReqRespData,Res[Boolean]))]
   type CharsetsProvided = Option[List[(String,Array[Byte] => Array[Byte])]] // None value specifies charset negotiation short-circuiting
   type EncodingsProvided = Option[List[(String,Array[Byte] => Array[Byte])]] // None values specifies encoding negotiation short-circuiting

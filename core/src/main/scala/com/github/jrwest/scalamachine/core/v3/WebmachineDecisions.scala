@@ -644,7 +644,7 @@ trait WebmachineDecisions {
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = for {
       body <- respBodyL
-    } yield body.fold(notEmpty = _ => result(o18), empty = halt(204))
+    } yield if (body.isEmpty) halt(204) else result(o18)
   }
 
   /* Is Conflict? (identical impl to o14) */
@@ -791,7 +791,7 @@ trait WebmachineDecisions {
   }
 
 
-  private def encodeBody(resource: Resource, body: Array[Byte]): FlowState[HTTPBody] = for {
+  private def encodeBody(resource: Resource, body: HTTPBody): FlowState[HTTPBody] = for {
     mbCharset <- metadataL >=> chosenCharsetL
     mbProvidedCh <- (resource.charsetsProvided(_: ReqRespData)).st.map(_.getOrElse(None))
     mbEncoding <- metadataL >=> chosenEncodingL
@@ -802,12 +802,12 @@ trait WebmachineDecisions {
     encoder <- (((mbProvidedEnc |@| mbEncoding) {
       (p,e) => p.find(_._1 === e)
     }).join.fold(some = _._2, none = identity[Array[Byte]](_))).point[FlowState]
-  } yield encoder(charsetter(body))
+  } yield encoder(charsetter(body.bytes)) // TODO: handle streamed bodies
 
 
   private def encodeBodyIfSet(resource: Resource): FlowState[Unit] = for {
     body <- respBodyL
-    newBody <- body.fold(notEmpty = encodeBody(resource, _), empty = body.point[FlowState])
+    newBody <- if (!body.isEmpty) encodeBody(resource, body) else body.point[FlowState]
     _ <- respBodyL := newBody
   } yield ()
 }

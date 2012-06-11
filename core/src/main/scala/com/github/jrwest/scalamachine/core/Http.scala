@@ -69,29 +69,22 @@ object HTTPMethods {
   }
 }
 
-trait HTTPBody {
+sealed trait HTTPBody {
   def bytes: Array[Byte]
-  def isEmpty: Boolean
-
-  def stringValue = new String(bytes)
-
-  def fold[A](notEmpty: Array[Byte] => A, empty: => A): A = this match {
-    case EmptyBody => empty
-    case NonEmptyBody(bytes) => notEmpty(bytes)
-  }
-
-}
-case object EmptyBody extends HTTPBody {
-  val bytes = Array[Byte]()
-  val isEmpty = true
-}
-case class NonEmptyBody(bytes: Array[Byte]) extends HTTPBody {
-  val isEmpty = false
+  val stringValue = new String(bytes, java.nio.charset.Charset.forName("UTF-8"))
+  val isEmpty = bytes.isEmpty
 }
 
 object HTTPBody {
-  implicit def arrayByteToHTTPBody(a: Array[Byte]): HTTPBody =
-    if (a.length > 0 ) NonEmptyBody(a) else EmptyBody
+  implicit def arrayToHTTPBody(arr: Array[Byte]): HTTPBody = FixedLengthBody(arr)
+  implicit def stringToHTTPBody(str: String): HTTPBody = FixedLengthBody(str.getBytes(java.nio.charset.Charset.forName("UTF-8")))
+
+  val Empty: HTTPBody = FixedLengthBody(Array[Byte]())
+}
+
+case class FixedLengthBody(bytes: Array[Byte]) extends HTTPBody
+object FixedLengthBody {
+  def apply(s: String): HTTPBody = FixedLengthBody(s.getBytes(java.nio.charset.Charset.forName("UTF-8")))
 }
 
 sealed trait HTTPHeader {

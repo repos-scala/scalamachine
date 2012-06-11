@@ -17,7 +17,7 @@ trait SpecsHelper {
                  metadata: Metadata = Metadata(),
                  baseUri: String = "",
                  respHdrs: Map[HTTPHeader,String] = Map(),
-                 respBody: HTTPBody = EmptyBody,
+                 respBody: HTTPBody = HTTPBody.Empty,
                  doRedirect: Boolean = false) =
     ReqRespData(
       baseUri = baseUri,
