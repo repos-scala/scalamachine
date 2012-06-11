@@ -7,7 +7,7 @@ import com.github.jrwest.scalamachine.netty.{NettyWebmachineV3, ScalamachineChan
 import org.jboss.netty.handler.execution.{OrderedMemoryAwareThreadPoolExecutor, ExecutionHandler}
 import java.net.InetSocketAddress
 import com.github.jrwest.scalamachine.core.dispatch.Route._
-import resources.{EmptyResource, UnavailableResource}
+import resources.{LocalFileResource, EmptyResource, UnavailableResource}
 import com.github.jrwest.scalamachine.core.flow.{FlowLogging, FlowRunner}
 
 object ScalamachineExample extends NettyWebmachineV3 {
@@ -22,6 +22,12 @@ object ScalamachineExample extends NettyWebmachineV3 {
     pathMatching {
       "empty"
     } serve  new EmptyResource
+  }
+
+  route {
+    pathMatching {
+      "localfile"
+    } serve new LocalFileResource
   }
 
   override val flowRunner = new FlowRunner with FlowLogging

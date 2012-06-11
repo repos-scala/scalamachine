@@ -1,7 +1,7 @@
 package com.github.jrwest.scalamachine.lift
 
 import net.liftweb.http.{InMemoryResponse, Req, LiftResponse}
-import net.liftweb.common.{Full, Box}
+import net.liftweb.common.{Failure, Full, Box}
 import com.github.jrwest.scalamachine.core._
 import dispatch.DispatchTable
 import v3.V3DispatchTable
@@ -29,12 +29,15 @@ trait LiftWebmachine {
     )
   } // TODO: correctly handle duplicate headers once core does
 
-  def fromData(data: ReqRespData): Box[LiftResponse] = Full(InMemoryResponse(
-    data = data.responseBody.bytes, // TODO: handle fail on stream response since lift can't support it
-    headers = for { (h,v) <- data.responseHeaders.toList } yield (h.wireName, v), // TODO: correctly handle duplicate headers once core does
-    cookies = Nil,
-    code = data.statusCode
-  ))
+  def fromData(data: ReqRespData): Box[LiftResponse] = data.responseBody match {
+    case FixedLengthBody(bytes) => Full(InMemoryResponse(
+      data = bytes,
+      headers = for { (h,v) <- data.responseHeaders.toList } yield (h.wireName, v), // TODO: correctly handle duplicate headers once core does
+      cookies = Nil,
+      code = data.statusCode
+    ))
+    case LazyStreamBody(_) => Failure("scalamachine-lift does not support chunked responses")
+  }
 
 }
 

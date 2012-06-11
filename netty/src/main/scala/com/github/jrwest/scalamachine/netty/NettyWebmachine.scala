@@ -2,15 +2,23 @@ package com.github.jrwest.scalamachine.netty
 
 import com.github.jrwest.scalamachine.core.dispatch.DispatchTable
 import org.jboss.netty.handler.codec.http._
-import com.github.jrwest.scalamachine.core.{HTTPBody, HTTPHeader, HTTPMethod, ReqRespData}
+import com.github.jrwest.scalamachine.core._
 import org.jboss.netty.buffer.ChannelBuffers
 import java.net.URI
 import scala.collection.JavaConverters._
 import scalaz.Id._
 import com.github.jrwest.scalamachine.core.v3.V3DispatchTable
+import scalaz.iteratee.EnumeratorT
+import scalaz.effect.IO
+
+sealed trait NettyHttpResponse {
+  def response: HttpResponse
+}
+case class FixedLengthResponse(response: HttpResponse) extends NettyHttpResponse
+case class ChunkedResponse(response: HttpResponse, chunks: IO[EnumeratorT[HTTPBody.Chunk,IO]]) extends NettyHttpResponse
 
 trait NettyWebmachine[M[_]] {
-  this: DispatchTable[HttpRequest, HttpResponse, M] =>
+  this: DispatchTable[HttpRequest, NettyHttpResponse, M] =>
 
   // TODO: fill in missing fields
   def toData(req: HttpRequest): ReqRespData = {
@@ -32,15 +40,23 @@ trait NettyWebmachine[M[_]] {
     )
   }
 
-  def fromData(data: ReqRespData): HttpResponse = {
+  def fromData(data: ReqRespData): NettyHttpResponse = {
     val response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.valueOf(data.statusCode))
     for {
       (h,v) <- data.responseHeaders
     } yield response.setHeader(h.wireName,v)
 
-    response.setContent(ChannelBuffers.copiedBuffer(data.responseBody.bytes)) // TODO: handle streaming body
-
-    response
+    data.responseBody match {
+      case FixedLengthBody(bytes) => {
+        response.setChunked(false)
+        response.setContent(ChannelBuffers.copiedBuffer(data.responseBody.bytes))
+        FixedLengthResponse(response)
+      }
+      case LazyStreamBody(streamer) => {
+        // TODO: actually prepare chunked response
+        ChunkedResponse(response, streamer)
+      }
+    }
   }
 
   private def reqBody(req: HttpRequest): HTTPBody = {
@@ -59,6 +75,6 @@ trait NettyWebmachine[M[_]] {
 
 }
 
-trait NettyWebmachineV3 extends V3DispatchTable[HttpRequest, HttpResponse, Id] with NettyWebmachine[Id] {
-  def wrap(res: => HttpResponse): Id[HttpResponse] = res
+trait NettyWebmachineV3 extends V3DispatchTable[HttpRequest, NettyHttpResponse, Id] with NettyWebmachine[Id] {
+  def wrap(res: => NettyHttpResponse): Id[NettyHttpResponse] = res
 }

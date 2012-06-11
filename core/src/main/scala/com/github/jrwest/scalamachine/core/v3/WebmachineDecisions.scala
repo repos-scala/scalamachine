@@ -802,7 +802,10 @@ trait WebmachineDecisions {
     encoder <- (((mbProvidedEnc |@| mbEncoding) {
       (p,e) => p.find(_._1 === e)
     }).join.fold(some = _._2, none = identity[Array[Byte]](_))).point[FlowState]
-  } yield encoder(charsetter(body.bytes)) // TODO: handle streamed bodies
+  } yield body match {
+      case FixedLengthBody(bytes) => encoder(charsetter(bytes))
+      case otherBody => otherBody // TODO: handle encoding and charsetting of stream
+    }
 
 
   private def encodeBodyIfSet(resource: Resource): FlowState[Unit] = for {

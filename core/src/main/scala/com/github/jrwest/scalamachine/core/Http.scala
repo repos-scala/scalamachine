@@ -1,5 +1,8 @@
 package com.github.jrwest.scalamachine.core
 
+import scalaz.iteratee.{IterateeT, Input, StepT, EnumeratorT}
+import scalaz.effect.IO
+
 case class MediaInfo(mediaRange: ContentType,
                      qVal: Double,
                      acceptParams: List[(String,String)])
@@ -70,9 +73,17 @@ object HTTPMethods {
 }
 
 sealed trait HTTPBody {
+  def bodyType: HTTPBody.Type
   def bytes: Array[Byte]
-  val stringValue = new String(bytes, java.nio.charset.Charset.forName("UTF-8"))
-  val isEmpty = bytes.isEmpty
+  def lazyStream: IO[EnumeratorT[HTTPBody.Chunk,IO]]
+  lazy val stringValue = this match {
+    case FixedLengthBody(bytes) => new String(bytes, java.nio.charset.Charset.forName("UTF-8"))
+    case _ => throw new Exception("string value not yet support on streaming bodies")
+  }
+  lazy val isEmpty = this match {
+    case FixedLengthBody(bytes) => bytes.isEmpty
+    case _ => false
+  }
 }
 
 object HTTPBody {
@@ -80,11 +91,84 @@ object HTTPBody {
   implicit def stringToHTTPBody(str: String): HTTPBody = FixedLengthBody(str.getBytes(java.nio.charset.Charset.forName("UTF-8")))
 
   val Empty: HTTPBody = FixedLengthBody(Array[Byte]())
+
+  sealed trait Chunk
+  case class ByteChunk(bytes: Array[Byte]) extends Chunk
+  case class ErrorChunk(e: Throwable) extends Chunk
+  case object EOFChunk extends Chunk
+
+  sealed trait Type
+  case object FixedLength extends Type
+  case object LazyStream extends Type
 }
 
-case class FixedLengthBody(bytes: Array[Byte]) extends HTTPBody
+case class FixedLengthBody(bytes: Array[Byte]) extends HTTPBody {
+  val bodyType = HTTPBody.FixedLength
+  def lazyStream: IO[EnumeratorT[HTTPBody.Chunk,IO]] = throw new Exception("returning lazy stream from fixed length body not yet supported")
+}
 object FixedLengthBody {
   def apply(s: String): HTTPBody = FixedLengthBody(s.getBytes(java.nio.charset.Charset.forName("UTF-8")))
+}
+
+object LazyStreamBody {
+  private def apply(stream: IO[EnumeratorT[HTTPBody.Chunk, IO]]): HTTPBody = new HTTPBody {
+    def bytes: Array[Byte] = {
+      throw new Exception("returning all bytes from lazy stream not yet supported")
+    }
+    val lazyStream = stream
+    val bodyType = HTTPBody.LazyStream
+  }
+
+  def apply(produce: () => HTTPBody.Chunk): HTTPBody = {
+    val enumerator: EnumeratorT[HTTPBody.Chunk,IO] = new EnumeratorT[HTTPBody.Chunk,IO] {
+      lazy val producer: () => HTTPBody.Chunk = produce
+      def apply[A] = (s: StepT[HTTPBody.Chunk,IO,A]) =>
+        s.mapCont(
+         k => {
+           IterateeT.iterateeT {
+             IO { producer() } flatMap {
+               _ match {
+                 case HTTPBody.EOFChunk => k(Input.elInput(HTTPBody.EOFChunk)).value
+                 case e@HTTPBody.ErrorChunk(_) => k(Input.elInput(e)).value
+                 case input => (k(Input.elInput(input)) >>== apply[A]).value // Is non-tail recursion an issue here?
+               }
+             }
+           }
+         }
+        )
+    }
+
+    apply(IO(enumerator))
+  }
+
+  def apply[I](initialize: => I, produce: I => HTTPBody.Chunk): HTTPBody = {
+    def enumerator(value: I): EnumeratorT[HTTPBody.Chunk, IO] = new EnumeratorT[HTTPBody.Chunk,IO] {
+      lazy val producer: I => HTTPBody.Chunk = produce
+      def apply[A] = (s: StepT[HTTPBody.Chunk,IO,A]) =>
+        s.mapCont(
+          k => {
+            IterateeT.iterateeT {
+              IO { producer(value) } flatMap {
+                _ match {
+                  case HTTPBody.EOFChunk => k(Input.elInput(HTTPBody.EOFChunk)).value
+                  case e@HTTPBody.ErrorChunk(_) => k(Input.elInput(e)).value
+                  case input => (k(Input.elInput(input)) >>== apply[A]).value // Is non-tail recursion an issue here?
+                }
+              }
+            }
+          }
+        )
+    }
+
+    apply(IO(initialize) map (enumerator(_)))
+  }
+
+  def forEachChunk(f: HTTPBody.Chunk => Unit): IterateeT[HTTPBody.Chunk, IO, Unit] = IterateeT.fold(())((_, chunk) => f(chunk))
+
+  def unapply(body: HTTPBody): Option[IO[EnumeratorT[HTTPBody.Chunk, IO]]] = body.bodyType match {
+    case HTTPBody.LazyStream => Some(body.lazyStream)
+    case _ => None
+  }
 }
 
 sealed trait HTTPHeader {
@@ -97,6 +181,8 @@ sealed trait HTTPHeader {
   }
 
   override def hashCode = lowercaseName.hashCode
+
+  override def toString = wireName
 }
 
 object HTTPHeader {
