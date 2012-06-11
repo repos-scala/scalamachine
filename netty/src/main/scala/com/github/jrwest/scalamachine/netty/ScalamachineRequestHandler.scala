@@ -27,6 +27,11 @@ class ScalamachineRequestHandler(dispatchTable: DispatchTable[HttpRequest, Netty
     }
   }
 
+  // TODO: real exception handling
+  override def exceptionCaught(ctx: ChannelHandlerContext, evt: ExceptionEvent) {
+    logger.error("Exception in ScalamachineRequestHandler", evt.getCause)
+  }
+
   private def writeResponse(evt: MessageEvent, request: HttpRequest, response: NettyHttpResponse) {
     val keepAlive = HttpHeaders.isKeepAlive(request)
 
