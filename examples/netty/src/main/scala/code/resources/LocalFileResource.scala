@@ -14,7 +14,8 @@ class LocalFileResource extends Resource {
   }
 
   private def renderFile(data: ReqRespData): (ReqRespData, Res[HTTPBody]) = {
-    val file = new File("examples/netty/src/main/scala/code/resources/LocalFileResource.scala")
+    val path = data.query.get("path").flatMap(_.headOption).getOrElse("examples/netty/src/main/scala/code/resources/LocalFileResource.scala")
+    val file = new File(path)
     val body = LazyStreamBody(
       initialize = new FileReader(file),
       produce = (reader: FileReader) => {
@@ -28,7 +29,9 @@ class LocalFileResource extends Resource {
         } catch {
           case e => HTTPBody.ErrorChunk(e)
         }
-      })
+      },
+      ensuring = (r: FileReader) => { println("CLOSING FILE"); r.close() }
+    )
     (data, result(body))
   }
 

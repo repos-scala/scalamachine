@@ -126,7 +126,7 @@ object LazyStreamBody {
         s.mapCont(
          k => {
            IterateeT.iterateeT {
-             IO { producer() } flatMap {
+             IO { producer() } except { e => IO(HTTPBody.ErrorChunk(e)) } flatMap {
                _ match {
                  case HTTPBody.EOFChunk => k(Input.elInput(HTTPBody.EOFChunk)).value
                  case e@HTTPBody.ErrorChunk(_) => k(Input.elInput(e)).value
@@ -141,32 +141,45 @@ object LazyStreamBody {
     apply(IO(enumerator))
   }
 
-  def apply[I](initialize: => I, produce: I => HTTPBody.Chunk): HTTPBody = {
+  def apply[I](initialize: => I, produce: I => HTTPBody.Chunk, ensuring: I => Unit = (_: I) => {}): HTTPBody = {
     def enumerator(value: I): EnumeratorT[HTTPBody.Chunk, IO] = new EnumeratorT[HTTPBody.Chunk,IO] {
       lazy val producer: I => HTTPBody.Chunk = produce
       def apply[A] = (s: StepT[HTTPBody.Chunk,IO,A]) =>
-        s.mapCont(
+        s.mapContOr(
           k => {
             IterateeT.iterateeT {
-              IO { producer(value) } flatMap {
-                _ match {
-                  case HTTPBody.EOFChunk => k(Input.elInput(HTTPBody.EOFChunk)).value
-                  case e@HTTPBody.ErrorChunk(_) => k(Input.elInput(e)).value
-                  case input => (k(Input.elInput(input)) >>== apply[A]).value // Is non-tail recursion an issue here?
-                }
+              IO { producer(value) } except { e => IO(HTTPBody.ErrorChunk(e)) } flatMap { e =>
+                (k(Input.elInput(e)) >>== apply[A]).value
               }
             }
-          }
+          },
+          { ensuring(value); s.pointI }
         )
     }
 
-    apply(IO(initialize) map (enumerator(_)))
+    apply(IO(initialize) map (enumerator(_)) except { e =>
+      IO {
+        new EnumeratorT[HTTPBody.Chunk, IO] {
+          def apply[A] = (s: StepT[HTTPBody.Chunk,IO,A]) =>
+            s.mapCont(
+             k => k(Input.elInput(HTTPBody.ErrorChunk(e)))
+            )
+        }
+      }
+    })
   }
 
   def forEachChunk(f: HTTPBody.Chunk => Unit): IterateeT[HTTPBody.Chunk, IO, Unit] = IterateeT.fold(())((_, chunk) => f(chunk))
   def forEachChunkUntilFalse(f: HTTPBody.Chunk => Boolean): IterateeT[HTTPBody.Chunk, IO, Unit]  = {
     def step(continue: Boolean): Input[HTTPBody.Chunk] => IterateeT[HTTPBody.Chunk, IO, Unit] = input => input(
-      el = e => if (continue) IterateeT.cont[HTTPBody.Chunk,IO,Unit](step(f(e))) else IterateeT.done[HTTPBody.Chunk,IO, Unit]((), Input.elInput(e)),
+      el = e => e match {
+        case HTTPBody.EOFChunk =>
+          IterateeT.done[HTTPBody.Chunk,IO,Unit](f(e), Input.eofInput)
+        case HTTPBody.ErrorChunk(_) =>
+          IterateeT.done[HTTPBody.Chunk,IO,Unit](f(e), Input.eofInput)
+        case _ =>
+          if (continue) IterateeT.cont[HTTPBody.Chunk,IO,Unit](step(f(e))) else IterateeT.done[HTTPBody.Chunk,IO, Unit]((), Input.elInput(e))
+      },
       empty = IterateeT.cont[HTTPBody.Chunk,IO,Unit](step(continue)),
       eof = IterateeT.done[HTTPBody.Chunk,IO,Unit]((), Input.eofInput)
     )
