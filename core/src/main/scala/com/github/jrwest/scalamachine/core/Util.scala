@@ -117,6 +117,6 @@ trait AcceptHeaderParsers extends JavaTokenParsers {
 
   protected def subTypeAll = (desc ~ """/\*""".r) ^^ { case head~tail => head+tail }
 
-  protected def desc: Parser[String] = """[\w\.-]*""".r
+  protected def desc: Parser[String] = """[\w\.\+-]*""".r
 
 }
