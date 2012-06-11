@@ -38,7 +38,7 @@ class ScalamachineRequestHandler(dispatchTable: DispatchTable[HttpRequest, Netty
     val responseWriteFuture = evt.getChannel.write(finalResponse)
 
     // TODO: deal with closed channel
-    // TODO: do we need to call write only after the previous one completed?
+    // TODO: consider a write failure as a reason to stop writing
     lazy val writeChunks = LazyStreamBody.forEachChunk {
       case HTTPBody.ByteChunk(bytes) => {
         logger.debug("writing chunk: %d" format bytes.size)
