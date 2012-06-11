@@ -164,6 +164,14 @@ object LazyStreamBody {
   }
 
   def forEachChunk(f: HTTPBody.Chunk => Unit): IterateeT[HTTPBody.Chunk, IO, Unit] = IterateeT.fold(())((_, chunk) => f(chunk))
+  def forEachChunkUntilFalse(f: HTTPBody.Chunk => Boolean): IterateeT[HTTPBody.Chunk, IO, Unit]  = {
+    def step(continue: Boolean): Input[HTTPBody.Chunk] => IterateeT[HTTPBody.Chunk, IO, Unit] = input => input(
+      el = e => if (continue) IterateeT.cont[HTTPBody.Chunk,IO,Unit](step(f(e))) else IterateeT.done[HTTPBody.Chunk,IO, Unit]((), Input.elInput(e)),
+      empty = IterateeT.cont[HTTPBody.Chunk,IO,Unit](step(continue)),
+      eof = IterateeT.done[HTTPBody.Chunk,IO,Unit]((), Input.eofInput)
+    )
+    IterateeT.cont(step(true))
+  }
 
   def unapply(body: HTTPBody): Option[IO[EnumeratorT[HTTPBody.Chunk, IO]]] = body.bodyType match {
     case HTTPBody.LazyStream => Some(body.lazyStream)

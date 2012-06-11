@@ -37,24 +37,16 @@ class ScalamachineRequestHandler(dispatchTable: DispatchTable[HttpRequest, Netty
 
     val responseWriteFuture = evt.getChannel.write(finalResponse)
 
-    // TODO: deal with closed channel
-    // TODO: consider a write failure as a reason to stop writing
-    lazy val writeChunks = LazyStreamBody.forEachChunk {
+    lazy val writeChunks = LazyStreamBody.forEachChunkUntilFalse {
       case HTTPBody.ByteChunk(bytes) => {
-        logger.debug("writing chunk: %d" format bytes.size)
         val chunk = new DefaultHttpChunk(ChannelBuffers.wrappedBuffer(bytes))
-        evt.getChannel.write(chunk)
+        writeToChannel(evt, chunk).isDefined
       }
       case HTTPBody.ErrorChunk(e) => {
-        logger.error("Error Streaming Chunks", e)
-        val writeTrailerFuture = evt.getChannel.write(HttpChunk.LAST_CHUNK)
-        if (!keepAlive) writeTrailerFuture.addListener(ChannelFutureListener.CLOSE)
+        logger.error("Error Producing Chunk", e)
+        writeFinalChunk(evt, keepAlive)
       }
-      case HTTPBody.EOFChunk => {
-        logger.debug("writing trailing chunk")
-        val writeTrailerFuture = evt.getChannel.write(HttpChunk.LAST_CHUNK)
-        if (!keepAlive) writeTrailerFuture.addListener(ChannelFutureListener.CLOSE)
-      }
+      case HTTPBody.EOFChunk => writeFinalChunk(evt, keepAlive)
     }
 
     mbChunks map {
@@ -63,15 +55,27 @@ class ScalamachineRequestHandler(dispatchTable: DispatchTable[HttpRequest, Netty
           chunkEnumerator <- chunks
           _ <- (writeChunks &= chunkEnumerator).run
         } yield ()
-        responseWriteFuture.addListener(new ChannelFutureListener {
-          def operationComplete(future: ChannelFuture) {
-            doChunkWriting.unsafePerformIO()
-          }
-        })
+        doChunkWriting.unsafePerformIO()
       }
     } getOrElse {
-      responseWriteFuture.addListener(ChannelFutureListener.CLOSE)
+      if (!keepAlive) responseWriteFuture.addListener(ChannelFutureListener.CLOSE)
     }
+  }
+
+  private def writeToChannel(e: MessageEvent, chunk: HttpChunk): Option[ChannelFuture] = {
+    if (e.getChannel.isConnected) {
+      Some(e.getChannel.write(chunk))
+    } else None
+  }
+
+  private def writeFinalChunk(e: MessageEvent, keepAlive: Boolean): Boolean = {
+    writeToChannel(e, HttpChunk.LAST_CHUNK) map { future =>
+      if (!keepAlive) {
+        future.addListener(ChannelFutureListener.CLOSE)
+        true
+      }
+      else true
+    } getOrElse false
   }
 
   private def prepareResponse(response: HttpResponse, isKeepAlive: Boolean, isChunked: Boolean): HttpResponse = {
