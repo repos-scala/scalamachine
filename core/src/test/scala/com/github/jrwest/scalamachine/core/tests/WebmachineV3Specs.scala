@@ -12,6 +12,8 @@ import org.apache.commons.httpclient.util.DateUtil
 import java.util.Date
 import HTTPHeaders._
 import HTTPMethods._
+import scalaz.iteratee.{IterateeT, EnumeratorT}
+import scalaz.effect.IO
 
 class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with WebmachineDecisions { def is = ""            ^
   "WebMachine V3".title                                                             ^
@@ -160,7 +162,8 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
       "if Resource.expires returns a datae, string value set in Expires"            ! testO18ExpiresExists ^
       "otherwise Last-Modified, Expires & Etag not set"                             ! testO18NotGenerated  ^
       "chosen content type function is run"                                         ^
-        "result is set in body after being charsetted then encoded"                 ! testO18BodyProductionTest ^p^p^
+        "result is set in body after being charsetted then encoded"                 ! testO18BodyProductionTest ^
+        "lazy streamed bodies are also charset then encoded"                        ! testO18LazyStreamBodyProductionTest ^p^p^
     "If Resource.multipleChoices returns true, response with code 300 returned"     ! testMultipleChoicesTrue ^
     "otherwise response with code 200 returned"                                     ! testMultipleChoicesFalse ^
                                                                                     p^
@@ -250,6 +253,51 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
       )
     ) {
       _.responseBody.stringValue must beEqualTo(setBody + charsetBody + encBody)
+    }
+  }
+
+  def testO18LazyStreamBodyProductionTest = {
+    import scalaz.std.list._
+
+    val bodyParts = List("a".getBytes, "b".getBytes, "c".getBytes).map(b => HTTPBody.ByteChunk(b))
+    val body = LazyStreamBody(IO(EnumeratorT.enumList[HTTPBody.Chunk,IO](bodyParts)))
+    val charsetPrefix: String = "c"
+    val encPrefix: String = "e"
+    val ctypes: ContentTypesProvided = (ContentType("text/plain"), (d: ReqRespData) => (d,(result(body)))) :: Nil
+    val charsets: CharsetsProvided = Some(("ch1", (a: Array[Byte]) => charsetPrefix.getBytes ++ a) :: Nil)
+    val encodings: EncodingsProvided = Some(("enc1", (a: Array[Byte]) => encPrefix.getBytes ++ a) :: Nil)
+    testDecisionResultHasData(
+      o18,
+      r => {
+        r.generateEtag(any) answers mkAnswer(None)
+        r.lastModified(any) answers mkAnswer(None)
+        r.expires(any) answers mkAnswer(None)
+        r.contentTypesProvided(any) answers mkAnswer(ctypes)
+        r.charsetsProvided(any) answers mkAnswer(charsets)
+        r.encodingsProvided(any) answers mkAnswer(encodings)
+        r.multipleChoices(any) answers mkAnswer(false)
+      },
+      data = createData(
+        metadata = Metadata(
+          contentType = Some(ContentType("text/plain")),
+          chosenEncoding = Some("enc1"),
+          chosenCharset = Some("ch1")
+        )
+      )
+    ) {
+      data => {
+        val listIO = for {
+          e <- data.responseBody.lazyStream
+          list <- (IterateeT.consume[HTTPBody.Chunk,IO,List] &= e).run
+        } yield list
+
+        val chunks = listIO.unsafePerformIO map {
+          case HTTPBody.ByteChunk(bytes) => new String(bytes)
+          case _ => ""
+        }
+
+        forall(chunks)((s: String) => s must startWith(encPrefix + charsetPrefix))
+      }
     }
   }
 

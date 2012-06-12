@@ -804,7 +804,10 @@ trait WebmachineDecisions {
     }).join.fold(some = _._2, none = identity[Array[Byte]](_))).point[FlowState]
   } yield body match {
       case FixedLengthBody(bytes) => encoder(charsetter(bytes))
-      case otherBody => otherBody // TODO: handle encoding and charsetting of stream
+      case LazyStreamBody(streamer) => LazyStreamBody(streamer.map(_.map {
+        case HTTPBody.ByteChunk(bytes) => HTTPBody.ByteChunk(encoder(charsetter(bytes)))
+        case otherChunk => otherChunk
+      }))
     }
 
 

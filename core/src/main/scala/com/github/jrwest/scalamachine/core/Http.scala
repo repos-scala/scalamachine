@@ -111,7 +111,7 @@ object FixedLengthBody {
 }
 
 object LazyStreamBody {
-  private def apply(stream: IO[EnumeratorT[HTTPBody.Chunk, IO]]): HTTPBody = new HTTPBody {
+  def apply(stream: IO[EnumeratorT[HTTPBody.Chunk, IO]]): HTTPBody = new HTTPBody {
     def bytes: Array[Byte] = {
       throw new Exception("returning all bytes from lazy stream not yet supported")
     }
