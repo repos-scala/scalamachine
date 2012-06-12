@@ -78,11 +78,15 @@ sealed trait HTTPBody {
   def lazyStream: IO[EnumeratorT[HTTPBody.Chunk,IO]]
   lazy val stringValue = this match {
     case FixedLengthBody(bytes) => new String(bytes, java.nio.charset.Charset.forName("UTF-8"))
-    case _ => throw new Exception("string value not yet support on streaming bodies")
+    case _ => throw new Exception("body is lazy stream. unable to return string value")
   }
   lazy val isEmpty = this match {
     case FixedLengthBody(bytes) => bytes.isEmpty
     case _ => false
+  }
+  lazy val isStreaming = bodyType match {
+    case HTTPBody.FixedLength => false
+    case HTTPBody.LazyStream => true
   }
 }
 
@@ -104,7 +108,9 @@ object HTTPBody {
 
 case class FixedLengthBody(bytes: Array[Byte]) extends HTTPBody {
   val bodyType = HTTPBody.FixedLength
-  def lazyStream: IO[EnumeratorT[HTTPBody.Chunk,IO]] = throw new Exception("returning lazy stream from fixed length body not yet supported")
+  def lazyStream: IO[EnumeratorT[HTTPBody.Chunk,IO]] = IO {
+    EnumeratorT.enumList[HTTPBody.Chunk,IO](HTTPBody.ByteChunk(bytes) :: HTTPBody.EOFChunk :: Nil)
+  }
 }
 object FixedLengthBody {
   def apply(s: String): HTTPBody = FixedLengthBody(s.getBytes(java.nio.charset.Charset.forName("UTF-8")))
@@ -112,9 +118,7 @@ object FixedLengthBody {
 
 object LazyStreamBody {
   def apply(stream: IO[EnumeratorT[HTTPBody.Chunk, IO]]): HTTPBody = new HTTPBody {
-    def bytes: Array[Byte] = {
-      throw new Exception("returning all bytes from lazy stream not yet supported")
-    }
+    def bytes: Array[Byte] = throw new Exception("body is lazy stream, unable to return all bytes")
     val lazyStream = stream
     val bodyType = HTTPBody.LazyStream
   }
@@ -130,7 +134,7 @@ object LazyStreamBody {
                _ match {
                  case HTTPBody.EOFChunk => k(Input.elInput(HTTPBody.EOFChunk)).value
                  case e@HTTPBody.ErrorChunk(_) => k(Input.elInput(e)).value
-                 case input => (k(Input.elInput(input)) >>== apply[A]).value // Is non-tail recursion an issue here?
+                 case input => (k(Input.elInput(input)) >>== apply[A]).value
                }
              }
            }
