@@ -9,4 +9,4 @@ REST APIs revolve around the idea of resources. So do APIs built with Scalamachi
 
 For each request Scalamachine must decide which resource it will run through the [flowchart](http://wiki.basho.com/images/http-headers-status-v3.png) to determine the result of the request. A `DispatchTable` defines routes, or url path patterns, and which resources are bound to requests matching those routes.
 
-The project was just released open-sourced and published, more documentation will be added shortly. 
+The project was just released open-sourced and published, more documentation will be added shortly.

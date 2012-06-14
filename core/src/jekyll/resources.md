@@ -5,7 +5,7 @@ title: Resources
 
 # Resources
 
-Resources are implementations of the `Resource` trait, overriding default definitions for a variety of functions, each having the signature `[A]ReqRespData => (Res[A],ReqRespData)`. 
+Resources are implementations of the `Resource` trait, overriding default definitions for a variety of functions, each having the signature `[A]ReqRespData => (ReqRespData,Res[A])`. 
 
 #### `ReqRespData`
 
@@ -13,7 +13,7 @@ Resources are implementations of the `Resource` trait, overriding default defini
 
 #### Return Value
 
-Each function returns a 2-tuple of a result, a `Res`, and a possibly new `ReqRespData`. The `ReqRespData` will be used as the processing continues -- until, it is yet again modified internally by Scalamachine or by another `Resource` function.
+Each function returns a 2-tuple of a possibly new `ReqRespData` and a result, a `Res`. The `ReqRespData` will be used as the processing continues -- until, it is yet again modified internally by Scalamachine or by another `Resource` function.
 
 ##### `Res[A]`
 

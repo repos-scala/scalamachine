@@ -9,9 +9,9 @@ Select the package for your host framework and add it to your project's build de
 
 {% highlight scala %}
 // Netty/Finagle
-"com.github.jrwest" %% "scalamachine-netty" % "0.0.0-SNAPSHOT" 
+"com.stackmob" %% "scalamachine-netty" % "0.1.0-SNAPSHOT" 
 // Lift
-"com.github.jrwest" %% "scalamachine-lift" % "0.0.0-SNAPSHOT" 
+"com.stackmob" %% "scalamachine-lift" % "0.1.0-SNAPSHOT" 
 {% endhighlight %}
 
 *Note: The rest of this guide will use finagle as an example. You can find specific information about your framework on this page (page doesn't yet exist).*
@@ -86,23 +86,23 @@ class MyResource extends Resource {
   import Res._
   import HTTPMethods._
 
-  override def allowedMethods(data: ReqRespData): (Res[List[HTTPMethod]],ReqRespData) = {
+  override def allowedMethods(data: ReqRespData): (ReqRespData,Res[List[HTTPMethod]]) = {
    (GET :: Nil, data)
   }
 
-  override def contentTypesProvided(data: ReqRespData): (Res[ContentTypesProvided],ReqRespData) = {
+  override def contentTypesProvided(data: ReqRespData): (ReqRespData,Res[ContentTypesProvided]) = {
     val provided = ((ContentType("text/html") -> createHtml(_: ReqRespData)) :: Nil
     (provided, data)
   }
 
-  def createHtml(data: ReqRespData): (Res[Array[Byte]], ReqRespData) = {
-    (result("<html><body>Hello, World!</body></html>".getBytes), data)
+  def createHtml(data: ReqRespData): (ReqRespData,Res[HTTPBody]) = {
+    (result("<html><body>Hello, World!</body></html>"), data)
   }
 }
 {% endhighlight %}
 
 We are still leveraging a lot of other default values as well but this resource will work just like the other's except for the HTML returned. `allowedMethods` specifies which HTTP methods this resource supports. The `contentTypeProvided` function is used in content negatiation. The returned list contains a list of content-type and body-rendering function pairs. 
 
-Check out the [Resources Page](https://github.com/jrwest/scalamachine/wiki/resources) for more on what functions can be implemented. 
+Check out the [Resources Page](https://docs.scalamachine.jordanwest.me) for more on what functions can be implemented. 
 
 
