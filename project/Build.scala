@@ -13,7 +13,7 @@ import Keys._
 object BuildSettings {
 
   val org = "com.github.jrwest"
-  val vsn = "0.0.0-SNAPSHOT"
+  val vsn = "0.1.0-SNAPSHOT"
   val scalaVsn = "2.9.1"
 
   lazy val publishSetting = publishTo <<= version { v: String =>
