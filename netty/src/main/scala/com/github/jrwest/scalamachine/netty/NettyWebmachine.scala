@@ -6,10 +6,10 @@ import com.github.jrwest.scalamachine.core._
 import org.jboss.netty.buffer.ChannelBuffers
 import java.net.URI
 import scala.collection.JavaConverters._
-import scalaz.Id._
+import scalamachine.internal.scalaz.Id._
+import scalamachine.internal.scalaz.effect.IO
+import scalamachine.internal.scalaz.iteratee.EnumeratorT
 import com.github.jrwest.scalamachine.core.v3.V3DispatchTable
-import scalaz.iteratee.EnumeratorT
-import scalaz.effect.IO
 
 sealed trait NettyHttpResponse {
   def response: HttpResponse

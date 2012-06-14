@@ -1,7 +1,7 @@
 package com.github.jrwest.scalamachine.core
 
-import scalaz.LensT._
-import scalaz.@>
+import scalamachine.internal.scalaz.LensT._
+import scalamachine.internal.scalaz.@>
 import HTTPMethods._
 
 /**

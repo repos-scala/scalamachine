@@ -1,7 +1,7 @@
 package com.github.jrwest.scalamachine.core
 
-import scalaz.iteratee.{IterateeT, Input, StepT, EnumeratorT}
-import scalaz.effect.IO
+import scalamachine.internal.scalaz.effect.IO
+import scalamachine.internal.scalaz.iteratee.{IterateeT, Input, StepT, EnumeratorT}
 
 case class MediaInfo(mediaRange: ContentType,
                      qVal: Double,
@@ -15,7 +15,7 @@ case class ContentType(mediaType: String, params: Map[String, String] = Map()) {
 }
 
 object ContentType {
-  import scalaz.Equal
+  import scalamachine.internal.scalaz.Equal
   import Equal._
   implicit def contentTypeEql: Equal[ContentType] = equalA
 }
@@ -39,8 +39,8 @@ object HTTPMethod {
     case _ => GET
   }
 
-  import scalaz.Equal
-  import scalaz.Equal._
+  import scalamachine.internal.scalaz.Equal
+  import scalamachine.internal.scalaz.Equal._
 
   implicit val httpMethodEqual: Equal[HTTPMethod] = equalA
 }

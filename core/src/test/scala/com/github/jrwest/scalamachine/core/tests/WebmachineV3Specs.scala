@@ -12,8 +12,8 @@ import org.apache.commons.httpclient.util.DateUtil
 import java.util.Date
 import HTTPHeaders._
 import HTTPMethods._
-import scalaz.iteratee.{IterateeT, EnumeratorT}
-import scalaz.effect.IO
+import scalamachine.internal.scalaz.iteratee.{IterateeT, EnumeratorT}
+import scalamachine.internal.scalaz.effect.IO
 
 class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with WebmachineDecisions { def is = ""            ^
   "WebMachine V3".title                                                             ^
@@ -257,7 +257,7 @@ class WebmachineV3Specs extends Specification with Mockito with SpecsHelper with
   }
 
   def testO18LazyStreamBodyProductionTest = {
-    import scalaz.std.list._
+    import scalamachine.internal.scalaz.std.list._
 
     val bodyParts = List("a".getBytes, "b".getBytes, "c".getBytes).map(b => HTTPBody.ByteChunk(b))
     val body = LazyStreamBody(IO(EnumeratorT.enumList[HTTPBody.Chunk,IO](bodyParts)))

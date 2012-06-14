@@ -1,6 +1,6 @@
 package com.github.jrwest.scalamachine.core
 
-import scalaz.{Functor, Monad}
+import scalamachine.internal.scalaz.{Functor, Monad}
 
 sealed trait Res[+A]
 // change to traits with apply, and equal/show instances?
@@ -73,7 +73,7 @@ trait ResFunctions {
 }
 
 trait ResInternalInstances {
-  import scalaz.{Monad, Traverse, Applicative}
+  import scalamachine.internal.scalaz.{Monad, Traverse, Applicative}
   implicit val resScalazInstances = new Traverse[Res] with Monad[Res] {
     def point[A](a: => A): Res[A] = ValueRes(a)
     def traverseImpl[G[_],A,B](fa: Res[A])(f: A => G[B])(implicit G: Applicative[G]): G[Res[B]] =
@@ -112,15 +112,15 @@ case class ResTransformer[M[_],A](run: M[Res[A]]) {
 object ResTransformer extends ResTransformerFunctions with ResTransformerInstances
 
 trait ResTransformerFunctions {
-  import scalaz.~>
+  import scalamachine.internal.scalaz.~>
   def resT[M[_]] = new (({type λ[α] = M[Res[α]]})#λ ~> ({type λ[α] = ResTransformer[M, α]})#λ) {
     def apply[A](a: M[Res[A]]) = ResTransformer[M, A](a)
   }
 }
 
 trait ResTransformerInstances {
-  import scalaz.{MonadTrans, Pointed}
-  import scalaz.syntax.pointed._
+  import scalamachine.internal.scalaz.{MonadTrans, Pointed}
+  import scalamachine.internal.scalaz.syntax.pointed._
 
   implicit def RTInstances[M[_] : Monad] = new Monad[({type R[X]=ResTransformer[M,X]})#R] {
     def point[A](a: => A): ResTransformer[M,A] = ResTransformer[M,A](Pointed[M].point(Pointed[Res].point(a)))

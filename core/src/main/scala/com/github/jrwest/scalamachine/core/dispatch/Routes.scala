@@ -251,7 +251,7 @@ object Route {
     def name: Symbol = n
   }
 
-  import scalaz.syntax.Ops
+  import scalamachine.internal.scalaz.syntax.Ops
 
   trait RouteVectorOps extends Ops[Vector[RoutePart]] {
     def /(s: String): Vector[RoutePart] = dot(s)
