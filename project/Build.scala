@@ -106,8 +106,8 @@ object ScalamachineBuild extends Build {
       Seq(
         name := "scalamachine-core",
         libraryDependencies ++= Seq(iScalaz,slf4j,commonsHttp,specs2,scalacheck,mockito,hamcrest,pegdown),
-	git.remoteRepo := "git@github.com:jrwest/scalamachine",
-        docsRepo := "git@github.com:jrwest/scalamachine.site",
+	git.remoteRepo := "git@github.com:stackmob/scalamachine",
+        docsRepo := "git@github.com:stackmob/scalamachine.site",
         git.branch in ghpages.updatedRepository := Some("master"),
         ghpages.updatedRepository <<= updatedRepo(ghpages.repository, docsRepo, git.branch in ghpages.updatedRepository)  
       )
