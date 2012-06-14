@@ -4,7 +4,7 @@ Scalamachine is a port of [Basho's Webmachine](http://github.com/basho/webmachin
 
 "You can call Webmachine a REST toolkit if you like, and we won't argue with you." - [Webmachine Wiki](http://wiki.basho.com/Webmachine.html)
 
-For more info check out the [website](http://docs.scalamachine.jordanwest.me)
+For more info check out the [website](http://scalamachine.com)
 
 # License
 Copyright © 2012 Jordan West
