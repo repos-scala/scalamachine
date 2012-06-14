@@ -68,8 +68,8 @@ object BuildSettings {
 
 object Dependencies {
   lazy val iScalaz        = "com.stackmob"            %% "scalamachine-scalaz-iteratee" % "7.0-SNAPSHOT"    % "compile" withSources()
-  lazy val scalaz7        = "org.scalaz"              %% "scalaz-iteratee"              % "7.0-SNAPSHOT"    % "compile" withSources()
-  lazy val scalaz6        = "org.scalaz"              %% "scalaz-core"              % "6.0.3"           % "compile" withSources()
+  lazy val scalaz7        = "org.scalaz"              %% "scalaz-core"                  % "7.0-SNAPSHOT"    % "compile" withSources()
+  lazy val scalaz6        = "org.scalaz"              %% "scalaz-core"                  % "6.0.3"           % "compile" withSources()
   lazy val slf4j          = "org.slf4j"               % "slf4j-api"                     % "1.6.4"           % "compile"
   // Don't want to keep this dependency long term but for now its fastest way to get date parsing for http
   lazy val commonsHttp    = "commons-httpclient"      % "commons-httpclient"            % "3.1"             % "compile" withSources()
@@ -98,7 +98,7 @@ object ScalamachineBuild extends Build {
 
   lazy val scalamachine = Project("scalamachine", file("."),
     settings = standardSettings ++ publishSettings ++ Seq(publishArtifact in Compile := false),
-    aggregate = Seq(core,lift,netty) // Seq(core,scalaz6utils,scalaz7utils,lift,netty)
+    aggregate = Seq(core,scalaz6utils,scalaz7utils,lift,netty)
   )
 
   lazy val core = Project("scalamachine-core", file("core"),
@@ -113,7 +113,7 @@ object ScalamachineBuild extends Build {
       )
   )
 
-/*
+
   lazy val scalaz6utils = Project("scalamachine-scalaz6", file("scalaz6"),
     dependencies = Seq(core),
     settings = standardSettings ++ publishSettings ++
@@ -130,7 +130,7 @@ object ScalamachineBuild extends Build {
         name := "scalamachine-scalaz7",
         libraryDependencies ++= Seq(scalaz7)
       )
-  )*/
+  )
   
   lazy val lift = Project("scalamachine-lift", file("lift"),
     dependencies = Seq(core), 

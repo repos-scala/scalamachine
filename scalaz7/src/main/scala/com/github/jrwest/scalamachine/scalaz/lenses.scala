@@ -1,71 +1,72 @@
 package com.github.jrwest.scalamachine.scalaz
 
-import scalaz.Lens._
+import scalaz.LensT._
+import scalaz.@>
 import com.github.jrwest.scalamachine.core._
 
 object lenses {
 
-  val baseUriL: ReqRespData @-@ String =
-    lensG(_.baseUri, d => u => d copy (baseUri = u))
+  val baseUriL: ReqRespData @> String =
+    lensg(d => u => d copy (baseUri = u), _.baseUri)
 
-  val statusCodeL: ReqRespData @-@ Int =
-    lensG(_.statusCode, d => c => d copy (statusCode = c))
+  val statusCodeL: ReqRespData @> Int =
+    lensg(d => c => d copy (statusCode = c), _.statusCode)
 
-  val responseHeadersL: ReqRespData @-@ Map[HTTPHeader, String] =
-    lensG(_.responseHeaders, d => hdrs => d copy (responseHeaders = hdrs))
+  val responseHeadersL: ReqRespData @> Map[HTTPHeader, String] =
+    lensg(d => hdrs => d copy (responseHeaders = hdrs), _.responseHeaders)
 
-  val requestHeadersL: ReqRespData @-@ Map[HTTPHeader, String] =
-    lensG(_.requestHeaders, d => hdrs => d copy (requestHeaders = hdrs))
+  val requestHeadersL: ReqRespData @> Map[HTTPHeader, String] =
+    lensg(d => hdrs => d copy (requestHeaders = hdrs), _.requestHeaders)
 
-  val methodL: ReqRespData @-@ HTTPMethod =
-    lensG(_.method, d => m => d copy (method = m))
+  val methodL: ReqRespData @> HTTPMethod =
+    lensg(d => m => d copy (method = m), _.method)
 
-  val queryL: ReqRespData @-@ Map[String,List[String]] =
-    lensG(_.query, d => q => d copy (query = q))
+  val queryL: ReqRespData @> Map[String,List[String]] =
+    lensg(d => q => d copy (query = q), _.query)
 
-  val reqBody: ReqRespData @-@ HTTPBody =
-    lensG(_.requestBody, d => b => d copy (requestBody = b))
+  val reqBody: ReqRespData @> HTTPBody =
+    lensg(d => b => d copy (requestBody = b), _.requestBody)
 
-  val respBodyL: ReqRespData @-@ HTTPBody =
-    lensG(_.responseBody, d => b => d copy (responseBody = b))
+  val respBodyL: ReqRespData @> HTTPBody =
+    lensg(d => b => d copy (responseBody = b), _.responseBody)
 
-  private val pathDataL: ReqRespData @-@ PathData =
-    lensG(_.pathData, d => pd => d copy (pathData = pd))
+  private val pathDataL: ReqRespData @> PathData =
+    lensg(d => pd => d copy (pathData = pd), _.pathData)
 
-  val pathInfoL: ReqRespData @-@ Map[Symbol,String] =
-    pathDataL <=< lensG(_.info, d => i => d copy (info = i))
+  val pathInfoL: ReqRespData @> Map[Symbol,String] =
+    pathDataL >=> lensg(d => i => d copy (info = i), _.info)
 
-  val pathTokensL: ReqRespData @-@ Seq[String] =
-    pathDataL <=< lensG(_.tokens, d => ts => d copy (tokens = ts))
+  val pathTokensL: ReqRespData @> Seq[String] =
+    pathDataL >=> lensg(d => ts => d copy (tokens = ts), _.tokens)
 
-  val pathPartsL: ReqRespData @-@ List[String] =
-    lensG(_.pathParts, d => p => d copy (pathParts = p))
+  val pathPartsL: ReqRespData @> List[String] =
+    lensg(d => p => d copy (pathParts = p), _.pathParts)
 
-  val pathL: ReqRespData @-@ String =
-    lensG(_.path, d => p => d copy (pathParts = p.split("/").toList))
+  val pathL: ReqRespData @> String =
+    lensg(d => p => d copy (pathParts = p.split("/").toList), _.path)
 
-  val dispPathL: ReqRespData @-@ String =
-    lensG(_.dispPath, d => dp => d copy (pathData = d.pathData.copy(tokens = dp.split("/").toList)))
+  val dispPathL: ReqRespData @> String =
+    lensg(d => dp => d copy (pathData = d.pathData.copy(tokens = dp.split("/").toList)), _.dispPath)
 
-  private val hostDataL: ReqRespData @-@ HostData =
-    lensG(_.hostData, d => hd => d copy (hostData = hd))
+  private val hostDataL: ReqRespData @> HostData =
+    lensg(d => hd => d copy (hostData = hd), _.hostData)
 
-  val hostInfoL: ReqRespData @-@ Map[Symbol,String] =
-    hostDataL <=< lensG(_.info, d => i => d copy (info = i))
+  val hostInfoL: ReqRespData @> Map[Symbol,String] =
+    hostDataL >=> lensg(d => i => d copy (info = i), _.info)
 
-  val hostTokensL: ReqRespData @-@ Seq[String] =
-    hostDataL <=< lensG(_.tokens, d => ts => d copy (tokens = ts))
+  val hostTokensL: ReqRespData @> Seq[String] =
+    hostDataL >=> lensg(d => ts => d copy (tokens = ts), _.tokens)
 
-  val hostPartsL: ReqRespData @-@ List[String] =
-    lensG(_.hostParts, d => ps => d copy (hostParts = ps))
+  val hostPartsL: ReqRespData @> List[String] =
+    lensg(d => ps => d copy (hostParts = ps), _.hostParts)
 
-  val hostL: ReqRespData @-@ String =
-    lensG(_.host, d => ps => d copy (hostParts = ps.split(".").toList))
+  val hostL: ReqRespData @> String =
+    lensg(d => ps => d copy (hostParts = ps.split(".").toList), _.host)
 
-  val dispSubdomainL: ReqRespData @-@ String =
-    lensG(_.dispSubdomain, d => ds => d copy (hostData = d.hostData.copy(tokens = ds.split(".").toList)))
+  val dispSubdomainL: ReqRespData @> String =
+    lensg(d => ds => d copy (hostData = d.hostData.copy(tokens = ds.split(".").toList)), _.dispSubdomain)
 
-  val doRedirectL: ReqRespData @-@ Boolean =
-    lensG(_.doRedirect, d => b => d copy (doRedirect = b))
+  val doRedirectL: ReqRespData @> Boolean =
+    lensg(d => b => d copy (doRedirect = b), _.doRedirect)
 
 }
