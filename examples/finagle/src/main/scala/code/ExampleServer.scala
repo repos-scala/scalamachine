@@ -3,10 +3,10 @@ package code
 import com.twitter.finagle.builder.ServerBuilder
 import com.twitter.finagle.http.Http
 import java.net.InetSocketAddress
-import com.github.jrwest.scalamachine.core.dispatch.Route._
-import com.github.jrwest.scalamachine.core.dispatch.StringPart
-import com.github.jrwest.scalamachine.finagle.{FinagleWebmachineV3, FinagleWebmachineService}
-import com.github.jrwest.scalamachine.core.flow.{FlowLogging, FlowRunner}
+import scalamachine.core.dispatch.Route._
+import scalamachine.core.dispatch.StringPart
+import scalamachine.finagle.{FinagleWebmachineV3, FinagleWebmachineService}
+import scalamachine.core.flow.{FlowLogging, FlowRunner}
 import resources.{EchoPostBodyResource, EmptyResource, UnavailableResource}
 
 object ScalamachineExample extends FinagleWebmachineV3 {

@@ -1,6 +1,6 @@
 package code.resources
 
-import com.github.jrwest.scalamachine.core._
+import scalamachine.core._
 
 class EchoPostBodyResource extends Resource {
   import Res._

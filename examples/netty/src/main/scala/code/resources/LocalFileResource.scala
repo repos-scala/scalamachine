@@ -1,6 +1,6 @@
 package code.resources
 
-import com.github.jrwest.scalamachine.core._
+import scalamachine.core._
 import java.io.{FileReader, File}
 
 class LocalFileResource extends Resource {

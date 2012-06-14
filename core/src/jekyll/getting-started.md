@@ -21,15 +21,15 @@ Select the package for your host framework and add it to your project's build de
 Using Scalamachine in your application requires two things: Resources, implementations of the `Resource` trait and a `DispatchTable`. The simplest resource your application can implement is:
 
 {% highlight scala %}
-import com.github.jrwest.scalamachine.core.Resource
+import scalamachine.core.Resource
 class MyResource extends Resource
 {% endhighlight %}
 
 A request handled by Scalamachine is run through a [decision flow](http://wiki.basho.com/images/http-headers-status-v3.png). Each decision queries either one or both of the request/response data and the resource to determine whether to continue or return a response. The simple resource above uses Scalamachine's default values. An application has many resources, so in order to detmermine which resource a request is for an application provides one or more `DispatchTable`s, which bind route's to resources. Add the following dispatch table to your application to serve the resource above at `/example`.
 
 {% highlight scala %}
-import com.github.jrwest.scalamachine.finagle.FinagleWebmachineV3
-import com.github.jrwest.scalamachine.core._
+import scalamachine.finagle.FinagleWebmachineV3
+import scalamachine.core._
 import dispatch._
 import Route._
 

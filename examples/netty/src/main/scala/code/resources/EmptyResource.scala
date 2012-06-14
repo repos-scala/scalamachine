@@ -1,5 +1,5 @@
 package code.resources
 
-import com.github.jrwest.scalamachine.core.Resource
+import scalamachine.core._
 
 class EmptyResource extends Resource

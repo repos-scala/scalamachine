@@ -3,12 +3,12 @@ package code
 import org.jboss.netty.bootstrap.ServerBootstrap
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory
 import java.util.concurrent.Executors
-import com.github.jrwest.scalamachine.netty.{NettyWebmachineV3, ScalamachineChannelPipelineFactory}
+import scalamachine.netty.{NettyWebmachineV3, ScalamachineChannelPipelineFactory}
 import org.jboss.netty.handler.execution.{OrderedMemoryAwareThreadPoolExecutor, ExecutionHandler}
 import java.net.InetSocketAddress
-import com.github.jrwest.scalamachine.core.dispatch.Route._
+import scalamachine.core.dispatch.Route._
 import resources.{LocalFileResource, EmptyResource, UnavailableResource}
-import com.github.jrwest.scalamachine.core.flow.{FlowLogging, FlowRunner}
+import scalamachine.core.flow.{FlowLogging, FlowRunner}
 
 object ScalamachineExample extends NettyWebmachineV3 {
 
