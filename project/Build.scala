@@ -12,7 +12,7 @@ import Keys._
 
 object BuildSettings {
 
-  val org = "com.github.jrwest"
+  val org = "com.stackmob"
   val vsn = "0.1.0-SNAPSHOT"
   val scalaVsn = "2.9.1"
 
