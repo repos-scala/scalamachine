@@ -20,11 +20,11 @@ case class ChunkedResponse(response: HttpResponse, chunks: IO[EnumeratorT[HTTPBo
 trait NettyWebmachine[M[_]] {
   this: DispatchTable[HttpRequest, NettyHttpResponse, M] =>
 
-  // TODO: fill in missing fields
   def toData(req: HttpRequest): ReqRespData = {
     ReqRespData(
       method = HTTPMethod.fromString(req.getMethod.getName),
       pathParts = path(req),
+      rawPath = req.getUri,
       hostParts = host(
         Option(HttpHeaders.getHost(req))
           .filterNot(_ == "")

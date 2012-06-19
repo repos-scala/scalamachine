@@ -18,12 +18,12 @@ import HTTPMethods._
  *
  *  - HTTP Version
  *  - Peer (Client) IP
- *  - Raw Path (URI Path including Query String)
  *  - Cookies
  *  - "App Root" - see webmachine documentation (http://wiki.basho.com/Webmachine-Request.html)
  *
  * @param baseUri The base of the requested URI. Includes the scheme and host without the trailing slash (e.g. http://example.com)
  * @param pathParts List of string tokens, the request URI path split by "/"
+ * @param rawPath The entire path part of the URI, including any query string present.
  * @param method The request's [[scalamachine.core.HTTPMethod]]
  * @param statusCode integer response status code
  * @param query parsed query string. duplicate keys will have multiple elements in the values list
@@ -39,6 +39,7 @@ import HTTPMethods._
  */
 case class ReqRespData(baseUri: String = "",
                        pathParts: List[String] = Nil,
+                       rawPath: String = "",
                        query: Map[String,List[String]] = Map(),
                        hostParts: List[String] = Nil,
                        method: HTTPMethod = GET,
