@@ -1,6 +1,6 @@
 # Scalamachine
 
-Scalamachine is a port of [Basho's Webmachine](http://github.com/basho/webmachine) to Scala. It is pluggable into different server frameworks (support for [Finagle](http://github/twitter/finagle) and [Lift](http://liftweb.net) are in progress). 
+Scalamachine is a port of [Basho's Webmachine](http://github.com/basho/webmachine) to Scala. It is pluggable into different server frameworks (support for [Finagle](https://github.com/twitter/finagle) and [Lift](http://liftweb.net) are in progress). 
 
 "You can call Webmachine a REST toolkit if you like, and we won't argue with you." - [Webmachine Wiki](http://wiki.basho.com/Webmachine.html)
 
