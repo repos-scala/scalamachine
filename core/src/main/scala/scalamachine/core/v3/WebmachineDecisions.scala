@@ -115,24 +115,20 @@ trait WebmachineDecisions {
 
     val name: String = "v3c3"
 
-    protected def decide(resource: Resource): FlowState[Res[Decision]] = {
-      performDecision(resource).map(_.point[Res])
-    }
-
-    private def performDecision(resource: Resource): State[ReqRespData,Decision] = for {
-        mbAcceptHeader <- requestHeadersL member Accept
-        decision <- if (mbAcceptHeader.isDefined) c4.point[FlowState] else resolveContentType(resource)
-      } yield decision
+    protected def decide(resource: Resource): FlowState[Res[Decision]] = for {
+      mbAcceptHeader <- requestHeadersL member Accept
+      decision <- mbAcceptHeader >| result(c4).point[FlowState] | resolveContentType(resource)
+    } yield decision
 
 
-    private def resolveContentType(r: Resource): State[ReqRespData,Decision] = for {
-        res <- (r.contentTypesProvided(_: ReqRespData)).st
-        cType <- firstOrDefault(res).point[FlowState]
-        _ <- (metadataL >=> contentTypeL) := Option(cType)
-      } yield d4 
+    private def resolveContentType(r: Resource): FlowState[Res[Decision]] = (for {
+        res <- resT[FlowState]((r.contentTypesProvided(_: ReqRespData)).st)
+        cType <- firstOrDefault(res).point[ResTFlow]
+        _ <- ((metadataL >=> contentTypeL) := Option(cType)).liftM[ResT]
+      } yield d4).run
 
-    private def firstOrDefault(res: Res[ContentTypesProvided]): ContentType =  
-      (res map { (_: ContentTypesProvided).toNel.map(_.head._1) getOrElse defaultContentType }) | defaultContentType            
+    private def firstOrDefault(provided: ContentTypesProvided): ContentType =
+      provided.toNel.map(_.head._1) getOrElse defaultContentType
   }
 
   /* Acceptable Media Type Available? */
@@ -140,13 +136,15 @@ trait WebmachineDecisions {
     val name: String = "v3c4"
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = {
-      for {
-        acceptHeader <- ((requestHeadersL member Accept) map { _ getOrElse "*/*" })
-        providedResult <- (resource.contentTypesProvided(_: ReqRespData)).st
-        provided <- (providedResult getOrElse Nil).unzip._1.point[FlowState]
-        contentType <- Util.chooseMediaType(provided, acceptHeader).point[FlowState]
-        _ <- (metadataL >=> contentTypeL) := contentType
-      } yield contentType >| d4.point[Res] | HaltRes(406)
+      val act = for {
+        acceptHeader <- (requestHeadersL member Accept).map(_.getOrElse("*/*")).liftM[ResT]
+        providedResult <- resT[FlowState]((resource.contentTypesProvided(_: ReqRespData)).st)
+        contentType <- Util.chooseMediaType(providedResult.unzip._1, acceptHeader).point[ResTFlow]
+        _ <- ((metadataL >=> contentTypeL) := contentType).liftM[ResT]
+        decision <- resT[FlowState]((contentType >| result(d4) | halt(406)).point[FlowState])
+      } yield decision
+
+      act.run
     }
   }
 
