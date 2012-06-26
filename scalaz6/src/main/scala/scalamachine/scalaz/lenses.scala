@@ -9,6 +9,9 @@ object lenses {
   val baseUriL: Lens[ReqRespData,String] =
     Lens(_.baseUri, (d,u) => d copy (baseUri = u))
 
+  val rawPathL: Lens[ReqRespData,String] =
+    Lens(_.rawPath, (d,p) => d copy (rawPath = p))
+
   val statusCodeL: Lens[ReqRespData,Int] =
     Lens(_.statusCode, (d, c) => d copy (statusCode = c))
 

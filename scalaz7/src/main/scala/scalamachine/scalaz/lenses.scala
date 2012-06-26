@@ -9,6 +9,9 @@ object lenses {
   val baseUriL: ReqRespData @> String =
     lensg(d => u => d copy (baseUri = u), _.baseUri)
 
+  val rawPathL: ReqRespData @> String =
+    lensg(d => p => d copy (rawPath = p), _.rawPath)
+
   val statusCodeL: ReqRespData @> Int =
     lensg(d => c => d copy (statusCode = c), _.statusCode)
 
