@@ -3,6 +3,7 @@ package scalamachine.scalaz.res
 import scalamachine.core.{Res, ValueRes, HaltRes, ErrorRes, EmptyRes}
 import Res._
 import scalaz.{MonadTrans, Pointed, Monad, Functor}
+import scalaz.syntax.Ops
 
 case class ResT[M[_],A](run: M[Res[A]]) {
   self =>
@@ -23,9 +24,10 @@ case class ResT[M[_],A](run: M[Res[A]]) {
   def filter(p: A => Boolean)(implicit M: Monad[M]) = {
     ResT(M.bind(self.run) { res => M.point(res filter p) })
   }
+
 }
 
-object ResT extends ResTFunctions with ResTInstances
+object ResT extends ResTFunctions with ResTInstances with ResTSyntax
 
 trait ResTFunctions {
   import scalaz.~>
@@ -50,4 +52,16 @@ trait ResTInstances {
     implicit def apply[G[_]: Monad]: Monad[({type R[X]=ResT[G,X]})#R] =
       resTInstances[G]
   }
+}
+
+trait ResTSyntax {
+  implicit def resToOps[A](ra: Res[A]): ResOps[A] = new ResOps[A] {
+    val self = ra
+  }
+}
+
+sealed trait ResOps[A] extends Ops[Res[A]] {
+  import ResT.resT
+  import scalaz.syntax.pointed._
+  def liftT[M[_]](implicit M: Monad[M]): ResT[M, A] = resT[M](self.point[M])
 }

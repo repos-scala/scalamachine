@@ -26,7 +26,7 @@ case class ResT[M[_], A](run: M[Res[A]]) {
   }
 }
 
-object ResT extends ResTFunctions with ResTInstances
+object ResT extends ResTFunctions with ResTInstances with ResTSyntax
 
 trait ResTFunctions {
   def resT[M[_]] = new (({type λ[α] = M[Res[α]]})#λ ~> ({type λ[α] = ResT[M, α]})#λ) {
@@ -42,4 +42,15 @@ trait ResTInstances {
   implicit def resTBind[M[_]](implicit M: Monad[M]): Bind[({type R[X]=ResT[M,X]})#R] = new Bind[({type R[X]=ResT[M,X]})#R] {
     def bind[A,B](ra: ResT[M,A], f: A => ResT[M,B]): ResT[M,B] = ra flatMap f
   }
+}
+
+trait ResTSyntax {
+  implicit def resToOps[A](ra: Res[A]): ResOps[A] = new ResOps[A] {
+    val value = ra
+  }
+}
+
+sealed trait ResOps[A] extends NewType[Res[A]] {
+  import ResT.resT
+  def liftT[M[_]](implicit M: Monad[M]): ResT[M, A] = resT[M](value.pure[M])
 }
