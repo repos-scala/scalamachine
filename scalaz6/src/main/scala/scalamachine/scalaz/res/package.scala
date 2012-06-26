@@ -10,7 +10,7 @@ package object res {
   }
 
   implicit def resBind: Bind[Res] = new Bind[Res] {
-    def bind[A,B](ra: Res[A], f: A => Res[B]): Res[B] = ra flatMap f
+    def bind[A,B](ra: Res[A], f: A => Res[B]): Res[B] = Res.resOps(ra).flatMap(f) // explicitly convert to ops here to disambiguate implicit priority
   }
 
   implicit def resTraverse: Traverse[Res] = new Traverse[Res] {
@@ -21,5 +21,7 @@ package object res {
         case ErrorRes(e) => G.pure(ErrorRes(e))
         case _ => G.pure(EmptyRes)
       }
+
+    override def fmap[A, B](ra: Res[A], f: A => B) = Res.resOps(ra).map(f)
   }
 }
