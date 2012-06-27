@@ -5,7 +5,7 @@ import org.apache.commons.httpclient.util.{DateParseException, DateUtil}
 import java.util.Date
 import scala.util.control.Exception._
 
-object Util extends AcceptHeaderParsers {
+object Util {
 
   def parseDate(dateString: String): Option[Date] = catching(classOf[DateParseException]) opt DateUtil.parseDate(dateString)
 
@@ -75,23 +75,29 @@ object Util extends AcceptHeaderParsers {
     doChoose(acceptable) map { Option(_) } getOrElse tryAnyDefault
   }
 
-  def acceptToMediaTypes(acceptStr: String): List[MediaInfo] = (parseAll(acceptHeader, acceptStr) getOrElse Nil).sortWith(_.qVal > _.qVal)
+  def acceptToMediaTypes(acceptStr: String): List[MediaInfo] = {
+    val parser = new AcceptHeaderParser
+    parser.parseAll(parser.acceptHeader, acceptStr).getOrElse(Nil).sortWith(_.qVal > _.qVal)
+  }
 
-  def acceptCharsetToList(acceptCharsetStr: String): List[(String,Double)] =
-    parseAll(acceptCharsets, acceptCharsetStr) getOrElse Nil sortWith(_._2 > _._2)
+  def acceptCharsetToList(acceptCharsetStr: String): List[(String,Double)] = {
+    val parser = new AcceptHeaderParser
+    parser.parseAll(parser.acceptCharsets, acceptCharsetStr).getOrElse(Nil).sortWith(_._2 > _._2)
+  }
+
 }
 
 
-trait AcceptHeaderParsers extends JavaTokenParsers {
+class AcceptHeaderParser extends JavaTokenParsers {
 
-  protected def acceptHeader: Parser[List[MediaInfo]] = repsep(mediaInfo, ",")
+  def acceptHeader: Parser[List[MediaInfo]] = repsep(mediaInfo, ",")
+
+  def acceptCharsets: Parser[List[(String,Double)]] = repsep(acceptCharset, """,""".r)
 
   protected def mediaInfo: Parser[MediaInfo] = ((mediaRange | crappyMediaRange) ~ opt(qParam ~ rep(params))) ^^ {
     case range~None => MediaInfo(range,1.0,Nil)
     case range~Some(q~ap) => MediaInfo(range,q,ap)
   }
-
-  protected def acceptCharsets: Parser[List[(String,Double)]] = repsep(acceptCharset, """,""".r)
 
   protected def acceptCharset: Parser[(String,Double)] = """[^,;]+""".r ~ opt(qParam) ^^ { case h~t => (h,t.getOrElse(1.0)) }
 
