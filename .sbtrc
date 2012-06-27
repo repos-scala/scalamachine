@@ -1,2 +1,3 @@
 alias pub=;scalamachine-core/publish; scalamachine-netty/publish; scalamachine-lift/publish; scalamachine-scalaz6/publish; scalamachine-scalaz7/publish
+alias publocal=;scalamachine-core/publish-local; scalamachine-netty/publish-local; scalamachine-lift/publish-local; scalamachine-scalaz6/publish-local; scalamachine-scalaz7/publish-local
 alias pubsite=ghpages-push-site
