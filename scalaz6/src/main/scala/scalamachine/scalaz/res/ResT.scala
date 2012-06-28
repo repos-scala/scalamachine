@@ -39,6 +39,10 @@ trait ResTInstances {
     def pure[A](a: => A): ResT[M,A] = ResT[M,A](M.pure(a.pure[Res]))
   }
 
+  implicit def resTFunctor[M[_]](implicit F: Functor[M]): Functor[({type R[X]=ResT[M,X]})#R] = new Functor[({type R[X]=ResT[M,X]})#R] {
+    def fmap[A, B](r: ResT[M,A], f: A => B): ResT[M,B] = r map f
+  }
+
   implicit def resTBind[M[_]](implicit M: Monad[M]): Bind[({type R[X]=ResT[M,X]})#R] = new Bind[({type R[X]=ResT[M,X]})#R] {
     def bind[A,B](ra: ResT[M,A], f: A => ResT[M,B]): ResT[M,B] = ra flatMap f
   }
