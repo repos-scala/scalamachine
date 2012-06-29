@@ -12,6 +12,7 @@ import org.apache.commons.httpclient.util.DateUtil
 import java.util.Date
 import HTTPHeaders._
 import HTTPMethods._
+import ReqRespData.Metadata
 import scalamachine.internal.scalaz.iteratee.{IterateeT, EnumeratorT}
 import scalamachine.internal.scalaz.effect.IO
 

@@ -8,6 +8,7 @@ import Resource._
 import v3.WebmachineDecisions
 import HTTPHeaders._
 import HTTPMethods._
+import ReqRespData.Metadata
 
 class V3ColCDEFSpecs extends Specification with Mockito with SpecsHelper with WebmachineDecisions { def is =
   "Webmachine V3 Column C, D, E & F".title                                          ^

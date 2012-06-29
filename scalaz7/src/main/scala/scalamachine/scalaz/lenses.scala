@@ -3,6 +3,7 @@ package scalamachine.scalaz
 import scalaz.LensT._
 import scalaz.@>
 import scalamachine.core._
+import ReqRespData.{HostData,PathData}
 
 object lenses {
 

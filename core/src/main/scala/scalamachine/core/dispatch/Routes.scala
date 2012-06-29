@@ -1,6 +1,8 @@
 package scalamachine.core
 package dispatch
 
+import ReqRespData.{PathData, HostData}
+
 sealed trait RouteTerm extends (String => Boolean)
 sealed trait RoutePart extends RouteTerm
 

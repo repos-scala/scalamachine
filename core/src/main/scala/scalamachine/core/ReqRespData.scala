@@ -3,6 +3,7 @@ package scalamachine.core
 import scalamachine.internal.scalaz.LensT._
 import scalamachine.internal.scalaz.@>
 import HTTPMethods._
+import ReqRespData.{HostData,PathData,Metadata}
 
 /**
  * Represents the request being sent by the client as well as the response built by the resource
@@ -92,21 +93,21 @@ object ReqRespData {
   private[core] val pathL: ReqRespData @> String = lensg(d => p => d copy (pathParts = p.split("/").toList), _.path)
   private[core] val dispPathL: ReqRespData @> String = lensg(d => dp => d copy (pathData = d.pathData.copy(tokens = dp.split("/"))), _.dispPath)
   private[core] val doRedirectL: ReqRespData @> Boolean = lensg(d => b => d copy (doRedirect = b), _.doRedirect)
-}
 
-case class Metadata(contentType: Option[ContentType] = None, chosenCharset: Option[String] = None, chosenEncoding: Option[String] = None)
+  case class Metadata(contentType: Option[ContentType] = None, chosenCharset: Option[String] = None, chosenEncoding: Option[String] = None)
 
-object Metadata {
-  private[core] val contentTypeL: Metadata @> Option[ContentType] = lensg(m => ct => m copy (contentType = ct), _.contentType)
-  private[core] val chosenCharsetL: Metadata @> Option[String] = lensg(m => cc => m copy (chosenCharset = cc), _.chosenCharset)
-  private[core] val chosenEncodingL: Metadata @> Option[String] = lensg(m => enc => m copy (chosenEncoding = enc), _.chosenEncoding)
-}
+  object Metadata {
+    private[core] val contentTypeL: Metadata @> Option[ContentType] = lensg(m => ct => m copy (contentType = ct), _.contentType)
+    private[core] val chosenCharsetL: Metadata @> Option[String] = lensg(m => cc => m copy (chosenCharset = cc), _.chosenCharset)
+    private[core] val chosenEncodingL: Metadata @> Option[String] = lensg(m => enc => m copy (chosenEncoding = enc), _.chosenEncoding)
+  }
 
-case class PathData(tokens: Seq[String] = Nil, info: Map[Symbol,String] = Map()) {
-  val dispPath = tokens.mkString("/")
-}
+  case class PathData(tokens: Seq[String] = Nil, info: Map[Symbol,String] = Map()) {
+    val dispPath = tokens.mkString("/")
+  }
 
-case class HostData(tokens: Seq[String] = Nil, info: Map[Symbol,String] = Map()) {
-  val dispSubdomain = tokens.mkString(".")
+  case class HostData(tokens: Seq[String] = Nil, info: Map[Symbol,String] = Map()) {
+    val dispSubdomain = tokens.mkString(".")
+  }
 }
 

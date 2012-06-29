@@ -6,6 +6,7 @@ import mock._
 import scalamachine.core._
 import flow.Decision
 import HTTPMethods._
+import ReqRespData.Metadata
 
 trait SpecsHelper {
   this: Specification with Mockito =>
