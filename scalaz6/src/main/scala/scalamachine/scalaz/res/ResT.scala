@@ -52,9 +52,18 @@ trait ResTSyntax {
   implicit def resToOps[A](ra: Res[A]): ResOps[A] = new ResOps[A] {
     val value = ra
   }
+
+  implicit def maToResTTrans[M[_],A](ma: M[A]): ResTTrans[M,A] = new ResTTrans[M,A] {
+    val value = ma
+  }
 }
 
 sealed trait ResOps[A] extends NewType[Res[A]] {
   import ResT.resT
   def liftT[M[_]](implicit M: Monad[M]): ResT[M, A] = resT[M](value.pure[M])
+}
+
+trait ResTTrans[M[_], A] extends NewType[M[A]] {
+  import ResT._
+  def liftResT(implicit M: Monad[M]): ResT[M,A] = resT[M](M.fmap(value, (_: A).pure[Res]))
 }
