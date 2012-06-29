@@ -25,6 +25,14 @@ case class ResT[M[_],A](run: M[Res[A]]) {
     ResT(M.bind(self.run) { res => M.point(res filter p) })
   }
 
+  def orElse[B >: A](other: ResT[M, B])(implicit M: Monad[M]): ResT[M,B] =
+    ResT(
+      M.bind(self.run)(_ match {
+        case ValueRes(x) => M.point(ValueRes(x))
+        case _ => other.run
+      })
+    )
+
 }
 
 object ResT extends ResTFunctions with ResTInstances with ResTSyntax

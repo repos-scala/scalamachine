@@ -36,6 +36,11 @@ trait ResOps[A] {
     case EmptyRes => EmptyRes
   }
 
+  def orElse[B >: A](other: Res[B]): Res[B] = res match {
+    case ValueRes(r) => ValueRes(r)
+    case _ => other
+  }
+
   def getOrElse[B >: A](default: => B) = res match {
     case ValueRes(a) => a
     case _ => default

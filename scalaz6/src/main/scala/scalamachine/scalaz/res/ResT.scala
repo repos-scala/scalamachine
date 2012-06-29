@@ -24,6 +24,14 @@ case class ResT[M[_], A](run: M[Res[A]]) {
   def filter(p: A => Boolean)(implicit M: Monad[M]) = {
     ResT(M.bind(self.run, (res: Res[A]) => M.pure(res filter p)))
   }
+
+  def orElse[B >: A](other: ResT[M, B])(implicit M: Monad[M]): ResT[M,B] =
+    ResT(
+      M.bind(self.run, ((_: Res[A])  match {
+        case ValueRes(x) => M.pure(ValueRes(x))
+        case _ => other.run
+      }))
+    )
 }
 
 object ResT extends ResTFunctions with ResTInstances with ResTSyntax
