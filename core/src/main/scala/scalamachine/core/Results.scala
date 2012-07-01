@@ -149,7 +149,7 @@ trait ResFunctions {
 
 trait ResInternalInstances {
   import scalamachine.internal.scalaz.{Monad, Traverse, Applicative}
-  implicit val resScalazInstances = new Traverse[Res] with Monad[Res] {
+  implicit val resScalazInternalInstances = new Traverse[Res] with Monad[Res] {
     def point[A](a: => A): Res[A] = ValueRes(a)
     def traverseImpl[G[_],A,B](fa: Res[A])(f: A => G[B])(implicit G: Applicative[G]): G[Res[B]] =
       map(fa)(a => G.map(f(a))(ValueRes(_): Res[B])) match {
