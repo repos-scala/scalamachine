@@ -1,4 +1,5 @@
-package scalamachine.scalaz.res
+package scalamachine.scalaz
+package res
 
 import scalamachine.core._
 import Res._
@@ -53,6 +54,8 @@ trait ResTFunctions {
   def errorT[M[_] : Monad, A](body: HTTPBody): ResT[M,A] = error[A](body).liftT[M]
   def errorT[M[_] : Monad, A](err: Throwable): ResT[M,A] = error[A](err).liftT[M]
   def emptyT[M[_] : Monad, A]: ResT[M,A] = empty[A].liftT[M]
+
+  def resTRRS[A](v: ReqRespStateRes[A]): ResT[ReqRespState,A] = resT[ReqRespState](v)
 }
 
 

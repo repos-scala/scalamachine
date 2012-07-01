@@ -1,12 +1,10 @@
-package scalamachine.scalaz.res
+package scalamachine.scalaz
+package res
 
 import scalaz._
 import Scalaz._
 import scalamachine.core._
 import scalamachine.core.Res._
-import scalamachine.core.ErrorRes
-import scalamachine.core.ValueRes
-import scalamachine.core.HaltRes
 import scalamachine.core.ErrorRes
 import scalamachine.core.ValueRes
 import scalamachine.core.HaltRes
@@ -54,6 +52,8 @@ trait ResTFunctions {
   def errorT[M[_] : Monad, A](body: HTTPBody): ResT[M,A] = error[A](body).liftT[M]
   def errorT[M[_] : Monad, A](err: Throwable): ResT[M,A] = error[A](err).liftT[M]
   def emptyT[M[_] : Monad, A]: ResT[M,A] = empty[A].liftT[M]
+
+  def resTRRS[A](v: ReqRespStateRes[A]): ResT[ReqRespState,A] = resT[ReqRespState](v)
 }
 
 trait ResTInstances {
