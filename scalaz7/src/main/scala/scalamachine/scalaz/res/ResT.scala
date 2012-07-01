@@ -15,7 +15,7 @@ case class ResT[M[_],A](run: M[Res[A]]) {
   def flatMap[B](f: A => ResT[M,B])(implicit M: Monad[M]) = {
     ResT(M.bind(self.run) {
       case ValueRes(v) => f(v).run
-      case r @ HaltRes(_) => M.point(r: Res[B])
+      case r @ HaltRes(_,_) => M.point(r: Res[B])
       case r @ ErrorRes(_) => M.point(r: Res[B])
       case r @ EmptyRes => M.point(r: Res[B])
     })

@@ -10,7 +10,7 @@ package object res {
     def traverseImpl[G[_],A,B](fa: Res[A])(f: A => G[B])(implicit G: Applicative[G]): G[Res[B]] =
       map(fa)(a => G.map(f(a))(ValueRes(_): Res[B])) match {
         case ValueRes(r) => r
-        case HaltRes(c) => G.point(HaltRes(c))
+        case HaltRes(c,b) => G.point(HaltRes(c,b))
         case ErrorRes(e) => G.point(ErrorRes(e))
         case _ => G.point(EmptyRes)
       }

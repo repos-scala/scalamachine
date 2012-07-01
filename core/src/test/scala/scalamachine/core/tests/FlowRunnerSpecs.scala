@@ -26,6 +26,11 @@ class FlowRunnerSpecs extends Specification with Mockito { def is =
     "response code is set to 500"                                                   ! testDecisionResultsInErrorResCode500 ^
     "response body is set to value of error if not set"                             ! testDecisionResultsInErrorResBodySetIfMissing ^
     "response body is left unchanged if set"                                        ! testDecisionResultsInErrorResBodyNotSetIfExisting ^
+                                                                                    endp^
+  "Given a Decision that results in a HaltRes"                                      ^
+    "response code is set to given code"                                            ! testDecisionResultInHaltResUsingCodeGiven ^
+    "if response body is some and response body is not set, given body is set"      ! testDecisionResultsInHaltResBodySetIfMissing ^
+    "if response body is some and response body is set, given body not set"         ! testDecisionResultsInHaltResBodyNotSetIfExisting ^
                                                                                     end
 
   trait TestFlowTracking extends FlowRunnerBase {
@@ -105,5 +110,34 @@ class FlowRunnerSpecs extends Specification with Mockito { def is =
 
     decision(mock[Resource])(ReqRespData(responseBody = body.getBytes))._1.responseBody.stringValue must beEqualTo(body)
   }
+
+  def testDecisionResultInHaltResUsingCodeGiven = {
+    val decision = new Decision {
+      def name = "test"
+      override protected def decide(r: Resource) = State((d: ReqRespData) => (d,halt(400)))
+    }
+    decision(mock[Resource])(ReqRespData())._1.statusCode must beEqualTo(400)
+  }
+
+  def testDecisionResultsInHaltResBodySetIfMissing = {
+    val body = "abc"
+    val decision = new Decision {
+      def name = "test"
+      override protected def decide(r: Resource) = State((d: ReqRespData) => (d,halt(404, body)))
+    }
+
+    decision(mock[Resource])(ReqRespData())._1.responseBody.stringValue must beEqualTo(body)
+  }
+
+  def testDecisionResultsInHaltResBodyNotSetIfExisting = {
+    val body = "abc"
+    val decision = new Decision {
+      def name = "test"
+      override protected def decide(r: Resource) = State((d: ReqRespData) => (d,halt(404,body+"abc")))
+    }
+
+    decision(mock[Resource])(ReqRespData(responseBody = body.getBytes))._1.responseBody.stringValue must beEqualTo(body)
+  }
+
 
 }

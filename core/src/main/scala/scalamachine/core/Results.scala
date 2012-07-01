@@ -3,10 +3,9 @@ package scalamachine.core
 import scalamachine.internal.scalaz.{Functor, Monad}
 
 sealed trait Res[+A]
-// change to traits with apply, and equal/show instances?
 case class ValueRes[+A](value: A) extends Res[A]
+case class HaltRes(code: Int, body: Option[HTTPBody] = None) extends Res[Nothing]
 case class ErrorRes(errorBody: HTTPBody) extends Res[Nothing]
-case class HaltRes(code: Int) extends Res[Nothing]
 case object EmptyRes extends Res[Nothing]
 
 trait ResOps[A] {
@@ -16,7 +15,7 @@ trait ResOps[A] {
     res match {
       case ValueRes(r) => ValueRes(f(r))
       case ErrorRes(e) => ErrorRes(e)
-      case HaltRes(c)  => HaltRes(c)
+      case HaltRes(c,b)  => HaltRes(c,b)
       case EmptyRes => EmptyRes
     }
   }
@@ -24,7 +23,7 @@ trait ResOps[A] {
   def flatMap[B](f: A => Res[B]): Res[B] = res match {
     case ValueRes(v) => f(v)
     case ErrorRes(e) => ErrorRes(e)
-    case HaltRes(c) => HaltRes(c)
+    case HaltRes(c,b) => HaltRes(c,b)
     case EmptyRes => EmptyRes
   }
 
@@ -41,7 +40,7 @@ trait ResOps[A] {
   def filter(p: A => Boolean): Res[A] = res match {
     case ValueRes(a) => if (p(a)) ValueRes(a) else EmptyRes
     case ErrorRes(e) => ErrorRes(e)
-    case HaltRes(c) => HaltRes(c)
+    case HaltRes(c,b) => HaltRes(c,b)
     case EmptyRes => EmptyRes
   }
 
@@ -63,9 +62,11 @@ object Res extends ResFunctions with ResInternalInstances {
 }
 
 trait ResFunctions {
-  def result[A](a: => A): Res[A] = ValueRes(a)
-  def halt[A](code: => Int): Res[A] = HaltRes(code)
-  def error[A](body: => HTTPBody): Res[A] = ErrorRes(body)
+  def result[A](a: A): Res[A] = ValueRes(a)
+  def halt[A](code: Int): Res[A] = HaltRes(code)
+  def halt[A](code: Int, body: HTTPBody): Res[A] = HaltRes(code, Option(body))
+  def halt[A](code: Int, err: Throwable): Res[A] = HaltRes(code, Option(err.getMessage))
+  def error[A](body: HTTPBody): Res[A] = ErrorRes(body)
   def error[A](e: Throwable): Res[A] = error(e.getMessage)
   def empty[A]: Res[A] = EmptyRes
 }
@@ -77,7 +78,7 @@ trait ResInternalInstances {
     def traverseImpl[G[_],A,B](fa: Res[A])(f: A => G[B])(implicit G: Applicative[G]): G[Res[B]] =
       map(fa)(a => G.map(f(a))(ValueRes(_): Res[B])) match {
         case ValueRes(r) => r
-        case HaltRes(c) => G.point(HaltRes(c))
+        case HaltRes(c, b) => G.point(HaltRes(c,b))
         case ErrorRes(e) => G.point(ErrorRes(e))
         case _ => G.point(EmptyRes)
       }
@@ -95,7 +96,7 @@ case class ResTransformer[M[_],A](run: M[Res[A]]) {
   def flatMap[B](f: A => ResTransformer[M,B])(implicit M: Monad[M]) = {
     ResTransformer(M.bind(self.run) {
       case ValueRes(v) => f(v).run
-      case r @ HaltRes(_) => M.point(r: Res[B])
+      case r @ HaltRes(_,_) => M.point(r: Res[B])
       case r @ ErrorRes(_) => M.point(r: Res[B])
       case r @ EmptyRes => M.point(r: Res[B])
     })
