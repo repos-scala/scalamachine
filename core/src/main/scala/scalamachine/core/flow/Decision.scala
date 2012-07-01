@@ -23,10 +23,10 @@ trait Decision {
 
   protected def decide(resource: Resource): FlowState[Res[Decision]]
 
-  private def setError(error: Any) = for {
+  private def setError(errorBody: HTTPBody) = for {
     _ <- statusCodeL := 500
     body <- respBodyL
-    _ <- if (body.isEmpty) respBodyL := error.toString else respBodyL.st
+    _ <- if (body.isEmpty) respBodyL := errorBody else respBodyL.st
   } yield ()
 
 

@@ -4,18 +4,10 @@ import scalamachine.internal.scalaz.{Functor, Monad}
 
 sealed trait Res[+A]
 // change to traits with apply, and equal/show instances?
-case class ValueRes[+A](value: A) extends Res[A] {
-  val isEmpty = false
-}
-case class ErrorRes(error: Any) extends Res[Nothing] {
-  val isEmpty = true
-}
-case class HaltRes(code: Int) extends Res[Nothing] {
-  val isEmpty = true
-}
-case object EmptyRes extends Res[Nothing] {
-  val isEmpty = true
-}
+case class ValueRes[+A](value: A) extends Res[A]
+case class ErrorRes(errorBody: HTTPBody) extends Res[Nothing]
+case class HaltRes(code: Int) extends Res[Nothing]
+case object EmptyRes extends Res[Nothing]
 
 trait ResOps[A] {
   def res: Res[A]
@@ -73,7 +65,8 @@ object Res extends ResFunctions with ResInternalInstances {
 trait ResFunctions {
   def result[A](a: => A): Res[A] = ValueRes(a)
   def halt[A](code: => Int): Res[A] = HaltRes(code)
-  def error[A](reason: => Any): Res[A] = ErrorRes(reason)
+  def error[A](body: => HTTPBody): Res[A] = ErrorRes(body)
+  def error[A](e: Throwable): Res[A] = error(e.getMessage)
   def empty[A]: Res[A] = EmptyRes
 }
 
