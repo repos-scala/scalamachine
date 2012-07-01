@@ -2,8 +2,14 @@ package scalamachine.scalaz.res
 
 import scalaz._
 import Scalaz._
-import scalamachine.core.{Res, ValueRes, HaltRes, ErrorRes, EmptyRes}
-import Res._
+import scalamachine.core._
+import scalamachine.core.Res._
+import scalamachine.core.ErrorRes
+import scalamachine.core.ValueRes
+import scalamachine.core.HaltRes
+import scalamachine.core.ErrorRes
+import scalamachine.core.ValueRes
+import scalamachine.core.HaltRes
 
 case class ResT[M[_], A](run: M[Res[A]]) {
   self =>
@@ -37,9 +43,17 @@ case class ResT[M[_], A](run: M[Res[A]]) {
 object ResT extends ResTFunctions with ResTInstances with ResTSyntax
 
 trait ResTFunctions {
+  import ResT._
   def resT[M[_]] = new (({type λ[α] = M[Res[α]]})#λ ~> ({type λ[α] = ResT[M, α]})#λ) {
     def apply[A](a: M[Res[A]]) = new ResT[M, A](a)
   }
+
+  def resultT[M[_] : Monad, A](value: A): ResT[M,A] = result(value).liftT[M]
+  def haltT[M[_] : Monad, A](code: Int): ResT[M,A] = halt[A](code).liftT[M]
+  def haltT[M[_] : Monad, A](code: Int, body: HTTPBody): ResT[M,A] = halt[A](code, body).liftT[M]
+  def errorT[M[_] : Monad, A](body: HTTPBody): ResT[M,A] = error[A](body).liftT[M]
+  def errorT[M[_] : Monad, A](err: Throwable): ResT[M,A] = error[A](err).liftT[M]
+  def emptyT[M[_] : Monad, A]: ResT[M,A] = empty[A].liftT[M]
 }
 
 trait ResTInstances {
