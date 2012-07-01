@@ -17,7 +17,7 @@ package object res {
     def traverse[G[_],A,B](f: A => G[B], fa: Res[A])(implicit G: Applicative[G]): G[Res[B]] =
       fmap(fa, (a: A) => G.fmap(f(a), (b: B) => (ValueRes(b): Res[B]))) match {
         case ValueRes(r) => r
-        case HaltRes(c) => G.pure(HaltRes(c))
+        case HaltRes(c,b) => G.pure(HaltRes(c,b))
         case ErrorRes(e) => G.pure(ErrorRes(e))
         case _ => G.pure(EmptyRes)
       }

@@ -2,6 +2,7 @@ package scalamachine.core
 package flow
 
 import scalamachine.internal.scalaz.State
+import scalamachine.internal.scalaz.syntax.monad._
 
 
 trait Decision {
@@ -14,19 +15,19 @@ trait Decision {
     for {
       res <- decide(resource)
       _ <- res match {
-        case HaltRes(code) => statusCodeL := code
-        case ErrorRes(error) => setError(error)
-        case _ => statusCodeL.st
+        case HaltRes(code, body) => setError(code, body)
+        case ErrorRes(error) => setError(500, Option(error))
+        case _ => ().point[FlowState]
       }
     } yield res.toOption
   }
 
   protected def decide(resource: Resource): FlowState[Res[Decision]]
 
-  private def setError(error: Any) = for {
-    _ <- statusCodeL := 500
-    body <- respBodyL
-    _ <- if (body.isEmpty) respBodyL := error.toString else respBodyL.st
+  private def setError(code: Int, errorBody: Option[HTTPBody]) = for {
+    _ <- statusCodeL := code
+    body <- respBodyL.st
+    _ <- if (body.isEmpty) errorBody.map(respBodyL := _).getOrElse(respBodyL.st) else respBodyL.st
   } yield ()
 
 

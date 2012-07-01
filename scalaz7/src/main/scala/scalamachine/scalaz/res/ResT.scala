@@ -1,9 +1,13 @@
-package scalamachine.scalaz.res
+package scalamachine.scalaz
+package res
 
-import scalamachine.core.{Res, ValueRes, HaltRes, ErrorRes, EmptyRes}
+import scalamachine.core._
 import Res._
 import scalaz.{MonadTrans, Pointed, Monad, Functor}
 import scalaz.syntax.Ops
+import scalamachine.core.ErrorRes
+import scalamachine.core.ValueRes
+import scalamachine.core.HaltRes
 
 case class ResT[M[_],A](run: M[Res[A]]) {
   self =>
@@ -15,7 +19,7 @@ case class ResT[M[_],A](run: M[Res[A]]) {
   def flatMap[B](f: A => ResT[M,B])(implicit M: Monad[M]) = {
     ResT(M.bind(self.run) {
       case ValueRes(v) => f(v).run
-      case r @ HaltRes(_) => M.point(r: Res[B])
+      case r @ HaltRes(_,_) => M.point(r: Res[B])
       case r @ ErrorRes(_) => M.point(r: Res[B])
       case r @ EmptyRes => M.point(r: Res[B])
     })
@@ -39,9 +43,19 @@ object ResT extends ResTFunctions with ResTInstances with ResTSyntax
 
 trait ResTFunctions {
   import scalaz.~>
+  import ResT._
   def resT[M[_]] = new (({type λ[α] = M[Res[α]]})#λ ~> ({type λ[α] = ResT[M, α]})#λ) {
     def apply[A](a: M[Res[A]]) = new ResT[M, A](a)
   }
+
+  def resultT[M[_] : Monad, A](value: A): ResT[M,A] = result(value).liftT[M]
+  def haltT[M[_] : Monad, A](code: Int): ResT[M,A] = halt[A](code).liftT[M]
+  def haltT[M[_] : Monad, A](code: Int, body: HTTPBody): ResT[M,A] = halt[A](code, body).liftT[M]
+  def errorT[M[_] : Monad, A](body: HTTPBody): ResT[M,A] = error[A](body).liftT[M]
+  def errorT[M[_] : Monad, A](err: Throwable): ResT[M,A] = error[A](err).liftT[M]
+  def emptyT[M[_] : Monad, A]: ResT[M,A] = empty[A].liftT[M]
+
+  def resTRRS[A](v: ReqRespStateRes[A]): ResT[ReqRespState,A] = resT[ReqRespState](v)
 }
 
 
