@@ -230,7 +230,7 @@ trait WebmachineDecisions {
 
     protected def decide(resource: Resource): FlowState[Res[Decision]] = {
       val variances = for {
-        variances <- resT[FlowState]((resource.variances(_: ReqRespData)).st)
+        extraVariances <- resT[FlowState]((resource.variances(_: ReqRespData)).st)
         ctypes <- resT[FlowState]((resource.contentTypesProvided(_: ReqRespData)).st)
         charsets <- resT[FlowState]((resource.charsetsProvided(_: ReqRespData)).st)
         encodings <- resT[FlowState]((resource.encodingsProvided(_: ReqRespData)).st)
@@ -239,12 +239,15 @@ trait WebmachineDecisions {
           (ctypes.length, "Accept"),
           (charsets.getOrElse(Nil).length, "Accept-Charset"),
           (encodings.getOrElse(Nil).length, "Accept-Encoding"))
-        ((defaults filter { _._1 > 1}).unzip._2 ++ variances).mkString(",")
+        ((defaults filter { _._1 > 1}).unzip._2 ++ extraVariances).mkString(",")
       }
 
       val act = for {
         vary <- variances
-        _ <- (responseHeadersL += ((Vary, vary))).liftM[ResT]
+        _ <- (
+          if (vary.length > 0) (responseHeadersL += ((Vary, vary)))
+          else responseHeadersL.st
+      ).liftM[ResT]
         resourceExists <- resT[FlowState]((resource.resourceExists(_: ReqRespData)).st)
       } yield if (resourceExists) g8 else h7
 
