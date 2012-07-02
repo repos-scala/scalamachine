@@ -39,11 +39,11 @@ object ScalamachineExample extends FinagleWebmachineV3 {
     } serve new EchoPostBodyResource
   }
 
-  route {
+/*  route {
     hostEndingWith {
       "localhost"
     } serve new EmptyResource
-  }
+  }*/
 
 
   override val flowRunner = new FlowRunner with FlowLogging
