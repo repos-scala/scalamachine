@@ -13,7 +13,9 @@ import scalamachine.internal.scalaz.{Functor, Monad}
  *
  * To create instances of `Res` use [[scalamachine.core.Res.result]], [[scalamachine.core.Res.halt]],
  * [[scalamachine.core.Res.error]], and [[scalamachine.core.Res.empty]]
- @tparam A - the type of the value that may be contained in this `Res`
+ *
+ * @tparam A - the type of the value that may be contained in this `Res`
+ * @see [[scalamachine.core.ResOps]]
  */
 sealed trait Res[+A]
 
@@ -80,6 +82,18 @@ trait ResOps[A] {
     case EmptyRes => EmptyRes
   }
 
+  /**
+   * returns a new `Res` containing the value if the value
+   * exists and applying the predicate to the value returns
+   * `true`. Otherwise an `EmptyRes` is returned
+   */
+  def filter(predicate: A => Boolean): Res[A] = res match {
+    case ValueRes(a) => if (predicate(a)) ValueRes(a) else EmptyRes
+    case ErrorRes(e) => ErrorRes(e)
+    case HaltRes(c,b) => HaltRes(c,b)
+    case EmptyRes => EmptyRes
+  }
+
 
   /**
    * Returns new `Res` containing value of this res if it exists,
@@ -102,16 +116,9 @@ trait ResOps[A] {
   }
 
   /**
-   * returns a new `Res` containing the value if the value
-   * exists and applying the predicate to the value returns
-   * `true`. Otherwise an `EmptyRes` is returned
+   * Turns a `Res[Res[A]]` into a `Res[A]`
    */
-  def filter(predicate: A => Boolean): Res[A] = res match {
-    case ValueRes(a) => if (predicate(a)) ValueRes(a) else EmptyRes
-    case ErrorRes(e) => ErrorRes(e)
-    case HaltRes(c,b) => HaltRes(c,b)
-    case EmptyRes => EmptyRes
-  }
+  def flatten[B](implicit ev: A <:< Res[B]): Res[B] = flatMap(a => a)
 
   /**
    * @see [[scalamachine.core.ResOps.getOrElse]]
