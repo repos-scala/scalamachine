@@ -37,6 +37,10 @@ case class ResT[M[_],A](run: M[Res[A]]) {
       })
     )
 
+  def flattenA[B](implicit ev: A <:< Res[B], M: Functor[M]): ResT[M,B] =
+    ResT(M.map(self.run)((_: Res[A]).flatten))
+
+
 }
 
 object ResT extends ResTFunctions with ResTInstances with ResTSyntax
