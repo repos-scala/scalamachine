@@ -100,7 +100,7 @@ trait ResOps[A] {
    * otherwise the other `Res` is returned
    * @param other - the `Res` to return if the other is empty
    */
-  def orElse[B >: A](other: Res[B]): Res[B] = res match {
+  def orElse[B >: A](other: => Res[B]): Res[B] = res match {
     case ValueRes(r) => ValueRes(r)
     case _ => other
   }
