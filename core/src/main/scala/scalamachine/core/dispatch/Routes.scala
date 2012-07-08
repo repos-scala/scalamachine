@@ -117,6 +117,27 @@ sealed trait Route extends PartialFunction[ReqRespData, (Resource, ReqRespData)]
     } else None
   }
 
+  override def toString: String = {
+    val hostPartsStr =
+      if (hostTerms.length > 0)
+        hostTerms.map {
+          case StringPart(s) => s
+          case DataPart(s) => s.toString()
+          case StarTerm => "*"
+        } mkString "."
+      else "[HOST]"
+    val pathPartsStr =
+      if (pathTerms.length > 0)
+        pathTerms.map {
+          case StringPart(s) => s
+          case DataPart(s) => s.toString()
+          case StarTerm => "*"
+        } mkString "/"
+      else "[PATH]"
+
+    "%s/%s" format (hostPartsStr, pathPartsStr)
+  }
+
 }
 
 

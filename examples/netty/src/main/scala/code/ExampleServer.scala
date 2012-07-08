@@ -9,8 +9,9 @@ import java.net.InetSocketAddress
 import scalamachine.core.dispatch.Route._
 import resources.{LocalFileResource, EmptyResource, UnavailableResource}
 import scalamachine.core.flow.{FlowLogging, FlowRunner}
+import scalamachine.core.dispatch.DispatchLogging
 
-object ScalamachineExample extends NettyWebmachineV3 {
+object ScalamachineExample extends NettyWebmachineV3 with DispatchLogging {
 
   route {
     pathMatching {
@@ -30,7 +31,7 @@ object ScalamachineExample extends NettyWebmachineV3 {
     } serve new LocalFileResource
   }
 
-  override val flowRunner = new FlowRunner with FlowLogging
+  override val flowRunner = new FlowRunner //with FlowLogging
 }
 
 object ExampleServer extends App {

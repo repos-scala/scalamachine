@@ -10,11 +10,10 @@ import scalamachine.netty.FixedLengthResponse
 class FinagleWebmachineService(dispatchTable: DispatchTable[HttpRequest,NettyHttpResponse,Future])
   extends Service[HttpRequest, HttpResponse] {
   def apply(request: HttpRequest): Future[HttpResponse] = {
-    if (dispatchTable.isDefinedAt(request)) dispatchTable(request) flatMap {
+    dispatchTable(request).map(_.flatMap {
       case FixedLengthResponse(r) => Future(r)
-      case _ => Future.exception(new Throwable("scalamachine-finagle does not support streaming responses"))
-    }
-    else Future.value(new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND))
+      case _ => Future.exception(new Exception("scalamachine-finagle does not support streaming responses"))
+    }).getOrElse(Future.value(new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND)))
 
   }
 }

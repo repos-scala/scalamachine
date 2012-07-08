@@ -3,7 +3,11 @@ package dispatch
 
 import flow._
 
-trait DispatchTable[-A, B, +W[_]] extends PartialFunction[A, W[B]] {
+trait Dispatch {
+  def perform(route: Route, resource: Resource, data: ReqRespData): ReqRespData
+}
+
+trait DispatchTable[-A, B, +W[_]] extends Dispatch {
 
   private var _routes = Vector.empty[Route]
 
@@ -15,25 +19,25 @@ trait DispatchTable[-A, B, +W[_]] extends PartialFunction[A, W[B]] {
     _routes ++= Vector(routes:_*)
   }
 
-  def isDefinedAt(req: A): Boolean = _routes.find(_.isDefinedAt(toData(req))).isDefined
-
-  def apply(req: A): W[B] = {
+  def apply(req: A): Option[W[B]] = {
     val data = toData(req)
-    wrap {
-      fromData {
-        _routes.find(_.isDefinedAt(data))
-          .map(route => {
+
+    _routes
+      .find(_.isDefinedAt(data))
+      .map(
+        route => {
           val (resource, finalData) = route(data)
-          flowRunner.run(firstDecision, resource, finalData)
-        })
-          .getOrElse(handle404(data))
-      }
-    }
+          wrap(fromData(perform(route, resource, data)))
+        }
+      )
   }
 
-  // when no route matches
-  // container implementations that support pass through will never need to call this function if they properly use DispatchTable.isDefinedAt
-  def handle404(data: ReqRespData): ReqRespData = data.setStatusCode(404)
+
+  // although not used here the route is passed to this function
+  // so traits stacked on this one can use the information in the route
+  def perform(route: Route, resource: Resource, data: ReqRespData): ReqRespData = {
+    flowRunner.run(firstDecision, resource, data)
+  }
 
   // default flow runner
   def flowRunner = new FlowRunner

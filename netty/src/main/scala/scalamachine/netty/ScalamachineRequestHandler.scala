@@ -19,7 +19,7 @@ class ScalamachineRequestHandler(dispatchTable: DispatchTable[HttpRequest, Netty
 
     if (HttpHeaders.is100ContinueExpected(request)) send100Continue(evt)
     else {
-      val response: NettyHttpResponse = dispatchTable.lift(request) getOrElse {
+      val response: NettyHttpResponse = dispatchTable(request) getOrElse {
         FixedLengthResponse(new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND))
       }
 
