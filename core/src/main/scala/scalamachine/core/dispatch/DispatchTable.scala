@@ -27,7 +27,7 @@ trait DispatchTable[-A, B, +W[_]] extends Dispatch {
       .map(
         route => {
           val (resource, finalData) = route(data)
-          wrap(fromData(perform(route, resource, data)))
+          wrap(fromData(perform(route, resource, finalData)))
         }
       )
   }
