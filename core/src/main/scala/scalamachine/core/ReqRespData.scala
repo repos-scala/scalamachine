@@ -4,6 +4,7 @@ import scalamachine.internal.scalaz.LensT._
 import scalamachine.internal.scalaz.@>
 import HTTPMethods._
 import ReqRespData.{HostData,PathData,Metadata}
+import java.net.URL
 
 /**
  * Represents the request being sent by the client as well as the response built by the resource
@@ -57,6 +58,8 @@ case class ReqRespData(baseUri: String = "",
 
   private[scalamachine] def setPathData(newPathData: PathData) = copy(pathData = newPathData)
   private[scalamachine] def setHostData(newHostData: HostData) = copy(hostData = newHostData)
+
+  val requestUrl = new URL("%s/%s".format(baseUri, rawPath))
 
   val path = pathParts.mkString("/")
   val host = hostParts.mkString(".")
